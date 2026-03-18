@@ -60,11 +60,11 @@ const Facilities = () => {
 
   return (
     <div className="bg-gradient-to-br from-black via-[#120000] to-black text-white">
-      <PageHeader
+      {/* <PageHeader
         title="Facilities"
         subtitle="World-class gym equipment & training zones"
         bgImage="https://images.unsplash.com/photo-1571902943202-507ec2618e8f"
-      />
+      /> */}
 
       {/* FACILITIES GRID */}
       <PageContainer>

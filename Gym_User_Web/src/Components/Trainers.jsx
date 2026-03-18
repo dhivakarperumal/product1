@@ -46,11 +46,11 @@ export default function Trainers() {
 
   return (
     <>
-      <PageHeader
+      {/* <PageHeader
         title="Trainers"
         subtitle="Certified trainers dedicated to your strength, health, and transformation"
         bgImage="https://images.unsplash.com/photo-1599058917212-d750089bc07e?auto=format&fit=crop&w=1600&q=80"
-      />
+      /> */}
 
       <section className="bg-[#05060c] py-15">
         <PageContainer>

@@ -3,11 +3,15 @@ import DietChart from "../WorkoutsDiet/DietChart";
 import Workouts from "../WorkoutsDiet/Workouts";
 import UserOrders from "./UserOrders";
 import UserAddresses from "./UserAddresses";
-import UserNotifications from "./UserNotifications"; // Added
+import UserNotifications from "./UserNotifications";
 import api from "../api";
 import { useAuth } from "../PrivateRouter/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import MemberSBuyPlans from "../WorkoutsDiet/MemberBuyPlans";
+import Products from "../Pages/Products";
+import Pricing from "./Pricing";
+import Services from "./Services";
+import Facilities from "./Facilities";
 import cache from "../cache";
 
 const Account = () => {
@@ -85,7 +89,12 @@ const Account = () => {
 
     { key: "orders", label: "My Orders" },
     { key: "address", label: "Address" },
-    { key: "notifications", label: "Notifications" }, // Added
+    { key: "notifications", label: "Notifications" },
+    { key: "products", label: "Products" },
+    { key: "pricing", label: "Pricing" },
+    { key: "services", label: "Services" },
+    { key: "facilities", label: "Facilities" },
+
   ];
 
   /* ================= CONTENT ================= */
@@ -136,8 +145,20 @@ const Account = () => {
       case "workouts":
         return <Workouts />;
 
-      case "notifications": // Added
+      case "notifications":
         return <UserNotifications userEmail={userInfo.email} />;
+
+      case "products":
+        return <Products />;
+
+      case "pricing":
+        return <Pricing />;
+
+      case "services":
+        return <Services />;
+      
+      case "facilities":
+        return <Facilities />;
 
       default:
         return null;

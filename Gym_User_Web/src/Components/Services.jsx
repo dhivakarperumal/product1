@@ -51,11 +51,11 @@ export default function Services() {
 
   return (
     <>
-      <PageHeader
+      {/* <PageHeader
         title="Services"
         subtitle="Personalized fitness services designed for every goal and body type"
         bgImage="https://images.unsplash.com/photo-1571902943202-507ec2618e8f?auto=format&fit=crop&w=1600&q=80"
-      />
+      /> */}
 
       <section className="bg-[#05060c] py-20">
         <PageContainer>

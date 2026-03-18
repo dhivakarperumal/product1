@@ -76,11 +76,11 @@ export default function Products() {
 
   return (
     <div className="bg-black text-white min-h-screen flex flex-col">
-      <PageHeader
+      {/* <PageHeader
         title="Products"
         subtitle="Browse our catalog"
         bgImage="https://images.unsplash.com/photo-1571902943202-507ec2618e8f"
-      />
+      /> */}
 
       <PageContainer>
         {loading ? (

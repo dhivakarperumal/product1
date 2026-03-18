@@ -93,11 +93,11 @@ const Pricing = () => {
 
   return (
     <div className="bg-black text-white">
-      <PageHeader
+      {/* <PageHeader
         title="Pricing"
         subtitle="Flexible plans designed for every fitness goal and lifestyle"
         bgImage="https://images.unsplash.com/photo-1554284126-aa88f22d8b74?auto=format&fit=crop&w=1600&q=80"
-      />
+      /> */}
 
       {/* 🔥 Duration Filter */}
       <div className="my-10 overflow-x-auto scrollbar-hide">
