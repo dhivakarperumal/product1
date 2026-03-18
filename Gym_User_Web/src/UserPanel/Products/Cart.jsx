@@ -70,7 +70,7 @@ const Cart = () => {
   // ✅ EMPTY CART
   if (items.length === 0) {
     return (
-      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center gap-6">
+      <div className="min-h-screen text-white flex flex-col items-center justify-center gap-6">
         <ShoppingCart size={40} className="text-red-500" />
 
         <p className="text-xl text-white/70">
@@ -88,7 +88,7 @@ const Cart = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
+    <div className="min-h-screen text-white p-6">
       <h1 className="text-2xl font-bold text-red-500 mb-6">
         Cart
       </h1>

@@ -84,7 +84,7 @@ const Pricing = () => {
   }, [user]);
 
   return (
-    <div className="bg-black text-white min-h-screen">
+    <div className=" text-white min-h-screen">
 
       {/* FILTER */}
       <div className="my-10 overflow-x-auto">
