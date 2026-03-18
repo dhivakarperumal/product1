@@ -1,0 +1,14 @@
+-- Migration 0012: Create reviews table
+
+CREATE TABLE IF NOT EXISTS reviews (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  rating INT NOT NULL DEFAULT 0,
+  message TEXT,
+  image LONGTEXT,
+  status TINYINT(1) DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_reviews_status ON reviews(status);

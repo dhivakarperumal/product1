@@ -1,0 +1,29 @@
+﻿[dotenv@17.3.1] injecting env (10) from .env -- tip: ΓÜÖ∩╕Å  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ΓÜÖ∩╕Å  write to custom object with { processEnv: myObject }
+DB CONFIG: {
+  host: '50.62.148.201',
+  database: 'gymwebsite_db',
+  user: 'gymwebsite_db'
+}
+[
+  {
+    "id": 1,
+    "name": "Main Branch",
+    "location": "City Center",
+    "phone": "+91-XXX-XXX-XXXX",
+    "email": "main@gym.com",
+    "manager_name": "Manager Name",
+    "created_at": "2026-02-27T22:17:06.000Z",
+    "updated_at": "2026-02-27T22:17:06.000Z"
+  },
+  {
+    "id": 2,
+    "name": "Main Branch",
+    "location": "City Center",
+    "phone": "+91-XXX-XXX-XXXX",
+    "email": "main@gym.com",
+    "manager_name": "Manager Name",
+    "created_at": "2026-02-27T22:17:21.000Z",
+    "updated_at": "2026-02-27T22:17:21.000Z"
+  }
+]

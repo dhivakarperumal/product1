@@ -1,0 +1,17 @@
+CREATE TABLE IF NOT EXISTS memberships (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  userId INT,
+  planId INT,
+  planName VARCHAR(100),
+  pricePaid DECIMAL(10,2),
+  duration INT,
+  startDate DATE,
+  endDate DATE,
+  paymentId VARCHAR(100),
+  paymentMode VARCHAR(50),
+  status VARCHAR(50) DEFAULT 'active',
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (planId) REFERENCES gym_plans(id) ON DELETE SET NULL
+);

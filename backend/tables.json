@@ -1,0 +1,84 @@
+﻿[dotenv@17.3.1] injecting env (10) from .env -- tip: ΓÜÖ∩╕Å  write to custom object with { processEnv: myObject }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ΓÜÖ∩╕Å  override existing env vars with { override: true }
+DB CONFIG: {
+  host: '50.62.148.201',
+  database: 'gymwebsite_db',
+  user: 'gymwebsite_db'
+}
+[
+  {
+    "Tables_in_gymwebsite_db": "attendance"
+  },
+  {
+    "Tables_in_gymwebsite_db": "branches"
+  },
+  {
+    "Tables_in_gymwebsite_db": "cart_items"
+  },
+  {
+    "Tables_in_gymwebsite_db": "counters"
+  },
+  {
+    "Tables_in_gymwebsite_db": "diet_plans"
+  },
+  {
+    "Tables_in_gymwebsite_db": "enquiries"
+  },
+  {
+    "Tables_in_gymwebsite_db": "gym_equipment"
+  },
+  {
+    "Tables_in_gymwebsite_db": "gym_facilities"
+  },
+  {
+    "Tables_in_gymwebsite_db": "gym_members"
+  },
+  {
+    "Tables_in_gymwebsite_db": "gym_plans"
+  },
+  {
+    "Tables_in_gymwebsite_db": "members"
+  },
+  {
+    "Tables_in_gymwebsite_db": "memberships"
+  },
+  {
+    "Tables_in_gymwebsite_db": "message_history"
+  },
+  {
+    "Tables_in_gymwebsite_db": "order_items"
+  },
+  {
+    "Tables_in_gymwebsite_db": "orders"
+  },
+  {
+    "Tables_in_gymwebsite_db": "plans"
+  },
+  {
+    "Tables_in_gymwebsite_db": "products"
+  },
+  {
+    "Tables_in_gymwebsite_db": "reviews"
+  },
+  {
+    "Tables_in_gymwebsite_db": "schema_migrations"
+  },
+  {
+    "Tables_in_gymwebsite_db": "services"
+  },
+  {
+    "Tables_in_gymwebsite_db": "staff"
+  },
+  {
+    "Tables_in_gymwebsite_db": "trainer_assignments"
+  },
+  {
+    "Tables_in_gymwebsite_db": "user_addresses"
+  },
+  {
+    "Tables_in_gymwebsite_db": "users"
+  },
+  {
+    "Tables_in_gymwebsite_db": "workout_programs"
+  }
+]

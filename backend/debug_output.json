@@ -1,0 +1,101 @@
+{
+  "trainer_users": [
+    {
+      "id": 65,
+      "username": "thenuga",
+      "email": "thenuga@gmail.com",
+      "role": "trainer"
+    },
+    {
+      "id": 74,
+      "username": "nish",
+      "email": "nish@gmail.com",
+      "role": "trainer"
+    },
+    {
+      "id": 76,
+      "username": "karthick1",
+      "email": "karthick1@gmail.com",
+      "role": "trainer"
+    }
+  ],
+  "assignments": [
+    {
+      "id": 26,
+      "trainer_id": 9,
+      "trainer_name": "Thenuga",
+      "status": "active"
+    },
+    {
+      "id": 27,
+      "trainer_id": 9,
+      "trainer_name": "Thenuga",
+      "status": "active"
+    },
+    {
+      "id": 28,
+      "trainer_id": 9,
+      "trainer_name": "Thenuga",
+      "status": "active"
+    },
+    {
+      "id": 29,
+      "trainer_id": 9,
+      "trainer_name": "Thenuga",
+      "status": "active"
+    },
+    {
+      "id": 30,
+      "trainer_id": 9,
+      "trainer_name": "Thenuga",
+      "status": "active"
+    },
+    {
+      "id": 31,
+      "trainer_id": 10,
+      "trainer_name": "Nishanth",
+      "status": "active"
+    },
+    {
+      "id": 32,
+      "trainer_id": 10,
+      "trainer_name": "Nishanth",
+      "status": "active"
+    },
+    {
+      "id": 33,
+      "trainer_id": 11,
+      "trainer_name": "Karthick",
+      "status": "active"
+    },
+    {
+      "id": 34,
+      "trainer_id": 11,
+      "trainer_name": "Karthick",
+      "status": "active"
+    }
+  ],
+  "all_staff": [
+    {
+      "id": 9,
+      "name": "Thenuga",
+      "email": "thenuga@gmail.com",
+      "username": "thenuga",
+      "role": "trainer"
+    },
+    {
+      "id": 10,
+      "name": "Nishanth",
+      "email": "nish@gmail.com",
+      "username": "nish",
+      "role": "trainer"
+    },
+    {
+      "id": 11,
+      "name": "Karthick",
+      "email": "karthick1@gmail.com",
+      "username": "karthick1",
+      "role": "trainer"
+    }
+  ]
+}

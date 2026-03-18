@@ -1,0 +1,3 @@
+-- Migration 0031: Add updated_at to attendance table
+ALTER TABLE attendance 
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;

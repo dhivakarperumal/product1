@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS message_history (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  subject VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  sent_to INT NOT NULL DEFAULT 0,
+  failed INT NOT NULL DEFAULT 0,
+  recipients_json JSON,
+  sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
