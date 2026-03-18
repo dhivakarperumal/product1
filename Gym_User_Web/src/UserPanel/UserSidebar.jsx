@@ -26,6 +26,9 @@ const navItems = [
       { path: "/user/checkout", label: "Checkout", icon: CreditCard },
     ],
   },
+  { path: "/user/orders", label: "Orders", icon: Dumbbell },
+  { path: "/user/pricing", label: "Pricing", icon: Dumbbell },
+
 
   { path: "/", label: "Back Home", icon: Home },
 ];

@@ -42,6 +42,7 @@ import UserProducts from "./UserPanel/Products/Products.jsx";
 import UserProductDetails from "./UserPanel/Products/ProductDetails.jsx";
 import UserCart from "./UserPanel/Products/Cart.jsx";
 import UserCheckout from "./UserPanel/Products/Checkout.jsx";
+import Orders from "./UserPanel/Orders/Orders.jsx";
 
 // ✅ Lazy components
 const Login = lazy(() => import("./Components/Login.jsx"));
@@ -105,6 +106,8 @@ const router = createBrowserRouter([
       { path: "products/:id", element: <UserProductDetails /> }, // Details
       { path: "cart", element: <UserCart /> },
       { path: "checkout", element: <UserCheckout /> },
+      { path: "orders", element: <Orders /> },
+      { path: "pricing", element: <UserPricing /> },
 
     ],
   },
