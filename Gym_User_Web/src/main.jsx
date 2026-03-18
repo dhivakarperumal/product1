@@ -29,6 +29,17 @@ import Services from "./Components/Services.jsx";
 import ServicesDetails from "./Components/ServicesDetails.jsx";
 import ClassesTable from "./Components/ClassesTable.jsx";
 
+
+// User Panel Components
+import UserPanel from "./UserPanel/UserPanel.jsx";
+import UsesDashboard from "./UserPanel/DashBoard/DashBoard.jsx";
+import UserDiet from "./UserPanel/Diet/Diet.jsx";
+import UserFacilities from "./UserPanel/Facilities/Facilities.jsx";
+import UserPlans from "./UserPanel/Plans/Plans.jsx";
+import UserPricing from "./UserPanel/Pricings/Pricing.jsx";
+import UserWorkouts from "./UserPanel/Workouts/Workouts.jsx";
+import UserProducts from "./UserPanel/Products/Products.jsx";
+
 // ✅ Lazy components
 const Login = lazy(() => import("./Components/Login.jsx"));
 const Register = lazy(() => import("./Components/Register.jsx"));
@@ -50,25 +61,44 @@ const router = createBrowserRouter([
     path: "/",
     element: <App />,
     children: [
-          { path: "/", element: <Home /> },
-          { path: "/trainers", element: <Trainers /> },
-          { path: "trainersdetails/:id", element: <TrainerDetails /> },
-          { path: "facilities", element: <Facilities /> },
-          { path: "account", element: <Account /> },
-          { path: "facilities/:slug", element: <FacilityDetail /> },
-          { path: "pricing", element: <Pricing /> },
-          { path: "buy-plan", element: <BuyPlan /> },
-          { path: "products", element: <Products /> },
-          { path: "/cart", element: <Cart /> },
-          { path: "/checkout", element: <Checkout /> },
-          { path: "/products/:id", element: <ProductDetails /> },
-          { path: "/services", element: <Services /> },
-          { path: "/services/:slug", element: <ServicesDetails /> },
-          { path: "/calendar", element: <ClassesTable /> },
-          { path: "/contact", element: <Contact /> },
-          { path: "/login", element: <Login /> },
-          { path: "/register", element: <Register /> },
-        ]
+      { path: "/", element: <Home /> },
+      { path: "/trainers", element: <Trainers /> },
+      { path: "trainersdetails/:id", element: <TrainerDetails /> },
+      { path: "facilities", element: <Facilities /> },
+      { path: "account", element: <Account /> },
+      { path: "facilities/:slug", element: <FacilityDetail /> },
+      { path: "pricing", element: <Pricing /> },
+      { path: "buy-plan", element: <BuyPlan /> },
+      { path: "products", element: <Products /> },
+      { path: "/cart", element: <Cart /> },
+      { path: "/checkout", element: <Checkout /> },
+      { path: "/products/:id", element: <ProductDetails /> },
+      { path: "/services", element: <Services /> },
+      { path: "/services/:slug", element: <ServicesDetails /> },
+      { path: "/calendar", element: <ClassesTable /> },
+      { path: "/contact", element: <Contact /> },
+      { path: "/login", element: <Login /> },
+      { path: "/register", element: <Register /> },
+    ]
+  },
+
+  {
+    path: "/user",
+    element: (
+      <PrivateRoute allowedRoles={["user"]}>
+        <UserPanel />
+      </PrivateRoute>
+    ),
+    children: [
+      { index: true, element: <UsesDashboard /> },
+      { path: "diet", element: <UserDiet /> },
+      { path: "facilities", element: <UserFacilities /> },
+      { path: "plans", element: <UserPlans /> },
+      { path: "pricing", element: <UserPricing /> },
+      { path: "workouts", element: <UserWorkouts /> },
+      { path: "products", element: <UserProducts /> },
+
+    ],
   },
 
   // ✅ Admin protected
