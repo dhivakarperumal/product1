@@ -61,6 +61,21 @@ export default function ProductCard({ product, index = 0 }) {
     navigate(`/user/products/${productId}`);
   };
 
+  const safeString = (value) => {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "string" || typeof value === "number") return value;
+    // If a React element or object is accidentally passed, fall back to its string form.
+    try {
+      return String(value);
+    } catch {
+      return "";
+    }
+  };
+
+  const safeName = safeString(product.name) || "Unnamed product";
+  const safeCategory = safeString(product.category);
+  const safeSubcategory = safeString(product.subcategory);
+
   return (
     <div
       data-aos="fade-up"
@@ -89,7 +104,7 @@ export default function ProductCard({ product, index = 0 }) {
           onError={(e) => {
             e.target.src = "https://via.placeholder.com/300x300?text=No+Image";
           }}
-          alt={product.name}
+          alt={safeName}
           className="
     cursor-pointer
     relative z-10
@@ -111,12 +126,12 @@ export default function ProductCard({ product, index = 0 }) {
     hover:text-red-400 transition
   "
         >
-          {product.name}
+          {safeName}
         </h3>
 
         <p className="text-[11px] font-medium uppercase tracking-widest text-white/70 mb-4 line-clamp-1">
-          {product.category}
-          {product.subcategory && ` • ${product.subcategory}`}
+          {safeCategory}
+          {safeSubcategory ? ` • ${safeSubcategory}` : ""}
         </p>
 
         {/* PRICE ROW */}

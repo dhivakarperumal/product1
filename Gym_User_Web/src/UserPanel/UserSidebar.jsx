@@ -21,7 +21,7 @@ const navItems = [
     icon: ShoppingCart,
     children: [
       { path: "/user/products", label: "All Products", icon: Package },
-      { path: "/user/products/details", label: "Product Details", icon: Package },
+      // { path: "/user/products/details", label: "Product Details", icon: Package },
       { path: "/user/cart", label: "Cart", icon: ShoppingCart },
       { path: "/user/checkout", label: "Checkout", icon: CreditCard },
     ],
