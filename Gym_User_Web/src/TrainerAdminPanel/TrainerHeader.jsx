@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../PrivateRouter/AuthContext";
 import { signOut } from "firebase/auth";
-import { auth } from "../firebase";
+import { auth } from "../../firebase";
 import api from "../api";
 import toast from "react-hot-toast";
 import { getDistance, GYM_LOCATION } from "../utils/locationUtils";
