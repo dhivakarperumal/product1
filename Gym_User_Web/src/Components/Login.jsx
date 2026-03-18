@@ -18,7 +18,9 @@ const Login = () => {
 
   // 🔹 Redirect by role
   const redirectByRole = (role) => {
-    if (role === "admin") {
+    if (role === "user") {
+      navigate("/user");
+    } else if (role === "admin") {
       navigate("/admin");
     } else if (role === "trainer") {
       navigate("/trainer");

@@ -2,7 +2,7 @@ import { StrictMode, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
 
 import App from "./App.jsx";
 import Home from "./Home/Home.jsx";
@@ -39,6 +39,9 @@ import UserPlans from "./UserPanel/Plans/Plans.jsx";
 import UserPricing from "./UserPanel/Pricings/Pricing.jsx";
 import UserWorkouts from "./UserPanel/Workouts/Workouts.jsx";
 import UserProducts from "./UserPanel/Products/Products.jsx";
+import UserProductDetails from "./UserPanel/Products/ProductDetails.jsx";
+import UserCart from "./UserPanel/Products/Cart.jsx";
+import UserCheckout from "./UserPanel/Products/Checkout.jsx";
 
 // ✅ Lazy components
 const Login = lazy(() => import("./Components/Login.jsx"));
@@ -61,6 +64,7 @@ const router = createBrowserRouter([
     path: "/",
     element: <App />,
     children: [
+      { index: true, element: <Navigate to="/login" replace /> },
       { path: "/", element: <Home /> },
       { path: "/trainers", element: <Trainers /> },
       { path: "trainersdetails/:id", element: <TrainerDetails /> },
@@ -97,6 +101,10 @@ const router = createBrowserRouter([
       { path: "pricing", element: <UserPricing /> },
       { path: "workouts", element: <UserWorkouts /> },
       { path: "products", element: <UserProducts /> },
+      { path: "products", element: <UserProducts /> }, // All Products
+      { path: "products/:id", element: <UserProductDetails /> }, // Details
+      { path: "cart", element: <UserCart /> },
+      { path: "checkout", element: <UserCheckout /> },
 
     ],
   },

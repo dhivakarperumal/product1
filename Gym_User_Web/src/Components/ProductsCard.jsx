@@ -57,7 +57,8 @@ export default function ProductCard({ product, index = 0 }) {
   const pricing = getProductPricing(product);
 
   const goToDetails = () => {
-    navigate(`/products/${product.id}`);
+    const productId = product.id ?? product.product_id ?? product._id;
+    navigate(`/user/products/${productId}`);
   };
 
   return (
