@@ -14,6 +14,7 @@ const UserPanel = () => {
     const handleResize = () => {
       const isLg = window.innerWidth >= 1024;
       setIsLargeScreen(isLg);
+
       if (isLg) setSidebarOpen(false);
     };
 
@@ -22,8 +23,8 @@ const UserPanel = () => {
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white">
-
+    <div className="trainer-root flex min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white">
+      
       {/* Sidebar */}
       <UserSidebar
         isOpen={sidebarOpen}
@@ -32,11 +33,19 @@ const UserPanel = () => {
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
 
-      {/* Main */}
+      {/* Main Content */}
       <div
-        className={`flex flex-col flex-1 min-h-screen transition-all duration-300 ${
-          isLargeScreen ? (sidebarCollapsed ? "lg:ml-20" : "lg:ml-64") : ""
-        }`}
+        className={`
+          flex flex-col flex-1 min-w-0 min-h-screen
+          transition-all duration-300 ease-in-out
+          ${
+            isLargeScreen
+              ? sidebarCollapsed
+                ? "lg:ml-20"
+                : "lg:ml-64"
+              : ""
+          }
+        `}
       >
         <UserHeader onMenuClick={() => setSidebarOpen(true)} />
 
@@ -46,8 +55,8 @@ const UserPanel = () => {
           </div>
         </main>
 
-        <footer className="text-center py-4 text-sm text-white/70">
-          © {new Date().getFullYear()} Q-Techx Solutions
+        <footer className="glass-footer text-center py-4 mt-10 text-sm text-white/70">
+          © {new Date().getFullYear()} Q-Techx Solutions. All rights reserved.
         </footer>
       </div>
     </div>
