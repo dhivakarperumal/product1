@@ -30,6 +30,7 @@ const pageTitles = {
   "/user/pricing": "Pricing Plans",
   "/user/facilities": "Gym Facilities",
   "/user/settings": "Settings",
+  "/user/buynow": "Buy Now",
 };
 
 const UserHeader = ({ onMenuClick }) => {
