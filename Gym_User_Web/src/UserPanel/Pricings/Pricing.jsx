@@ -93,8 +93,8 @@ const Pricing = () => {
             onClick={() => setSelectedDuration("ALL")}
             className={`px-6 py-2 rounded-full ${
               selectedDuration === "ALL"
-                ? "bg-red-600"
-                : "border border-red-500"
+                ? "bg-orange-600"
+                : "border border-orange-500"
             }`}
           >
             ALL
@@ -106,8 +106,8 @@ const Pricing = () => {
               onClick={() => setSelectedDuration(d)}
               className={`px-6 py-2 rounded-full ${
                 selectedDuration === d
-                  ? "bg-red-600"
-                  : "border border-red-500"
+                  ? "bg-orange-600"
+                  : "border border-orange-500"
               }`}
             >
               {d}
@@ -123,13 +123,13 @@ const Pricing = () => {
             <div
               key={service.id}
               data-aos="fade-up"
-              className="bg-[#0e1016] p-6 rounded-xl border border-red-500/40 flex flex-col"
+              className="bg-[#0e1016] p-6 rounded-xl border border-orange-500/40 flex flex-col"
             >
-              <h3 className="text-red-500 text-xl mb-2">
+              <h3 className="text-orange-500 text-xl mb-2">
                 {service.name}
               </h3>
 
-              <p className="text-sm text-gray-400 mb-3">
+              <p className="text-sm text-gray-400 mb-3 line-clamp-3">
                 {service.description}
               </p>
 
@@ -161,11 +161,11 @@ const Pricing = () => {
                     return;
                   }
 
-                  navigate("/buy-plan", {
+                  navigate("/user/buynow", {
                     state: { plan: service },
                   });
                 }}
-                className="mt-4 bg-red-600 py-2 rounded"
+                className="mt-4 bg-orange-600 py-2 rounded"
               >
                 {hasActivePlan ? "PLAN ACTIVE" : "CHOOSE"}
               </button>

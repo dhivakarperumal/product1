@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../PrivateRouter/AuthContext";
-import api from "../api";
-import PageContainer from "./PageContainer";
-import PageHeader from "./PageHeader";
+import { useAuth } from "../../PrivateRouter/AuthContext";
+import api from "../../api";
 import AOS from "aos";
 import "aos/dist/aos.css";
-import PricingCard from "./PricingCard";
+import PricingCard from "../../Components/PricingCard";
 
-const BuyPlan = () => {
+const BuyNow = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
   const { user, profileName } = useAuth();
@@ -186,14 +184,8 @@ const BuyPlan = () => {
 
   return (
     <>
-      <PageHeader
-        title="Buy Membership Plan"
-        subtitle="Complete your enrollment and start your fitness journey today"
-        bgImage="https://images.unsplash.com/photo-1599058917212-d750089bc07e"
-      />
-
       <div className="bg-black text-white min-h-screen">
-        <PageContainer>
+       
 
           <div className="py-10">
 
@@ -320,10 +312,10 @@ const BuyPlan = () => {
 
           </div>
 
-        </PageContainer>
+       
       </div>
     </>
   );
 };
 
-export default BuyPlan;
+export default BuyNow;

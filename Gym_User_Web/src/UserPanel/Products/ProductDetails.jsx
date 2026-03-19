@@ -214,7 +214,7 @@ export default function ProductDetails() {
         {/* DETAILS */}
         <div className="flex flex-col gap-4">
 
-          <h1 className="text-3xl font-bold text-red-500">
+          <h1 className="text-3xl font-bold text-orange-500">
             {product.name}
           </h1>
 
@@ -347,7 +347,7 @@ export default function ProductDetails() {
 
             <button
               onClick={() => navigate("/cart")}
-              className="border border-red-500 px-6 py-3 rounded-lg hover:bg-red-500/10"
+              className="border border-orange-500 px-6 py-3 rounded-lg hover:bg-orange-500/10"
             >
               GO TO CART
             </button>
