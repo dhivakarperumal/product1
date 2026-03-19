@@ -197,25 +197,97 @@ const Dashboard = () => {
       </div>
 
       {/* ================= ROW 2 ================= */}
-      <div className="grid md:grid-cols-2 gap-6">
+      {/* ================= ROW 2 (DIRECT VIEW) ================= */}
+<div className="grid lg:grid-cols-2 gap-6">
 
-        <PremiumCard onClick={() => setPopup("diet")}>
-          <Header icon={<Salad />} title="Today's Diet" />
-          <h2 className="text-xl font-bold">
-            {Object.keys(todayDiet).length ? "Meals Available" : "No Diet"}
-          </h2>
-          <DateText />
-        </PremiumCard>
+  {/* ===== DIET CARD ===== */}
+  <div className="bg-gradient-to-br from-green-900/30 to-black border border-green-500/20 rounded-2xl p-6">
 
-        <PremiumCard onClick={() => setPopup("workout")}>
-          <Header icon={<Dumbbell />} title="Today's Workout" />
-          <h2 className="text-xl font-bold">
-            {todayWorkout.length ? `${todayWorkout.length} Exercises` : "Rest Day"}
-          </h2>
-          <DateText />
-        </PremiumCard>
+    <Header icon={<Salad />} title="Today's Diet" />
 
+    {Object.keys(todayDiet).length ? (
+      <div className="space-y-4 mt-4">
+        {Object.entries(todayDiet).map(([meal, val]) => (
+          <div
+            key={meal}
+            className="bg-black/40 border border-green-500/10 p-4 rounded-xl"
+          >
+            {/* TOP */}
+            <div className="flex justify-between items-center">
+              <p className="text-green-400 font-semibold">{meal}</p>
+              <span className="text-xs text-gray-400">
+                {val.time || "No time"}
+              </span>
+            </div>
+
+            {/* FOOD */}
+            <p className="text-sm text-gray-200 mt-2">
+              {val.food}
+            </p>
+
+            {/* DETAILS */}
+            <div className="flex justify-between mt-3 text-xs">
+              <span className="text-gray-400">
+                Qty: {val.quantity || "-"}
+              </span>
+              <span className="text-orange-400 font-semibold">
+                {val.calories || 0} kcal
+              </span>
+            </div>
+          </div>
+        ))}
       </div>
+    ) : (
+      <EmptyState text="No Diet Plan Today" />
+    )}
+  </div>
+
+
+  {/* ===== WORKOUT CARD ===== */}
+  <div className="bg-gradient-to-br from-purple-900/30 to-black border border-purple-500/20 rounded-2xl p-6">
+
+    <Header icon={<Dumbbell />} title="Today's Workout" />
+
+    {todayWorkout.length ? (
+      <div className="space-y-4 mt-4">
+        {todayWorkout.map((ex, i) => (
+          <div
+            key={i}
+            className="bg-black/40 border border-purple-500/10 p-4 rounded-xl"
+          >
+
+            {/* TOP */}
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="font-semibold">{ex.name}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {ex.type} • {ex.sets} sets • {ex.count} reps
+                </p>
+              </div>
+
+              <span className="text-xs text-gray-400">
+                {ex.time || ""}
+              </span>
+            </div>
+
+            {/* IMAGE */}
+            {ex.media && ex.mediaType?.includes("image") && (
+              <img
+                src={ex.media}
+                alt=""
+                className="w-full h-36 object-cover rounded-lg mt-3 border border-purple-500/20"
+              />
+            )}
+
+          </div>
+        ))}
+      </div>
+    ) : (
+      <EmptyState text="Rest Day 💪" />
+    )}
+  </div>
+
+</div>
 
       {/* ================= ROW 3 ================= */}
       <div className="grid md:grid-cols-2 gap-6">
