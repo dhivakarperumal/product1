@@ -47,19 +47,17 @@ export default function Cart() {
       const product = res.data;
       if (!product) return 0;
 
+      let stock = 0;
       if (item.weight) {
-        return product.stock?.[item.weight]?.qty || 0;
+        stock = product.stock?.[item.weight]?.qty || 0;
+      } else if (item.size && item.gender) {
+        stock = product.stock?.[`${item.size}-${item.gender}`]?.qty || 0;
+      } else if (item.variant) {
+        stock = product.stock?.[item.variant]?.qty || 0;
       }
 
-      if (item.size && item.gender) {
-        return product.stock?.[`${item.size}-${item.gender}`]?.qty || 0;
-      }
-
-      if (item.variant) {
-        return product.stock?.[item.variant]?.qty || 0;
-      }
-
-      return 0;
+      // Ensure stock is a number
+      return parseInt(stock, 10) || 0;
     } catch (err) {
       console.error("stock lookup failed", err);
       return 0;

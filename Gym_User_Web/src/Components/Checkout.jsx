@@ -230,22 +230,40 @@ export default function Checkout() {
           throw new Error(`Product ${productId} not found`);
         }
 
-        const variantKey =
+        // Construct variant key with proper fallback logic
+        let variantKey =
           item.variant ||
           item.weight ||
+          (item.size && item.gender ? `${item.size}-${item.gender}` : null) ||
+          (item.size && item.color ? `${item.size}-${item.color}` : null) ||
           item.size ||
-          `${item.size}-${item.color}`;
+          '';
 
         const updatedStock = { ...(product.stock || {}) };
 
-        if (!updatedStock[variantKey]) {
-          throw new Error(`Variant not found for ${product.name}`);
+        // If no variant key found or specified, try the first available variant
+        if (!variantKey) {
+          const availableKeys = Object.keys(updatedStock);
+          if (availableKeys.length > 0) {
+            variantKey = availableKeys[0];
+            console.warn(`No variant specified for ${product.name}. Using first available: ${variantKey}`);
+          }
         }
 
-        const newQty = updatedStock[variantKey].qty - item.quantity;
+        // Try exact variant key, then try without item details if needed
+        if (!variantKey || !updatedStock[variantKey]) {
+          // Log available keys for debugging
+          console.error(`Variant key '${variantKey}' not found in stock. Available keys:`, Object.keys(updatedStock), 'Item:', item);
+          throw new Error(`Variant not found for ${product.name}. Product has variants: ${Object.keys(updatedStock).join(', ')}`);
+        }
+
+        // Ensure quantities are numbers
+        const currentQty = parseInt(updatedStock[variantKey].qty, 10) || 0;
+        const itemQuantity = parseInt(item.quantity, 10) || 0;
+        const newQty = currentQty - itemQuantity;
 
         if (newQty < 0) {
-          throw new Error(`Insufficient stock for ${product.name}`);
+          throw new Error(`Insufficient stock for ${product.name}. Available: ${currentQty}, Requested: ${itemQuantity}`);
         }
 
         updatedStock[variantKey] = {

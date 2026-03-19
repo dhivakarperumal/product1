@@ -241,49 +241,99 @@ import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Home,
-  User,
-  Dumbbell,
-  ShoppingCart,
-  Package,
-  CreditCard,
-  ClipboardList,
   ChevronLeft,
   X,
-  LogOut,
+  LayoutDashboard,
+  Activity,
+  Boxes,
+  Package,
+  Settings,
+  Receipt,
+  MapPin,
+  Briefcase,
 } from "lucide-react";
-
 import { useAuth } from "../PrivateRouter/AuthContext";
-import { useNavigate } from "react-router-dom";
-
 
 /* ================= NAV ITEMS ================= */
 const navItems = [
-  { path: "/user", label: "Dashboard", icon: Home },
-  { path: "/user/diet", label: "Diet Plan", icon: User },
-  { path: "/user/workouts", label: "Workout Plan", icon: Dumbbell },
-  { path: "/user/products", label: "Products", icon: ShoppingCart },
-  { path: "/user/orders", label: "Orders", icon: ClipboardList },
-  { path: "/user/pricing", label: "Pricing", icon: CreditCard },
   {
-    label: "Logout",
-    icon: LogOut,
-    isLogout: true,
-  }
+    path: "/user",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    exact: true,
+  },
+  {
+    path: "/user/diet",
+    label: "Diet Plans",
+    icon: Boxes,
+  },
+  {
+    path: "/user/workouts",
+    label: "Workout Plans",
+    icon: Activity,
+  },
+  {
+    path: "/user/products",
+    label: "Products",
+    icon: Package,
+  },
+  {
+    path: "/user/pricing",
+    label: "Pricing Plans",
+    icon: Home,
+  },
+  {
+    path: "/user/facilities",
+    label: "Facilities",
+    icon: MapPin,
+  },
+  {
+    path: "/user/services",
+    label: "Services",
+    icon: Briefcase,
+  },
+  {
+    path: "/user/settings",
+    label: "Settings",
+    icon: Settings,
+  },
+
+  { path: "/", label: "Back Home", icon: Home },
 ];
 
 /* ================= SIDEBAR ================= */
 const UserSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
+  const { userProfile } = useAuth();
   const location = useLocation();
+  const [openMenu, setOpenMenu] = useState(null);
 
-  const isRouteActive = (path) => {
-    if (path === "/user") return location.pathname === "/user";
-    return location.pathname.startsWith(path);
+  /* ================= ACTIVE ROUTE MAP ================= */
+  const activeRouteMap = {};
+
+  /* ================= HELPERS ================= */
+  const isRouteActive = (basePath) => {
+    const paths = activeRouteMap[basePath];
+    if (!paths) {
+      if (basePath === "/user") return location.pathname === "/user";
+      if (basePath === "/") return location.pathname === "/";
+      return location.pathname.startsWith(basePath);
+    }
+    return paths.some((p) => location.pathname.startsWith(p));
   };
 
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-
-  const { logout } = useAuth();
-  const navigate = useNavigate();
+  /* ===== AUTO OPEN DROPDOWN WHEN CHILD ACTIVE ===== */
+  useEffect(() => {
+    navItems.forEach((item) => {
+      if (item.children) {
+        const isChildActive = item.children.some((child) =>
+          isRouteActive(child.path)
+        );
+        if (isChildActive) {
+          setOpenMenu(item.label);
+        }
+      }
+    });
+  }, [location.pathname]);
 
   const handleLogout = () => {
     logout();
@@ -292,13 +342,15 @@ const UserSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
 
   return (
     <>
-      {/* Overlay */}
+      {/* ========== MOBILE OVERLAY ========== */}
       <div
         onClick={onClose}
         className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden
-        ${isOpen ? "opacity-100 visible" : "opacity-0 invisible"}`}
+          transition-opacity ${isOpen ? "opacity-100 visible" : "opacity-0 invisible"}
+        `}
       />
 
+      {/* ========== SIDEBAR ========== */}
       <aside
         className={`
           fixed top-0 left-0 z-50 h-full
@@ -311,9 +363,9 @@ const UserSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
           ${collapsed ? "w-20" : "w-64"}
         `}
       >
-        {/* Header */}
+        {/* ========== LOGO ========== */}
         <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center shadow-lg">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-orange-600 to-red-500 flex items-center justify-center shadow-lg shrink-0">
             <img
               src="/images/logo-dark.png"
               alt="Logo"
@@ -322,11 +374,11 @@ const UserSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
           </div>
 
           {!collapsed && (
-            <div>
-              <h1 className="text-lg font-semibold text-white">
-                Arnold Gym
-              </h1>
-              <p className="text-xs text-white/60">Welcome User</p>
+            <div className="overflow-hidden">
+              <h1 className="text-lg font-semibold text-white">User Panel</h1>
+              <p className="text-xs text-white/60 truncate">
+                Welcome {userProfile?.displayName?.split(" ")[0] || "User"}
+              </p>
             </div>
           )}
 
@@ -338,60 +390,48 @@ const UserSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
           </button>
         </div>
 
-        {/* NAV */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {navItems.map((item, index) => {
+        {/* ========== NAVIGATION ========== */}
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto hide-scrollbar">
+          {navItems.map((item) => {
             const Icon = item.icon;
-
-            // 🔴 LOGOUT BUTTON
-            if (item.isLogout) {
-              return (
-                <button
-                  key={index}
-                  onClick={() => setShowLogoutConfirm(true)}
-                  className="
-          w-full flex items-center gap-3 px-4 py-2.5 rounded-xl
-          text-red-400 hover:bg-red-500/20 transition
-        "
-                >
-                  <Icon className="w-5 h-5" />
-                  {!collapsed && <span>Logout</span>}
-                </button>
-              );
-            }
-
-            // ✅ NORMAL ITEMS
-            const active = isRouteActive(item.path);
-
+            const isActive = isRouteActive(item.path);
+            
             return (
               <NavLink
                 key={item.path}
                 to={item.path}
+                end={item.exact}
                 onClick={() => isOpen && onClose()}
                 className={`
-        flex items-center gap-3 px-4 py-2.5 rounded-xl
-        ${active
-                    ? "bg-orange-500 text-white shadow-lg"
-                    : "text-white/80 hover:bg-white/20"
-                  }
-      `}
+                  flex items-center gap-3 px-4 py-2.5 rounded-xl
+                  ${isActive
+                    ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20"
+                    : "text-white/80 hover:bg-white/20"}
+                `}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className="w-5 h-5 shrink-0" />
                 {!collapsed && <span>{item.label}</span>}
               </NavLink>
             );
           })}
         </nav>
 
-        {/* Collapse */}
+        {/* ========== COLLAPSE BUTTON ========== */}
         <button
           onClick={onToggleCollapse}
-          className="hidden lg:flex absolute -right-4 top-1/2 -translate-y-1/2
-          w-9 h-9 rounded-full bg-gradient-to-br from-orange-500 to-red-600
-          shadow-xl items-center justify-center text-white"
+          className="
+            hidden lg:flex absolute -right-4 top-1/2 -translate-y-1/2
+            w-9 h-9 rounded-full
+            bg-gradient-to-br from-orange-500 to-red-600
+            shadow-xl shadow-orange-500/40
+            items-center justify-center
+            text-white hover:scale-110 transition-all
+          "
         >
           <ChevronLeft
-            className={`${collapsed ? "rotate-180" : ""}`}
+            className={`w-4 h-4 transition-transform
+              ${collapsed ? "rotate-180" : ""}
+            `}
           />
         </button>
       </aside>

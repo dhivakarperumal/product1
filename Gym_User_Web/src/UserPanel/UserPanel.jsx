@@ -23,7 +23,7 @@ const UserPanel = () => {
   }, []);
 
   return (
-    <div className="trainer-root flex min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white">
+    <div className="user-root flex min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white">
       
       {/* Sidebar */}
       <UserSidebar
@@ -38,23 +38,20 @@ const UserPanel = () => {
         className={`
           flex flex-col flex-1 min-w-0 min-h-screen
           transition-all duration-300 ease-in-out
-          ${
-            isLargeScreen
-              ? sidebarCollapsed
-                ? "lg:ml-20"
-                : "lg:ml-64"
-              : ""
-          }
+          ${isLargeScreen ? (sidebarCollapsed ? "lg:ml-20" : "lg:ml-64") : ""}
         `}
       >
+        {/* Header */}
         <UserHeader onMenuClick={() => setSidebarOpen(true)} />
 
+        {/* Page Content */}
         <main className="flex-1 p-4 sm:p-5 lg:p-6 overflow-y-auto">
           <div className="glass-container">
             <Outlet />
           </div>
         </main>
 
+        {/* Footer */}
         <footer className="glass-footer text-center py-4 mt-10 text-sm text-white/70">
           © {new Date().getFullYear()} Q-Techx Solutions. All rights reserved.
         </footer>

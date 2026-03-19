@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
-import api from "../../api";
+import React, { useEffect, useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../PrivateRouter/AuthContext";
+import { useCart } from "../../CartContext";
 import { ShoppingCart } from "lucide-react";
+import toast from "react-hot-toast";
 
 // ✅ Image helper
 const makeImageUrl = (img) => {
@@ -22,53 +23,63 @@ const Cart = () => {
   const { user } = useAuth();
   const userId = user?.id;
   const navigate = useNavigate();
+  const { cartItems, fetchCart, updateQty, removeFromCart, loading } = useCart();
+  const [localItems, setLocalItems] = useState([]);
 
-  const [items, setItems] = useState([]);
-
+  // Fetch cart on mount
   useEffect(() => {
     if (!userId) {
       navigate("/login");
       return;
     }
-    fetchCart();
-  }, [userId]);
+    fetchCart(userId);
+  }, [userId, fetchCart, navigate]);
 
-  const fetchCart = async () => {
-    try {
-      const res = await api.get("/cart", { params: { userId } });
-      setItems(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  // Sync cart items
+  useEffect(() => {
+    setLocalItems(cartItems);
+  }, [cartItems]);
 
-  const updateQty = async (item, qty) => {
+  const handleUpdateQty = useCallback(async (item, qty) => {
     if (qty < 1) return;
-
     try {
-      await api.put(`/cart/${item.id}`, { quantity: qty });
-      fetchCart();
+      const success = await updateQty(item.id, qty);
+      if (success) {
+        setLocalItems((prev) =>
+          prev.map((i) => (i.id === item.id ? { ...i, quantity: qty } : i))
+        );
+      } else {
+        toast.error("Failed to update quantity");
+      }
     } catch (err) {
       console.error(err);
+      toast.error("Failed to update quantity");
     }
-  };
+  }, [updateQty]);
 
-  const removeItem = async (id) => {
+  const handleRemoveItem = useCallback(async (itemId) => {
     try {
-      await api.delete(`/cart/${id}`);
-      fetchCart();
+      const success = await removeFromCart(itemId);
+      if (success) {
+        setLocalItems((prev) => prev.filter((i) => i.id !== itemId));
+        toast.success("Item removed from cart");
+      } else {
+        toast.error("Failed to remove item");
+      }
     } catch (err) {
       console.error(err);
+      toast.error("Failed to remove item");
     }
-  };
+  }, [removeFromCart]);
 
-  const total = items.reduce(
-    (a, c) => a + c.price * c.quantity,
-    0
+  // Memoize total calculation
+  const total = useMemo(
+    () => localItems.reduce((a, c) => a + c.price * c.quantity, 0),
+    [localItems]
   );
 
   // ✅ EMPTY CART
-  if (items.length === 0) {
+  if (!loading && localItems.length === 0) {
     return (
       <div className="min-h-screen text-white flex flex-col items-center justify-center gap-6">
         <ShoppingCart size={40} className="text-red-500" />
@@ -78,8 +89,8 @@ const Cart = () => {
         </p>
 
         <button
-          onClick={() => navigate("/products")}
-          className="px-6 py-3 bg-red-600 rounded-lg"
+          onClick={() => navigate("/user/products")}
+          className="px-6 py-3 bg-red-600 rounded-lg hover:bg-red-700"
         >
           Go to Products
         </button>
@@ -87,16 +98,24 @@ const Cart = () => {
     );
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen text-white flex items-center justify-center">
+        <p>Loading cart...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen text-white p-6">
       <h1 className="text-2xl font-bold text-red-500 mb-6">
-        Cart
+        Cart ({localItems.length} items)
       </h1>
 
       <div className="grid md:grid-cols-3 gap-8">
         {/* LEFT ITEMS */}
         <div className="md:col-span-2 space-y-4">
-          {items.map((item) => (
+          {localItems.map((item) => (
             <div
               key={item.id}
               className="flex items-center gap-4 bg-[#0e1016] p-4 rounded-xl"
@@ -123,9 +142,9 @@ const Cart = () => {
                 <div className="flex items-center gap-2 mt-2">
                   <button
                     onClick={() =>
-                      updateQty(item, item.quantity - 1)
+                      handleUpdateQty(item, item.quantity - 1)
                     }
-                    className="px-3 bg-gray-700"
+                    className="px-3 bg-gray-700 hover:bg-gray-600"
                   >
                     -
                   </button>
@@ -134,9 +153,9 @@ const Cart = () => {
 
                   <button
                     onClick={() =>
-                      updateQty(item, item.quantity + 1)
+                      handleUpdateQty(item, item.quantity + 1)
                     }
-                    className="px-3 bg-gray-700"
+                    className="px-3 bg-gray-700 hover:bg-gray-600"
                   >
                     +
                   </button>
@@ -145,8 +164,8 @@ const Cart = () => {
 
               {/* REMOVE */}
               <button
-                onClick={() => removeItem(item.id)}
-                className="text-red-500 text-xl"
+                onClick={() => handleRemoveItem(item.id)}
+                className="text-red-500 text-xl hover:text-red-400"
               >
                 ✕
               </button>
@@ -161,20 +180,27 @@ const Cart = () => {
           </h2>
 
           <div className="flex justify-between mb-2">
-            <span>Total</span>
-            <span>₹{total}</span>
+            <span>Subtotal:</span>
+            <span>₹{total.toFixed(2)}</span>
+          </div>
+
+          <div className="flex justify-between mb-4 text-lg font-bold">
+            <span>Total:</span>
+            <span>₹{total.toFixed(2)}</span>
           </div>
 
           <button
             onClick={() => navigate("/user/checkout")}
-            className="mt-4 w-full bg-red-600 py-3 rounded-lg"
+            className="mt-4 w-full bg-red-600 hover:bg-red-700 py-3 rounded-lg font-semibold"
           >
-            Checkout
+            Proceed to Checkout
           </button>
         </div>
       </div>
     </div>
   );
 };
+
+
 
 export default Cart;
