@@ -3,6 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../PrivateRouter/AuthContext";
 import { useState, useRef, useEffect } from "react";
 
+
+const pageTitles = {
+  "/user": "Dashboard",
+  "/user/diet": "Diet Plan",
+  "/user/workouts": "Workouts",
+  "/user/products": "Products",
+  "/user/cart": "Cart",
+  "/user/checkout": "Checkout",
+  "/user/pricing": "Pricing",
+  "/user/orders": "Orders",
+  "/user/notifications": "Notifications",
+  "/user/profile": "Profile"
+};
+
 const UserHeader = ({ onMenuClick, title = "Dashboard" }) => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
@@ -46,7 +60,7 @@ const UserHeader = ({ onMenuClick, title = "Dashboard" }) => {
 
         {/* 🔥 Dynamic Title */}
         <h1 className="text-white font-semibold text-lg">
-          {title}
+          {pageTitles[window.location.pathname] || "Dashboard"}
         </h1>
       </div>
 
