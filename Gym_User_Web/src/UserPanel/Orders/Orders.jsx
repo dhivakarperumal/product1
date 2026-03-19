@@ -112,159 +112,224 @@ const Orders = () => {
         </p>
       </div>
 
-      {/* ORDERS GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {orders.map((order) => {
-          const statusIcon = {
-            "OrderPlaced": <Clock className="w-4 h-4" />,
-            "Processing": <Package className="w-4 h-4" />,
-            "Packing": <Package className="w-4 h-4" />,
-            "Shipped": <Truck className="w-4 h-4" />,
-            "OutForDelivery": <Truck className="w-4 h-4" />,
-            "Delivered": <CheckCircle className="w-4 h-4" />,
-          };
-          
-          const statusColor = {
-            "OrderPlaced": "bg-blue-500/20 text-blue-400",
-            "Processing": "bg-purple-500/20 text-purple-400",
-            "Packing": "bg-yellow-500/20 text-yellow-400",
-            "Shipped": "bg-orange-500/20 text-orange-400",
-            "OutForDelivery": "bg-orange-500/20 text-orange-400",
-            "Delivered": "bg-green-500/20 text-green-400",
-          };
-          
-          return (
-            <div
-              key={order.id}
-              onClick={() => setSelectedOrder(order)}
-              className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 hover:bg-white/10 cursor-pointer transition"
-            >
-              {/* ORDER HEADER */}
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <p className="text-sm text-white/60">Order ID</p>
-                  <p className="text-lg font-bold text-white">{order.order_id || order.id}</p>
-                </div>
-                <span className={`text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 ${statusColor[normalizeStatus(order.status)]}`}>
-                  {statusIcon[normalizeStatus(order.status)]}
-                  {formatStatus(normalizeStatus(order.status))}
-                </span>
-              </div>
+      {/* STATUS STYLES */}
+      {user && (() => {
+        const statusIcon = {
+          "OrderPlaced": <Clock className="w-4 h-4" />,
+          "Processing": <Package className="w-4 h-4" />,
+          "Packing": <Package className="w-4 h-4" />,
+          "Shipped": <Truck className="w-4 h-4" />,
+          "OutForDelivery": <Truck className="w-4 h-4" />,
+          "Delivered": <CheckCircle className="w-4 h-4" />,
+        };
 
-              {/* ORDER DATE & TOTAL */}
-              <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-white/10">
-                <div>
-                  <p className="text-xs text-white/60 mb-1">Date</p>
-                  <p className="text-sm text-white">{new Date(order.created_at).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-white/60 mb-1">Total</p>
-                  <p className="text-lg font-bold text-orange-400">₹{order.total}</p>
-                </div>
-              </div>
+        const statusColor = {
+          "OrderPlaced": "bg-blue-500/20 text-blue-400",
+          "Processing": "bg-purple-500/20 text-purple-400",
+          "Packing": "bg-yellow-500/20 text-yellow-400",
+          "Shipped": "bg-orange-500/20 text-orange-400",
+          "OutForDelivery": "bg-orange-500/20 text-orange-400",
+          "Delivered": "bg-green-500/20 text-green-400",
+        };
 
-              {/* ITEMS PREVIEW */}
-              <div className="space-y-2">
-                {order.items?.slice(0, 2).map((item, i) => (
-                  <div key={i} className="flex gap-3">
-                    {item.image && (
-                      <img
-                        src={makeImageUrl(item.image)}
-                        alt={item.product_name}
-                        className="w-10 h-10 object-cover rounded"
-                      />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white truncate">{item.product_name}</p>
-                      <p className="text-xs text-white/50">Qty: {item.qty}</p>
+        return (
+          <>
+            {/* ORDERS GRID */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {orders.map((order) => {
+                return (
+                  <div
+                    key={order.id}
+                    onClick={() => setSelectedOrder(order)}
+                    className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 hover:bg-white/10 cursor-pointer transition"
+                  >
+                    {/* ORDER HEADER */}
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <p className="text-sm text-white/60">Order ID</p>
+                        <p className="text-lg font-bold text-white">{order.order_id || order.id}</p>
+                      </div>
+                      <span className={`text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 ${statusColor[normalizeStatus(order.status)]}`}>
+                        {statusIcon[normalizeStatus(order.status)]}
+                        {formatStatus(normalizeStatus(order.status))}
+                      </span>
+                    </div>
+
+                    {/* ORDER DATE & TOTAL */}
+                    <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-white/10">
+                      <div>
+                        <p className="text-xs text-white/60 mb-1">Date</p>
+                        <p className="text-sm text-white">{new Date(order.created_at).toLocaleDateString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-white/60 mb-1">Total</p>
+                        <p className="text-lg font-bold text-orange-400">₹{order.total}</p>
+                      </div>
+                    </div>
+
+                    {/* ITEMS PREVIEW */}
+                    <div className="space-y-2">
+                      {order.items?.slice(0, 2).map((item, i) => (
+                        <div key={i} className="flex gap-3">
+                          {item.image && (
+                            <img
+                              src={makeImageUrl(item.image)}
+                              alt={item.product_name}
+                              className="w-10 h-10 object-cover rounded"
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-white truncate">{item.product_name}</p>
+                            <p className="text-xs text-white/50">Qty: {item.qty}</p>
+                          </div>
+                        </div>
+                      ))}
+                      {order.items?.length > 2 && (
+                        <p className="text-xs text-white/50 py-2">+{order.items.length - 2} more items</p>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-white/40 mt-4">Click to view details</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* MODAL */}
+            {selectedOrder && (
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-[#0a0e27] border border-white/10 rounded-2xl p-8 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+                  {/* MODAL HEADER */}
+                  <div className="flex justify-between items-start mb-8">
+                    <h2 className="text-3xl font-bold text-red-500">Order Details</h2>
+                    <button
+                      onClick={() => setSelectedOrder(null)}
+                      className="p-2 hover:bg-white/10 rounded-lg transition"
+                    >
+                      <X className="w-6 h-6 text-white" />
+                    </button>
+                  </div>
+
+                  {/* ORDER ID & STATUS */}
+                  <div className="flex justify-between items-center mb-8">
+                    <div>
+                      <p className="text-white text-lg font-semibold">Order ID: <span className="text-white">{selectedOrder.order_id || selectedOrder.id}</span></p>
+                    </div>
+                    <div className={`text-sm font-bold px-4 py-2 rounded-full flex items-center gap-2 ${statusColor[normalizeStatus(selectedOrder.status)]}`}>
+                      {statusIcon[normalizeStatus(selectedOrder.status)]}
+                      {formatStatus(normalizeStatus(selectedOrder.status))}
                     </div>
                   </div>
-                ))}
-                {order.items?.length > 2 && (
-                  <p className="text-xs text-white/50 py-2">+{order.items.length - 2} more items</p>
-                )}
-              </div>
 
-              <p className="text-xs text-white/40 mt-4">Click to view details</p>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* MODAL */}
-      {selectedOrder && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] border border-white/20 rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            {/* MODAL HEADER */}
-            <div className="flex justify-between items-start mb-6 pb-4 border-b border-white/10">
-              <div>
-                <p className="text-white/60 text-sm">Order Number</p>
-                <p className="text-2xl font-bold text-white">{selectedOrder.order_id || selectedOrder.id}</p>
-              </div>
-              <button
-                onClick={() => setSelectedOrder(null)}
-                className="p-2 hover:bg-white/10 rounded-lg transition"
-              >
-                <X className="w-6 h-6 text-white" />
-              </button>
-            </div>
-
-            {/* STATUS TIMELINE */}
-            <div className="mb-6">
-              <p className="text-white/60 text-sm mb-3">Order Status</p>
-              <div className="flex items-center gap-2">
-                <div className={`text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-2 ${statusColor[normalizeStatus(selectedOrder.status)]}`}>
-                  {statusIcon[normalizeStatus(selectedOrder.status)]}
-                  {formatStatus(normalizeStatus(selectedOrder.status))}
-                </div>
-              </div>
-            </div>
-
-            {/* ORDER DETAILS */}
-            <div className="grid grid-cols-2 gap-4 mb-6 p-4 bg-white/5 rounded-xl">
-              <div>
-                <p className="text-white/60 text-xs mb-1">Order Date</p>
-                <p className="text-white font-semibold">{new Date(selectedOrder.created_at).toLocaleDateString()}</p>
-              </div>
-              <div>
-                <p className="text-white/60 text-xs mb-1">Total Amount</p>
-                <p className="text-lg font-bold text-orange-400">₹{selectedOrder.total}</p>
-              </div>
-            </div>
-
-            {/* ITEMS */}
-            <div className="mb-6">
-              <h3 className="text-white font-semibold mb-3">Order Items</h3>
-              <div className="space-y-3">
-                {selectedOrder.items?.map((item, i) => (
-                  <div key={i} className="flex gap-4 p-3 bg-white/5 rounded-lg">
-                    {item.image && (
-                      <img
-                        src={makeImageUrl(item.image)}
-                        alt={item.product_name}
-                        className="w-16 h-16 object-cover rounded"
-                      />
-                    )}
-                    <div className="flex-1">
-                      <p className="text-white font-semibold">{item.product_name}</p>
-                      <p className="text-white/60 text-sm">Quantity: {item.qty}</p>
-                      <p className="text-orange-400 font-semibold">₹{item.price * item.qty}</p>
+                  {/* DELIVERY ADDRESS */}
+                  <div className="bg-black/40 border border-white/10 rounded-xl p-6 mb-8">
+                    <h3 className="text-red-500 font-bold text-lg mb-4">Delivery Address</h3>
+                    <div className="text-white space-y-1">
+                      <p className="font-semibold">{selectedOrder.shipping?.name || 'N/A'}</p>
+                      <p className="text-white/60">{selectedOrder.shipping?.email || ''}</p>
+                      <p className="text-white/60">{selectedOrder.shipping?.phone || 'N/A'}</p>
+                      <p className="text-white/60">{selectedOrder.shipping?.address || 'N/A'}</p>
+                      <p className="text-white/60">{selectedOrder.shipping?.state} - {selectedOrder.shipping?.zip}</p>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
 
-            {/* CLOSE BUTTON */}
-            <button
-              onClick={() => setSelectedOrder(null)}
-              className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold hover:scale-105 transition"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+                  {/* PRODUCTS TABLE */}
+                  <div className="bg-black/40 border border-white/10 rounded-xl p-6 mb-8 overflow-x-auto">
+                    <div className="grid grid-cols-12 gap-4 mb-4 pb-4 border-b border-white/20">
+                      <div className="col-span-7"><p className="text-red-500 font-bold">Product</p></div>
+                      <div className="col-span-3"><p className="text-red-500 font-bold">Qty</p></div>
+                      <div className="col-span-2"><p className="text-red-500 font-bold">Price</p></div>
+                    </div>
+                    {selectedOrder.items?.map((item, i) => (
+                      <div key={i} className="grid grid-cols-12 gap-4 mb-6 pb-6 border-b border-white/10 last:border-b-0">
+                        <div className="col-span-7 flex gap-3">
+                          {item.image && (
+                            <img
+                              src={makeImageUrl(item.image)}
+                              alt={item.product_name}
+                              className="w-16 h-16 object-cover rounded"
+                            />
+                          )}
+                          <div>
+                            <p className="text-white font-semibold text-sm">{item.product_name}</p>
+                            {(item.size || item.weight) && (
+                              <p className="text-white/60 text-xs mt-1">
+                                {item.size && `Size: ${item.size}`}
+                                {item.size && item.weight && " • "}
+                                {item.weight && `Weight: ${item.weight}`}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="col-span-3">
+                          <p className="text-white">{item.qty}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-white font-semibold">₹{item.price * item.qty}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* TOTAL */}
+                  <div className="flex justify-between items-center mb-8 pb-8 border-b border-white/20">
+                    <p className="text-white text-xl font-semibold">Total</p>
+                    <p className="text-red-500 text-3xl font-bold">₹{selectedOrder.total}</p>
+                  </div>
+
+                  {/* TRACK ORDER TIMELINE */}
+                  <div className="mb-6">
+                    <h3 className="text-red-500 font-bold text-lg mb-6">Track Order</h3>
+                    <div className="flex justify-between items-end">
+                      {ORDER_STEPS.map((step, idx) => {
+                        const currentStepIndex = ORDER_STEPS.indexOf(normalizeStatus(selectedOrder.status));
+                        const isCompleted = idx <= currentStepIndex;
+                        const isCurrent = idx === currentStepIndex;
+
+                        return (
+                          <div key={step} className="flex flex-col items-center flex-1">
+                            {/* Circle */}
+                            <div
+                              className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-white text-lg mb-3 transition ${
+                                isCompleted
+                                  ? 'bg-red-600 border-2 border-red-600'
+                                  : 'bg-gray-600 border-2 border-gray-600'
+                              }`}
+                            >
+                              {idx + 1}
+                            </div>
+
+                            {/* Label */}
+                            <p className={`text-xs text-center font-semibold ${isCompleted ? 'text-white' : 'text-white/50'}`}>
+                              {formatStatus(step)}
+                            </p>
+
+                            {/* Connector */}
+                            {idx < ORDER_STEPS.length - 1 && (
+                              <div
+                                className={`absolute w-12 h-1 top-6 ${isCompleted ? 'bg-red-600' : 'bg-gray-600'}`}
+                                style={{ left: `calc(50% + 28px)`, transform: 'translateY(-50%)' }}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* CLOSE BUTTON */}
+                  <button
+                    onClick={() => setSelectedOrder(null)}
+                    className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:scale-105 transition mt-6"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 };
