@@ -44,6 +44,7 @@ import UserCart from "./UserPanel/Products/Cart.jsx";
 import UserCheckout from "./UserPanel/Products/Checkout.jsx";
 import Orders from "./UserPanel/Orders/Orders.jsx";
 import PersonalDetails from "./UserPanel/PersonalDetails.jsx";
+import Notification from "./UserPanel/Notification.jsx";
 
 // ✅ Lazy components
 const Login = lazy(() => import("./Components/Login.jsx"));
@@ -110,6 +111,7 @@ const router = createBrowserRouter([
       { path: "orders", element: <Orders /> },
       { path: "pricing", element: <UserPricing /> },
       { path: "profile", element: <PersonalDetails /> },
+      { path: "notifications", element: <Notification /> },
     ],
   },
 

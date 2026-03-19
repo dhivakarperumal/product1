@@ -1,9 +1,9 @@
-import { Menu, LogOut, User } from "lucide-react";
+import { Menu, LogOut, User, Bell } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../PrivateRouter/AuthContext";
 import { useState, useRef, useEffect } from "react";
 
-const UserHeader = ({ onMenuClick }) => {
+const UserHeader = ({ onMenuClick, title = "Dashboard" }) => {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
 
@@ -16,18 +16,21 @@ const UserHeader = ({ onMenuClick }) => {
   };
 
   const goToProfile = () => {
-    navigate("/user/profile"); // make sure route exists
+    navigate("/user/profile");
     setOpen(false);
   };
 
-  // close dropdown when clicking outside
+  const goToNotifications = () => {
+    navigate("/user/notifications");
+  };
+
+  // close dropdown outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setOpen(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -40,11 +43,30 @@ const UserHeader = ({ onMenuClick }) => {
         <button onClick={onMenuClick} className="lg:hidden">
           <Menu className="w-6 h-6 text-white" />
         </button>
-        <h1 className="text-white font-semibold text-lg">User Dashboard</h1>
+
+        {/* 🔥 Dynamic Title */}
+        <h1 className="text-white font-semibold text-lg">
+          {title}
+        </h1>
       </div>
 
       {/* RIGHT */}
-      <div className="relative" ref={dropdownRef}>
+      <div className="flex items-center gap-4 relative" ref={dropdownRef}>
+
+        {/* 🔔 Notification Icon */}
+        <button
+          onClick={goToNotifications}
+          className="relative text-white hover:text-red-400 transition"
+        >
+          <Bell className="w-5 h-5" />
+
+          {/* Optional badge */}
+          <span className="absolute -top-1 -right-1 bg-red-500 text-[10px] px-1 rounded-full">
+            3
+          </span>
+        </button>
+
+        {/* USER DROPDOWN */}
         <div
           onClick={() => setOpen(!open)}
           className="flex items-center gap-3 cursor-pointer bg-white/10 px-3 py-2 rounded-lg hover:bg-white/20 transition"
@@ -58,9 +80,8 @@ const UserHeader = ({ onMenuClick }) => {
           </p>
         </div>
 
-        {/* DROPDOWN */}
         {open && (
-          <div className="absolute right-0 mt-2 w-40 bg-gray-900 border border-white/10 rounded-lg shadow-lg overflow-hidden">
+          <div className="absolute right-0 top-14 w-40 bg-gray-900 border border-white/10 rounded-lg shadow-lg overflow-hidden">
 
             <button
               onClick={goToProfile}
