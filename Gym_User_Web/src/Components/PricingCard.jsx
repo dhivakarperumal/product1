@@ -7,17 +7,15 @@ export default function PricingCard({
 }) {
   return (
     <div
-      data-aos="fade-up"
-      data-aos-delay={index * 120}
       className="
-        bg-black/80 h-[500px] md:h-[475px] border border-red-500/60 rounded-2xl
+        bg-black/80 h-[500px] md:h-[475px] border border-orange-500/60 rounded-2xl
         p-8 flex flex-col
         shadow-[0_0_25px_rgba(255,0,0,0.15)]
-        hover:shadow-red-600/40 transition
+        hover:shadow-orange-600/40 transition
       "
     >
       {/* SERVICE NAME */}
-      <h3 className="text-xl font-bold text-red-500 mb-2">
+      <h3 className="text-xl font-bold text-orange-500 mb-2">
         {service.name}
       </h3>
 
@@ -40,7 +38,7 @@ export default function PricingCard({
         <div className="flex items-end gap-2">
           <span
             className="
-        text-4xl font-extrabold text-red-500
+        text-4xl font-extrabold text-orange-500
         drop-shadow-[0_0_14px_rgba(255,0,0,0.9)]
       "
           >
@@ -81,11 +79,11 @@ export default function PricingCard({
         ).slice(0, 4).map((item, i) => (
           <li
             key={i}
-            className="flex items-center gap-3 border-b border-red-500/10 pb-2"
+            className="flex items-center gap-3 border-b border-orange-500/10 pb-2"
           >
             <span
               className="
-                w-2 h-2 rounded-full bg-red-500
+                w-2 h-2 rounded-full bg-orange-500
                 shadow-[0_0_10px_rgba(255,0,0,0.9)]
                 flex-shrink-0
               "
@@ -104,7 +102,7 @@ export default function PricingCard({
           transition-all duration-300
           ${hasActivePlan
             ? "bg-gray-600 cursor-not-allowed opacity-60"
-            : "bg-red-600 hover:bg-red-700 shadow-[0_0_18px_rgba(255,0,0,0.6)]"
+            : "bg-orange-600 hover:bg-orange-700 shadow-[0_0_18px_rgba(255,0,0,0.6)]"
           }
         `}
       >

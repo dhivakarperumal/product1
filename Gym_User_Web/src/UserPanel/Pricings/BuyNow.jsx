@@ -2,8 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../PrivateRouter/AuthContext";
 import api from "../../api";
-import AOS from "aos";
-import "aos/dist/aos.css";
 import PricingCard from "../../Components/PricingCard";
 
 const BuyNow = () => {
@@ -163,17 +161,6 @@ const BuyNow = () => {
     rzp.open();
   };
 
-  /* ================= AOS ================= */
-
-  useEffect(() => {
-    AOS.init({
-      duration: 900,
-      easing: "ease-out-cubic",
-      once: true,
-      offset: 120,
-    });
-  }, []);
-
   if (!plan) {
     return (
       <div className="text-white text-center p-10">
@@ -184,7 +171,7 @@ const BuyNow = () => {
 
   return (
     <>
-      <div className="bg-black text-white min-h-screen">
+      <div className="text-white min-h-screen px-3">
        
 
           <div className="py-10">
@@ -197,9 +184,9 @@ const BuyNow = () => {
 
               {/* FORM */}
 
-              <div data-aos="fade-right">
+              <div>
 
-                <div className="bg-black/80 border border-red-500/40 rounded-2xl p-6">
+                <div className="bg-black/80 border border-orange-500/40 rounded-2xl p-6">
 
                   <p className="text-white/60 mb-3 text-sm">
                     Enter your details to complete enrollment
@@ -274,7 +261,7 @@ const BuyNow = () => {
                     <div className="bg-gray-900 p-4 rounded-lg">
                       <p className="text-gray-400 text-sm">Plan Price</p>
 
-                      <p className="text-2xl font-bold text-red-500">
+                      <p className="text-2xl font-bold text-orange-500">
                         ₹{price.toLocaleString("en-IN")}
                       </p>
                     </div>
@@ -283,7 +270,7 @@ const BuyNow = () => {
 
                     <button
                       onClick={handlePayment}
-                      className="w-full mt-6 bg-red-600 hover:bg-red-700 py-3 rounded-full font-semibold"
+                      className="w-full mt-6 bg-orange-600 hover:bg-orange-700 py-3 rounded-full font-semibold"
                     >
                       Pay ₹{price.toLocaleString("en-IN")}
                     </button>
@@ -296,7 +283,7 @@ const BuyNow = () => {
 
               {/* PLAN CARD */}
 
-              <div data-aos="fade-left" className="flex justify-center">
+              <div className="flex justify-center">
 
                 <PricingCard
                   service={plan}
