@@ -3,7 +3,6 @@ import PageContainer from "../../Components/PageContainer";
 import api from "../../api";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../PrivateRouter/AuthContext";
-import AOS from "aos";
 import cache from "../../cache";
 
 const Pricing = () => {
@@ -17,7 +16,7 @@ const Pricing = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // ✅ Fetch Plans
+  /* ================= FETCH PLANS ================= */
   useEffect(() => {
     const fetchPlans = async () => {
       if (cache.plans) {
@@ -32,9 +31,7 @@ const Pricing = () => {
         cache.plans = plans;
 
         const durations = [
-          ...new Set(
-            plans.map((p) => p.duration || p.duration_months)
-          ),
+          ...new Set(plans.map((p) => p.duration || p.duration_months)),
         ];
         setAvailableDurations(durations);
       } catch (err) {
@@ -45,7 +42,7 @@ const Pricing = () => {
     fetchPlans();
   }, []);
 
-  // ✅ Filter
+  /* ================= FILTER ================= */
   const filtered =
     selectedDuration === "ALL"
       ? services
@@ -54,12 +51,7 @@ const Pricing = () => {
             (s.duration || s.duration_months) === selectedDuration
         );
 
-  // ✅ AOS
-  useEffect(() => {
-    AOS.init({ duration: 800 });
-  }, []);
-
-  // ✅ Check Active Plan
+  /* ================= ACTIVE PLAN ================= */
   useEffect(() => {
     if (!user?.id) {
       setCheckingPlan(false);
@@ -69,9 +61,7 @@ const Pricing = () => {
     const check = async () => {
       try {
         const res = await api.get(`/memberships/user/${user.id}`);
-        const active = res.data?.some(
-          (p) => p.status === "active"
-        );
+        const active = res.data?.some((p) => p.status === "active");
         setHasActivePlan(active);
       } catch (err) {
         console.error(err);
@@ -84,17 +74,17 @@ const Pricing = () => {
   }, [user]);
 
   return (
-    <div className=" text-white min-h-screen">
+    <div className="min-h-screen text-white overflow-x-hidden">
 
-      {/* FILTER */}
+      {/* ================= FILTER ================= */}
       <div className="my-10 overflow-x-auto">
-        <div className="flex gap-4 px-4 w-max mx-auto">
+        <div className="flex gap-4 px-4 max-w-full overflow-x-auto scrollbar-hide">
           <button
             onClick={() => setSelectedDuration("ALL")}
-            className={`px-6 py-2 rounded-full ${
+            className={`px-6 py-2 rounded-full text-sm transition ${
               selectedDuration === "ALL"
-                ? "bg-orange-600"
-                : "border border-orange-500"
+                ? "bg-orange-500 text-black "
+                : "border border-orange-500 text-orange-400"
             }`}
           >
             ALL
@@ -104,10 +94,10 @@ const Pricing = () => {
             <button
               key={d}
               onClick={() => setSelectedDuration(d)}
-              className={`px-6 py-2 rounded-full ${
+              className={`px-6 py-2 rounded-full text-sm transition ${
                 selectedDuration === d
-                  ? "bg-orange-600"
-                  : "border border-orange-500"
+                  ? "bg-orange-500 text-black shadow-[0_0_15px_orange]"
+                  : "border border-orange-500 text-orange-400"
               }`}
             >
               {d}
@@ -116,61 +106,93 @@ const Pricing = () => {
         </div>
       </div>
 
-      {/* CARDS */}
+      {/* ================= CARDS ================= */}
       <PageContainer>
-        <div className="grid md:grid-cols-3 gap-6">
-          {filtered.map((service, index) => (
-            <div
-              key={service.id}
-              data-aos="fade-up"
-              className="bg-[#0e1016] p-6 rounded-xl border border-orange-500/40 flex flex-col"
-            >
-              <h3 className="text-orange-500 text-xl mb-2">
-                {service.name}
-              </h3>
+        <div className="grid md:grid-cols-3 gap-8">
+          {filtered.map((service, index) => {
+            const price = service.final_price ?? service.price;
+            const original = service.price;
 
-              <p className="text-sm text-gray-400 mb-3 line-clamp-3">
-                {service.description}
-              </p>
-
-              {/* PRICE */}
-              <div className="mb-4">
-                <span className="text-2xl font-bold text-white">
-                  ₹{service.final_price ?? service.price}
-                </span>
-                <span className="text-sm text-gray-400">
-                  / {service.duration || "month"}
-                </span>
-              </div>
-
-              {/* FEATURES */}
-              <ul className="text-sm text-gray-300 flex-1">
-                {(service.facilities || []).slice(0, 4).map((f, i) => (
-                  <li key={i}>• {f}</li>
-                ))}
-              </ul>
-
-              {/* BUTTON */}
-              <button
-                disabled={hasActivePlan || checkingPlan}
-                onClick={() => {
-                  if (!user) return navigate("/login");
-
-                  if (hasActivePlan) {
-                    alert("Already active plan");
-                    return;
-                  }
-
-                  navigate("/user/buynow", {
-                    state: { plan: service },
-                  });
-                }}
-                className="mt-4 bg-orange-600 py-2 rounded"
+            return (
+              <div
+                key={service.id}
+                
+                
+                className="
+                  relative rounded-2xl p-[1px]
+                  bg-gradient-to-br from-orange-500/60 via-transparent to-orange-500/60
+                "
               >
-                {hasActivePlan ? "PLAN ACTIVE" : "CHOOSE"}
-              </button>
-            </div>
-          ))}
+                <div className="bg-black rounded-2xl p-7 h-full flex flex-col">
+
+                  {/* TITLE */}
+                  <h3 className="text-orange-500 text-2xl font-semibold mb-2">
+                    {service.name}
+                  </h3>
+
+                  {/* DESCRIPTION */}
+                  <p className="text-gray-400 text-sm mb-6 line-clamp-3">
+                    {service.description}
+                  </p>
+
+                  {/* PRICE */}
+                  <div className="mb-6">
+                    <div className="flex items-end gap-2">
+                      <span className="text-4xl font-bold text-orange-400 drop-shadow-[0_0_10px_orange]">
+                        ₹{price}
+                      </span>
+                      <span className="text-gray-400 text-sm">
+                        / {service.duration || "month"}
+                      </span>
+                    </div>
+
+                    {original && original !== price && (
+                      <div className="text-gray-500 line-through text-sm mt-1">
+                        ₹{original}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* FEATURES */}
+                  <ul className="flex-1 space-y-3 text-sm text-gray-300">
+                    {(service.facilities || []).filter((_, i) => i < 5).map((f, i) => (
+                      <li key={i} className="flex items-center gap-3">
+                        <span className="w-2 h-2 bg-orange-500 rounded-full shadow-[0_0_8px_orange]"></span>
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* BUTTON */}
+                  <button
+                    disabled={hasActivePlan || checkingPlan}
+                    onClick={() => {
+                      if (!user) return navigate("/login");
+
+                      if (hasActivePlan) {
+                        alert("Already active plan");
+                        return;
+                      }
+
+                      navigate("/user/buynow", {
+                        state: { plan: service },
+                      });
+                    }}
+                    className={`
+                      mt-8 py-3 rounded-full font-semibold transition
+                      ${
+                        hasActivePlan
+                          ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                          : "bg-orange-500 text-black hover:bg-orange-400 shadow-[0_0_20px_orange]"
+                      }
+                    `}
+                  >
+                    {hasActivePlan ? "PLAN ACTIVE" : "CHOOSE PLAN"}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </PageContainer>
     </div>
