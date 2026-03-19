@@ -90,36 +90,6 @@ const UserHeader = ({ onMenuClick }) => {
     }
   };
 
-  const goToProfile = () => {
-    navigate("/user/profile");
-    setOpen(false);
-  };
-
-  const goToNotifications = () => {
-    navigate("/user/notifications");
-  };
-
-  const goToCart = () => {
-    navigate("/user/cart");
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const getPageTitle = () => {
-    if (pageTitles[location.pathname]) return pageTitles[location.pathname];
-    return "Dashboard";
-  };
-
-  const userName = user?.name || user?.username || "User";
-
   // ✅ Safe values with fallbacks
   const userName = profileName || user?.username || user?.name || "User";
   const userEmail = email || user?.email || "";
