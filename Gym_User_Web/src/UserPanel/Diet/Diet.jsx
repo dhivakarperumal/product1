@@ -55,14 +55,14 @@ const Diet = () => {
     <div className="min-h-screen p-4 md:p-6 text-white space-y-6">
 
       {/* HEADER */}
-      <div>
+      {/* <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Salad /> My Diet Plan
         </h1>
         {title && (
           <p className="text-gray-400 mt-1 text-sm">{title}</p>
         )}
-      </div>
+      </div> */}
 
       {/* FILTER */}
       <div className="flex gap-2">
@@ -73,7 +73,7 @@ const Diet = () => {
             className={`px-4 py-2 rounded-full text-sm transition
               ${
                 filter === f
-                  ? "bg-red-600 text-white"
+                  ? "bg-orange-500 text-white"
                   : "bg-white/5 text-gray-400 border border-white/10"
               }
             `}
@@ -120,7 +120,7 @@ const Diet = () => {
                 >
                   {/* TOP */}
                   <div className="flex justify-between items-center mb-2">
-                    <p className="font-semibold text-green-400">
+                    <p className="font-semibold text-orange-500">
                       {meal}
                     </p>
 

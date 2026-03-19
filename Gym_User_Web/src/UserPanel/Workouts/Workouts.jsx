@@ -54,7 +54,7 @@ const Workouts = () => {
     return (
       <div className="flex flex-col items-center mt-24 text-center text-white">
         <div className="w-24 h-24 rounded-full flex items-center justify-center bg-white/5 border border-white/10 mb-6">
-          <Dumbbell size={40} className="text-red-400" />
+          <Dumbbell size={40} className="text-orange-400" />
         </div>
 
         <h2 className="text-xl font-bold">
@@ -72,7 +72,7 @@ const Workouts = () => {
     <div className="min-h-screen p-4 md:p-6 text-white space-y-6">
 
       {/* ===== HEADER ===== */}
-      <div>
+      {/* <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Dumbbell /> {workoutData.member_name}'s Workout
         </h1>
@@ -80,7 +80,7 @@ const Workouts = () => {
         <p className="text-gray-400 mt-1 text-sm">
           {workoutData.duration_weeks} Weeks · {workoutData.level}
         </p>
-      </div>
+      </div> */}
 
       {/* ===== STATS ===== */}
       <div className="grid grid-cols-3 gap-3">
@@ -99,7 +99,7 @@ const Workouts = () => {
             onClick={() => setFilter(f)}
             className={`px-4 py-2 rounded-full text-sm transition
               ${filter === f
-                ? "bg-red-600 text-white"
+                ? "bg-orange-600 text-white"
                 : "bg-white/5 text-gray-400 border border-white/10"
               }
             `}

@@ -125,15 +125,11 @@ const Products = () => {
 
   return (
     <div className="space-y-6 p-4">
-      {/* Title */}
-      <h2 className="text-2xl font-bold text-red-500">
-        Products
-      </h2>
 
       {/* Loading */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-32 gap-6">
-          <div className="w-16 h-16 border-4 border-red-500/20 border-t-red-500 rounded-full animate-spin" />
+          <div className="w-16 h-16 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
           <p className="text-white/40 text-xs uppercase">
             Loading...
           </p>
@@ -172,7 +168,7 @@ const Products = () => {
                 className="
                   relative h-full flex flex-col
                   bg-gradient-to-br from-[#0e1016] via-black to-[#0e1016]
-                  border-2 border-red-500/60 rounded-3xl overflow-hidden
+                  border-2 border-orange-500/60 rounded-3xl overflow-hidden
                   hover:-translate-y-1 transition-all duration-300
                 "
               >
@@ -192,7 +188,7 @@ const Products = () => {
                 <div className="p-4 flex flex-col flex-1">
                   <h3
                     onClick={goToDetails}
-                    className="text-red-500 font-semibold cursor-pointer"
+                    className="text-orange-500 font-semibold cursor-pointer line-clamp-1"
                   >
                     {safeName}
                   </h3>
@@ -217,7 +213,7 @@ const Products = () => {
                   <div className="mt-auto pt-4">
                     <button
                       onClick={goToDetails}
-                      className="w-full bg-red-600 text-white py-2 rounded-lg"
+                      className="w-full bg-orange-600 text-white py-2 rounded-lg cursor-pointer"
                     >
                       VIEW DETAILS
                     </button>
