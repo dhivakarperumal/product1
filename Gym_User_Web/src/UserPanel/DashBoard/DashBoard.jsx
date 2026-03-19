@@ -140,11 +140,12 @@ const Dashboard = () => {
         });
       }
 
-      const todayOrders = orderRes.data.filter(o =>
-        dayjs(o.created_at).isSame(today, "day")
-      );
+      const activeOrders = orderRes.data.filter(o => {
+        const status = normalizeStatus(o.status);
+        return status !== "Delivered";
+      });
 
-      setTodayOrders(todayOrders);
+      setTodayOrders(activeOrders);
 
     } catch (err) {
       console.log(err);

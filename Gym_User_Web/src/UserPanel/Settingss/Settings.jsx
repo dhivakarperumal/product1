@@ -131,12 +131,12 @@ const Settings = () => {
           path="/user/settings/health"
         />
 
-        <SettingCard
+        {/* <SettingCard
           icon={Bell}
           title="Notifications"
           desc="Manage notification preferences and alerts."
           path="/user/settings/notifications"
-        />
+        /> */}
 
         <SettingCard
           icon={Shield}
