@@ -1,62 +1,70 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import api from "../../api";
 import { useNavigate, useLocation } from "react-router-dom";
-import PageHeader from "../../Components/PageHeader";
-import PageContainer from "../../Components/PageContainer";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../../PrivateRouter/AuthContext";
+import { useCart } from "../../CartContext";
 import { saveUserAddress } from "../../Components/saveUserAddress";
 
-/* ---------------- IMAGE FIX ---------------- */
+// image helper
 const makeImageUrl = (img) => {
   if (!img) return "";
   if (img.startsWith("http") || img.startsWith("data:")) return img;
-
   const maybeBase64 = /^[A-Za-z0-9+/=]+$/.test(img);
   if (maybeBase64 && img.length > 50) {
     return `data:image/webp;base64,${img}`;
   }
-
   const base = import.meta.env.VITE_API_URL || "";
   return `${base.replace(/\/$/, "")}/${img.replace(/^\/+/, "")}`;
 };
 
-/* ---------------- RAZORPAY LOADER ---------------- */
+const indianStates = [
+  "Tamil Nadu",
+  "Kerala",
+  "Karnataka",
+  "Andhra Pradesh",
+  "Telangana",
+  "Delhi",
+  "Maharashtra",
+  "Gujarat",
+  "Punjab",
+  "Rajasthan",
+  "West Bengal",
+];
+
+const generateOrderNumber = async () => {
+  try {
+    const res = await api.post("/orders/generate-order-id");
+    return res.data.order_id;
+  } catch (err) {
+    console.error("failed to generate order id", err);
+    const timestamp = Date.now();
+    return `ORD${String(timestamp).slice(-6)}`;
+  }
+};
+
 const loadRazorpay = () =>
   new Promise((resolve) => {
     if (window.Razorpay) return resolve(true);
-
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-
-    script.onload = () => {
-      console.log("✅ Razorpay Loaded");
-      resolve(true);
-    };
-
-    script.onerror = () => {
-      console.error("❌ Razorpay Failed");
-      resolve(false);
-    };
-
-    document.body.appendChild(script);
+    const s = document.createElement("script");
+    s.src = "https://checkout.razorpay.com/v1/checkout.js";
+    s.onload = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.body.appendChild(s);
   });
 
 export default function Checkout() {
   const { user } = useAuth();
   const userId = user?.id;
-
   const navigate = useNavigate();
   const location = useLocation();
-
-  const [items, setItems] = useState([]);
-  const [placing, setPlacing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("CASH");
-  const [orderType, setOrderType] = useState("DELIVERY");
+  const { cartItems, loading: cartLoading } = useCart();
 
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
-
+  const [placing, setPlacing] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("CASH");
+  const [orderType, setOrderType] = useState("DELIVERY");
   const [shipping, setShipping] = useState({
     name: "",
     email: "",
@@ -68,312 +76,502 @@ export default function Checkout() {
     country: "India",
   });
 
-  /* ---------------- LOAD CART ---------------- */
+  // Fetch addresses once on mount
   useEffect(() => {
     if (!userId) return;
-
-    if (location.state?.buyNowItem) {
-      setItems([location.state.buyNowItem]);
-      return;
-    }
-
-    const fetchCart = async () => {
-      try {
-        const res = await api.get("/cart", { params: { userId } });
-        setItems(res.data || []);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    fetchCart();
-  }, [userId, location.state]);
-
-  /* ---------------- LOAD ADDRESSES ---------------- */
-  useEffect(() => {
-    if (!userId) return;
-
     const fetchAddresses = async () => {
       try {
         const res = await api.get(`/addresses/user/${userId}`);
-        setSavedAddresses(res.data || []);
+        setSavedAddresses(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
-        console.error(err);
+        console.error("failed to fetch addresses", err);
       }
     };
-
     fetchAddresses();
   }, [userId]);
 
-  const selectAddress = (addr) => {
+  const selectAddress = useCallback((addr) => {
     setShipping({
-      name: addr.name || "",
+      name: addr.name,
       email: addr.email || "",
-      phone: addr.phone || "",
-      address: addr.address || "",
-      city: addr.city || "",
-      state: addr.state || "",
-      zip: addr.zip || "",
-      country: "India",
+      phone: addr.phone,
+      address: addr.address,
+      city: addr.city,
+      state: addr.state,
+      zip: addr.zip,
+      country: addr.country || "India",
     });
-
     setSelectedAddressId(addr.id);
-  };
+  }, []);
 
-  const subtotal = items.reduce((a, c) => a + c.price * c.quantity, 0);
+  // Use cart items from context or buyNow item
+  const items = useMemo(() => {
+    if (location.state?.buyNowItem) {
+      return [location.state.buyNowItem];
+    }
+    return cartItems;
+  }, [cartItems, location.state]);
+
+  // Memoize calculations
+  const subtotal = useMemo(() => {
+    return items.reduce((a, c) => a + c.price * c.quantity, 0);
+  }, [items]);
+
   const total = subtotal;
 
-  /* ---------------- VALIDATION ---------------- */
-  const validate = () => {
-    if (!shipping.name.trim()) return "Enter name";
-    if (!shipping.phone.trim()) return "Enter phone";
-
-    if (orderType === "DELIVERY") {
-      if (!shipping.address.trim()) return "Enter address";
-      if (!shipping.state.trim()) return "Select state";
-    }
-
-    if (!items.length) return "Cart empty";
-
-    return null;
-  };
-
-  /* ---------------- CLEAR CART ---------------- */
-  const clearCart = async () => {
+  const clearCart = useCallback(async () => {
+    if (!userId) return;
     try {
-      await Promise.all(items.map((i) => api.delete(`/cart/${i.id}`)));
+      await Promise.all(items.map((item) => api.delete(`/cart/${item.id}`)));
     } catch (err) {
-      console.error(err);
+      console.error("failed to clear cart", err);
     }
-  };
+  }, [userId, items]);
 
-  /* ---------------- SAVE ORDER ---------------- */
-  const saveOrder = async (paymentId = null) => {
+  const saveOrder = useCallback(async (paymentId = null) => {
+    if (placing) return;
+    if (!userId) {
+      toast.error("User not logged in");
+      return;
+    }
+
     try {
+      const orderId = await generateOrderNumber();
+
       const formattedItems = items.map((i) => ({
         product_id: i.productId || i.id,
-        product_name: i.name,
-        price: i.price,
-        qty: i.quantity,
-        image: i.image || i.images?.[0],
+        product_name: i.name || i.product_name || "Unknown Product",
+        price: Number(i.price) || 0,
+        qty: Number(i.quantity) || 0,
+        size: i.size || null,
+        color: i.color || null,
+        image:
+          i.image || (Array.isArray(i.images) ? i.images[0] : i.images) || "",
+        variant: i.weight || i.size || "",
       }));
 
-      /* ✅ BACKEND COMPATIBLE PAYLOAD */
       const orderData = {
+        order_id: orderId,
         user_id: userId,
+        order_type: orderType,
         items: formattedItems,
-
-        shipping_address:
-          orderType === "DELIVERY"
-            ? `${shipping.name}, ${shipping.phone}, ${shipping.address}, ${shipping.city}, ${shipping.state}, ${shipping.zip}`
-            : "SHOP PICKUP",
-
-        total_price: total,
+        shipping: orderType === "DELIVERY" ? shipping : null,
+        pickup:
+          orderType === "PICKUP"
+            ? {
+                name: shipping.name,
+                phone: shipping.phone,
+                email: shipping.email,
+              }
+            : null,
+        subtotal,
+        total,
         payment_method: paymentMethod,
         payment_status: paymentMethod === "CASH" ? "Pending" : "Paid",
-        payment_id: paymentId || null,
+        status: "orderPlaced",
+        payment_id: paymentId,
       };
 
-      console.log("🚀 ORDER DATA:", orderData);
-
-      /* ✅ FIX: ignore duplicate address */
       try {
-        await saveUserAddress(userId, shipping);
+        await saveUserAddress(userId, {
+          ...shipping,
+          address: orderType === "PICKUP" ? "SHOP PICKUP" : shipping.address,
+          city: orderType === "PICKUP" ? "" : shipping.city,
+          state: orderType === "PICKUP" ? "" : shipping.state,
+          zip: orderType === "PICKUP" ? "" : shipping.zip,
+        });
       } catch (err) {
-        if (err.message === "DUPLICATE_ADDRESS") {
-          console.log("Duplicate address ignored ✅");
-        } else {
-          console.warn("Address save failed:", err.message);
-        }
+        if (err.message !== "DUPLICATE_ADDRESS") throw err;
       }
 
-      /* ✅ SAVE ORDER */
-      await api.post("/orders", orderData);
+      for (const item of items) {
+        const productId = item.productId || item.id;
+        const productRes = await api.get(`/products/${productId}`);
+        const product = productRes.data;
+
+        if (!product) {
+          throw new Error(`Product ${productId} not found`);
+        }
+
+        // Construct variant key with proper fallback logic
+        let variantKey =
+          item.variant ||
+          item.weight ||
+          (item.size && item.gender ? `${item.size}-${item.gender}` : null) ||
+          (item.size && item.color ? `${item.size}-${item.color}` : null) ||
+          item.size ||
+          '';
+
+        const updatedStock = { ...(product.stock || {}) };
+
+        // If no variant key found or specified, try the first available variant
+        if (!variantKey) {
+          const availableKeys = Object.keys(updatedStock);
+          if (availableKeys.length > 0) {
+            variantKey = availableKeys[0];
+            console.warn(`No variant specified for ${product.name}. Using first available: ${variantKey}`);
+          }
+        }
+
+        // Try exact variant key, then try without item details if needed
+        if (!variantKey || !updatedStock[variantKey]) {
+          // Log available keys for debugging
+          console.error(`Variant key '${variantKey}' not found in stock. Available keys:`, Object.keys(updatedStock), 'Item:', item);
+          throw new Error(`Variant not found for ${product.name}. Product has variants: ${Object.keys(updatedStock).join(', ')}`);
+        }
+
+        // Ensure quantities are numbers
+        const currentQty = parseInt(updatedStock[variantKey].qty, 10) || 0;
+        const itemQuantity = parseInt(item.quantity, 10) || 0;
+        const newQty = currentQty - itemQuantity;
+
+        if (newQty < 0) {
+          throw new Error(`Insufficient stock for ${product.name}. Available: ${currentQty}, Requested: ${itemQuantity}`);
+        }
+
+        updatedStock[variantKey] = {
+          ...updatedStock[variantKey],
+          qty: newQty,
+        };
+
+        await api.put(`/products/${productId}`, {
+          stock: updatedStock,
+        });
+      }
+
+      const orderResponse = await api.post("/orders", orderData);
+      console.log("Order created successfully:", orderResponse.data);
 
       await clearCart();
 
-      toast.success("Order placed 🎉");
-      navigate("/account", { state: { tab: "orders" } });
-    } catch (err) {
-      console.error("❌ FULL ERROR:", err.response?.data);
-
-      toast.error(
-        err.response?.data?.message ||
-          JSON.stringify(err.response?.data) ||
-          err.message ||
-          "Order failed"
-      );
-    } finally {
       setPlacing(false);
+      toast.success(`Order ${orderId} placed 🎉`);
+      navigate("/user/orders");
+    } catch (err) {
+      console.error("Order creation error:", err);
+      setPlacing(false);
+      toast.error(err.response?.data?.message || err.message || "Order failed");
     }
-  };
+  }, [userId, items, orderType, shipping, paymentMethod, subtotal, total, clearCart]);
 
-  /* ---------------- PLACE ORDER ---------------- */
   const placeOrder = async () => {
-    const error = validate();
-    if (error) return toast.error(error);
+    if (orderType === "DELIVERY") {
+      if (!shipping.name || shipping.name.trim() === "")
+        return toast.error("❌ Enter your name");
+      if (!shipping.phone || shipping.phone.trim() === "")
+        return toast.error("❌ Enter your phone number");
+      if (!shipping.address || shipping.address.trim() === "")
+        return toast.error("❌ Enter your address");
+      if (!shipping.state || shipping.state.trim() === "")
+        return toast.error("❌ Select your state");
+    } else {
+      if (!shipping.name || shipping.name.trim() === "")
+        return toast.error("❌ Enter your name");
+      if (!shipping.phone || shipping.phone.trim() === "")
+        return toast.error("❌ Enter your phone number");
+    }
+
+    if (!items.length) return toast.error("❌ Cart is empty");
 
     setPlacing(true);
 
-    if (paymentMethod === "CASH") {
-      return saveOrder();
-    }
+    try {
+      if (paymentMethod === "CASH") {
+        await saveOrder();
+        return;
+      }
 
-    const loaded = await loadRazorpay();
+      const loaded = await loadRazorpay();
+      if (!loaded) throw new Error("Razorpay failed to load");
 
-    if (!loaded) {
+      new window.Razorpay({
+        key: "rzp_test_SGj8n5SyKSE10b",
+        amount: total * 100,
+        currency: "INR",
+        name: "Gym Store",
+        description: "Order Payment",
+        handler: async (res) => {
+          console.log("Payment successful:", res);
+          try {
+            await saveOrder(res.razorpay_payment_id);
+          } catch (err) {
+            console.error("Failed to save order after payment:", err);
+            toast.error(
+              "Payment succeeded but order save failed. Please contact support."
+            );
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            console.log("Payment cancelled by user");
+            setPlacing(false);
+          },
+        },
+        prefill: {
+          name: shipping.name,
+          email: shipping.email,
+          contact: shipping.phone,
+        },
+        theme: { color: "#ef4444" },
+      }).open();
+    } catch (err) {
+      console.error("Payment error:", err);
+      toast.error("Payment failed: " + (err.message || "Unknown error"));
       setPlacing(false);
-      return toast.error("Razorpay failed to load");
     }
+  };
 
-    const key = "rzp_test_SGj8n5SyKSE10b";
-
-    console.log("KEY:", key);
-    console.log("TOTAL:", total);
-
-    if (!key) {
-      setPlacing(false);
-      return toast.error("Missing Razorpay key");
+  const areDeliveryFieldsFilled = () => {
+    if (orderType === "DELIVERY") {
+      return (
+        shipping.name?.trim() &&
+        shipping.phone?.trim() &&
+        shipping.address?.trim() &&
+        shipping.state?.trim()
+      );
     }
-
-    const rzp = new window.Razorpay({
-      key,
-      amount: total * 100,
-      currency: "INR",
-      name: "Your Store",
-      description: "Order Payment",
-
-      handler: async (res) => {
-        console.log("Payment success:", res);
-        await saveOrder(res.razorpay_payment_id);
-      },
-
-      modal: {
-        ondismiss: () => setPlacing(false),
-      },
-
-      prefill: {
-        name: shipping.name,
-        email: shipping.email,
-        contact: shipping.phone,
-      },
-
-      theme: { color: "#ef4444" },
-    });
-
-    rzp.open();
+    return shipping.name?.trim() && shipping.phone?.trim();
   };
 
   return (
-    <div className="bg-black text-white min-h-screen">
-      {/* <PageHeader title="Checkout" /> */}
+    <div className="p-6 space-y-6">
+      {/* HEADER */}
+      <div>
+        <h2 className="text-3xl font-bold text-white">Checkout</h2>
+        <p className="text-white/60 mt-1">Complete your purchase</p>
+      </div>
 
-      <PageContainer>
-        <div className="grid md:grid-cols-2 gap-10 py-10">
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* LEFT - SHIPPING & PAYMENT */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* SHIPPING INFO */}
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+            <h3 className="text-xl font-bold text-white mb-4">Shipping Details</h3>
 
-          {/* LEFT */}
-          <div>
-            <h2 className="text-red-500 mb-4">Shipping</h2>
-
-            {savedAddresses.map((addr) => (
-              <div
-                key={addr.id}
-                onClick={() => selectAddress(addr)}
-                className={`p-3 mb-2 border cursor-pointer ${
-                  selectedAddressId === addr.id
-                    ? "border-red-500 bg-red-500/10"
-                    : "border-gray-600"
+            {/* ORDER TYPE TOGGLE */}
+            <div className="flex gap-4 mb-6">
+              <button
+                onClick={() => setOrderType("DELIVERY")}
+                className={`flex-1 py-3 rounded-xl border transition ${
+                  orderType === "DELIVERY"
+                    ? "bg-orange-500/20 border-orange-500"
+                    : "border-white/10 hover:border-white/20"
                 }`}
               >
-                <p>{addr.name}</p>
-                <p className="text-sm">{addr.address}</p>
+                Delivery
+              </button>
+              <button
+                onClick={() => setOrderType("PICKUP")}
+                className={`flex-1 py-3 rounded-xl border transition ${
+                  orderType === "PICKUP"
+                    ? "bg-orange-500/20 border-orange-500"
+                    : "border-white/10 hover:border-white/20"
+                }`}
+              >
+                Shop Pickup
+              </button>
+            </div>
+
+            {/* SAVED ADDRESSES */}
+            {savedAddresses.length > 0 && (
+              <div className="mb-6 space-y-3">
+                <h4 className="text-white/80 text-sm font-semibold">Saved Addresses</h4>
+                {savedAddresses.map((addr) => (
+                  <div
+                    key={addr.id}
+                    onClick={() => selectAddress(addr)}
+                    className={`p-4 rounded-xl border cursor-pointer transition ${
+                      selectedAddressId === addr.id
+                        ? "border-orange-500 bg-orange-500/10"
+                        : "border-white/10 hover:border-white/20"
+                    }`}
+                  >
+                    <p className="font-semibold text-white text-sm">{addr.name}</p>
+                    {addr.address !== "SHOP PICKUP" && (
+                      <p className="text-xs text-white/60 mt-1">
+                        {addr.address}
+                        {addr.city && `, ${addr.city}`}
+                      </p>
+                    )}
+                    {addr.state && (
+                      <p className="text-xs text-white/50">
+                        {addr.state} {addr.zip && `- ${addr.zip}`}
+                      </p>
+                    )}
+                    <p className="text-xs text-white/70 mt-1">📞 {addr.phone}</p>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
 
-            {["name", "email", "phone"].map((k) => (
-              <input
-                key={k}
-                placeholder={k}
-                value={shipping[k]}
-                onChange={(e) =>
-                  setShipping({ ...shipping, [k]: e.target.value })
-                }
-                className="w-full p-3 mb-3 bg-black border border-red-500"
-              />
-            ))}
+            {/* FORM */}
+            <div className="space-y-4">
+              {orderType === "DELIVERY" ? (
+                <>
+                  {["name", "email", "phone", "city", "zip"].map((k) => (
+                    <div key={k}>
+                      <label className="block text-white/70 text-xs mb-1 font-semibold">
+                        {k.charAt(0).toUpperCase() + k.slice(1)}
+                        {["name", "phone"].includes(k) && (
+                          <span className="text-orange-400"> *</span>
+                        )}
+                      </label>
+                      <input
+                        placeholder={k.toUpperCase()}
+                        value={shipping[k]}
+                        onChange={(e) =>
+                          setShipping({ ...shipping, [k]: e.target.value })
+                        }
+                        className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-lg focus:outline-none focus:border-orange-500 text-white placeholder-white/40"
+                      />
+                    </div>
+                  ))}
 
-            <textarea
-              placeholder="Address"
-              value={shipping.address}
-              onChange={(e) =>
-                setShipping({ ...shipping, address: e.target.value })
-              }
-              className="w-full p-3 mb-3 bg-black border border-red-500"
-            />
+                  <div>
+                    <label className="block text-white/70 text-xs mb-1 font-semibold">
+                      Address <span className="text-orange-400">*</span>
+                    </label>
+                    <textarea
+                      placeholder="Enter your full address"
+                      value={shipping.address}
+                      onChange={(e) =>
+                        setShipping({ ...shipping, address: e.target.value })
+                      }
+                      rows="3"
+                      className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-lg focus:outline-none focus:border-orange-500 text-white placeholder-white/40"
+                    />
+                  </div>
 
-            <input
-              placeholder="State"
-              value={shipping.state}
-              onChange={(e) =>
-                setShipping({ ...shipping, state: e.target.value })
-              }
-              className="w-full p-3 mb-3 bg-black border border-red-500"
-            />
+                  <div>
+                    <label className="block text-white/70 text-xs mb-1 font-semibold">
+                      State <span className="text-orange-400">*</span>
+                    </label>
+                    <select
+                      value={shipping.state}
+                      onChange={(e) =>
+                        setShipping({ ...shipping, state: e.target.value })
+                      }
+                      className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-orange-500 text-white"
+                    >
+                      <option value="">-- Select State --</option>
+                      {indianStates.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {["name", "phone", "email"].map((k) => (
+                    <div key={k}>
+                      <label className="block text-white/70 text-xs mb-1 font-semibold">
+                        {k.charAt(0).toUpperCase() + k.slice(1)}
+                        {["name", "phone"].includes(k) && (
+                          <span className="text-orange-400"> *</span>
+                        )}
+                      </label>
+                      <input
+                        placeholder={k.toUpperCase()}
+                        value={shipping[k]}
+                        onChange={(e) =>
+                          setShipping({ ...shipping, [k]: e.target.value })
+                        }
+                        className="w-full bg-white/5 border border-white/10 px-4 py-3 rounded-lg focus:outline-none focus:border-orange-500 text-white placeholder-white/40"
+                      />
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
 
-            <div className="mt-4">
-              <label>
+          {/* PAYMENT METHOD */}
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
+            <h3 className="text-xl font-bold text-white mb-4">Payment Method</h3>
+            <div className="space-y-3">
+              <label className="flex gap-3 cursor-pointer p-3 rounded-lg hover:bg-white/5 transition">
                 <input
                   type="radio"
                   checked={paymentMethod === "CASH"}
                   onChange={() => setPaymentMethod("CASH")}
+                  className="w-4 h-4 mt-1"
                 />
-                COD
+                <div>
+                  <p className="text-white font-semibold text-sm">Cash on Delivery</p>
+                  <p className="text-white/50 text-xs">Pay when you receive your order</p>
+                </div>
               </label>
 
-              <label className="ml-4">
+              <label className="flex gap-3 cursor-pointer p-3 rounded-lg hover:bg-white/5 transition">
                 <input
                   type="radio"
                   checked={paymentMethod === "ONLINE"}
                   onChange={() => setPaymentMethod("ONLINE")}
+                  className="w-4 h-4 mt-1"
                 />
-                Online
+                <div>
+                  <p className="text-white font-semibold text-sm">Online Payment</p>
+                  <p className="text-white/50 text-xs">Secure payment via Razorpay</p>
+                </div>
               </label>
             </div>
           </div>
+        </div>
 
-          {/* RIGHT */}
-          <div>
-            <h2 className="text-red-500 mb-4">Summary</h2>
+        {/* RIGHT - ORDER SUMMARY */}
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 h-fit sticky top-6">
+          <h3 className="text-xl font-bold text-white mb-4">Order Summary</h3>
 
+          <div className="space-y-3 mb-6 pb-6 border-b border-white/10 max-h-64 overflow-y-auto">
             {items.map((i) => (
-              <div key={i.id} className="flex gap-3 mb-3">
+              <div key={i.id} className="flex items-start gap-3">
                 <img
-                  src={makeImageUrl(i.image || i.images?.[0])}
-                  className="w-14 h-14"
+                  src={makeImageUrl(
+                    i.images ? (Array.isArray(i.images) ? i.images[0] : i.images) : i.image
+                  )}
+                  onError={(e) => {
+                    e.target.src = "https://via.placeholder.com/50?text=No+Image";
+                  }}
+                  alt={i.name}
+                  className="w-12 h-12 object-contain rounded-lg bg-white/10"
                 />
-                <div>
-                  <p>{i.name}</p>
-                  <p>Qty: {i.quantity}</p>
+                <div className="flex-1">
+                  <p className="text-white text-sm font-semibold line-clamp-2">{i.name}</p>
+                  <p className="text-white/60 text-xs mt-1">Qty: {i.quantity}</p>
+                  <p className="text-orange-400 font-semibold text-sm mt-1">
+                    ₹{(i.price * i.quantity).toLocaleString()}
+                  </p>
                 </div>
-                <p>₹{i.price * i.quantity}</p>
               </div>
             ))}
-
-            <div className="mt-4 flex justify-between">
-              <span>Total</span>
-              <span>₹{total}</span>
-            </div>
-
-            <button
-              onClick={placeOrder}
-              disabled={placing}
-              className="mt-4 w-full bg-red-600 py-3"
-            >
-              {placing ? "Processing..." : "Place Order"}
-            </button>
           </div>
+
+          <div className="space-y-2 mb-6">
+            <div className="flex justify-between text-white/60 text-sm">
+              <span>Subtotal</span>
+              <span>₹{subtotal.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between text-white font-bold">
+              <span>Total</span>
+              <span className="text-orange-400 text-lg">₹{total.toLocaleString()}</span>
+            </div>
+          </div>
+
+          <button
+            onClick={placeOrder}
+            disabled={placing || !areDeliveryFieldsFilled()}
+            className={`w-full py-3 rounded-lg font-semibold transition ${
+              placing || !areDeliveryFieldsFilled()
+                ? "bg-white/10 text-white/50 cursor-not-allowed"
+                : "bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:scale-105"
+            }`}
+          >
+            {placing ? "Processing..." : "Place Order"}
+          </button>
         </div>
-      </PageContainer>
+      </div>
     </div>
   );
 }
