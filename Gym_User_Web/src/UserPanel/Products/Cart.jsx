@@ -138,6 +138,12 @@ const Cart = () => {
                   ₹{item.price}
                 </p>
 
+                {(item.variant || item.weight || item.size) && (
+                  <p className="text-xs text-white/50 mt-1">
+                    {item.weight ? `Weight: ${item.weight}` : item.size ? `Size: ${item.size}` : `Variant: ${item.variant}`}
+                  </p>
+                )}
+
                 {/* QUANTITY */}
                 <div className="flex items-center gap-2 mt-2">
                   <button
