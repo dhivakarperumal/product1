@@ -55,6 +55,7 @@ import UserPrivacySettings from "./UserPanel/Settingss/PrivacySettings.jsx";
 import UserServices from "./UserPanel/Services/Services.jsx";
 import UserTrainers from "./UserPanel/Trainers/Trainers.jsx";
 import BuyNow from "./UserPanel/Pricings/BuyNow.jsx";
+import ServiceDetails from "./UserPanel/Services/ServiceDetails.jsx";
 
 // ✅ Lazy components
 const Login = lazy(() => import("./Components/Login.jsx"));
@@ -155,6 +156,7 @@ const router = createBrowserRouter([
       { path: "services", element: <UserServices /> },
       { path: "trainers", element: <UserTrainers /> },
       { path: "buynow", element: <BuyNow /> },
+      { path: "services/:slug", element: <ServiceDetails /> },
       
       // ✅ Settings routes
       { path: "settings", element: <UserSettings /> },

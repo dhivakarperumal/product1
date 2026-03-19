@@ -58,7 +58,7 @@ const Services = () => {
           return (
             <div
               key={service.id || index}
-              onClick={() => navigate(`/services/${service.slug}`)}
+              onClick={() => navigate(`/user/services/${service.slug}`)}
               className="
     relative cursor-pointer overflow-hidden rounded-3xl
     border border-orange-500/60 group
@@ -96,7 +96,7 @@ const Services = () => {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(`/services/${service.slug}`);
+                    navigate(`/user/services/${service.slug}`);
                   }}
                   className="
         mt-3 px-4 py-2 rounded-full

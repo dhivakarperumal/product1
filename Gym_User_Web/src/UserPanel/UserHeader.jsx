@@ -72,12 +72,23 @@ const UserHeader = ({ onMenuClick }) => {
 
   /* ---- Page title --------------------------------------------------- */
   const getPageTitle = () => {
-    if (pageTitles[location.pathname]) return pageTitles[location.pathname];
-    for (const [path, title] of Object.entries(pageTitles)) {
-      if (location.pathname.startsWith(path + "/")) return title;
-    }
-    return "Dashboard";
-  };
+  const path = location.pathname;
+
+  // ✅ exact match
+  if (pageTitles[path]) return pageTitles[path];
+
+  // ✅ handle dynamic routes
+  if (path.startsWith("/user/services/")) return "Service Details";
+  if (path.startsWith("/user/products/")) return "Product Details";
+  if (path.startsWith("/user/orders/")) return "Order Details";
+
+  // fallback for nested
+  for (const [route, title] of Object.entries(pageTitles)) {
+    if (path.startsWith(route + "/")) return title;
+  }
+
+  return "Dashboard";
+};
 
   /* ---- Logout ------------------------------------------------------- */
   const handleLogout = async () => {
