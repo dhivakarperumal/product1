@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import api from "../../api";
 import { useAuth } from "../../PrivateRouter/AuthContext";
 import dayjs from "dayjs";
+import { Dumbbell, CalendarDays } from "lucide-react";
 
 const Workouts = () => {
   const { user } = useAuth();
@@ -11,7 +12,10 @@ const Workouts = () => {
 
   const workoutData = workouts[0];
 
-  // ================= FETCH =================
+  useEffect(() => {
+    if (user) fetchWorkouts();
+  }, [user]);
+
   const fetchWorkouts = async () => {
     try {
       const res = await api.get("/workouts");
@@ -23,15 +27,10 @@ const Workouts = () => {
 
       setWorkouts(myWorkouts);
     } catch (err) {
-      console.log("Workout fetch error:", err);
+      console.log(err);
     }
   };
 
-  useEffect(() => {
-    if (user) fetchWorkouts();
-  }, [user]);
-
-  // ================= FILTER =================
   const getFilteredDays = () => {
     if (!workoutData?.days || !workoutData?.created_at) return [];
 
@@ -43,7 +42,6 @@ const Workouts = () => {
       const date = baseDate.add(index, "day");
 
       if (filter === "TODAY") return date.isSame(today, "day");
-
       if (filter === "WEEK")
         return date.isAfter(today.subtract(7, "day"));
 
@@ -54,12 +52,12 @@ const Workouts = () => {
   // ================= EMPTY =================
   if (!workoutData) {
     return (
-      <div className="flex flex-col items-center mt-20 text-center">
-        <div className="w-28 h-28 bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-700 mb-6">
-          <span className="text-red-500 text-4xl">🏋️</span>
+      <div className="flex flex-col items-center mt-24 text-center text-white">
+        <div className="w-24 h-24 rounded-full flex items-center justify-center bg-white/5 border border-white/10 mb-6">
+          <Dumbbell size={40} className="text-red-400" />
         </div>
 
-        <h2 className="text-xl font-bold text-white">
+        <h2 className="text-xl font-bold">
           No Workouts Assigned
         </h2>
 
@@ -71,56 +69,42 @@ const Workouts = () => {
   }
 
   return (
-    <div className="bg-black min-h-screen text-white p-6">
+    <div className="min-h-screen p-4 md:p-6 text-white space-y-6">
 
       {/* ===== HEADER ===== */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-extrabold">
-          {workoutData.member_name}'s Workout
+      <div>
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <Dumbbell /> {workoutData.member_name}'s Workout
         </h1>
 
-        <p className="text-gray-400 mt-1">
+        <p className="text-gray-400 mt-1 text-sm">
           {workoutData.duration_weeks} Weeks · {workoutData.level}
         </p>
       </div>
 
       {/* ===== STATS ===== */}
-      <div className="flex gap-4 mb-6">
-        <div className="flex-1 bg-[#141414] p-4 rounded-xl text-center border border-[#222]">
-          <p className="text-gray-400 text-xs">Trainer</p>
-          <p className="font-bold">{workoutData.trainer_name}</p>
-        </div>
+      <div className="grid grid-cols-3 gap-3">
 
-        <div className="flex-1 bg-[#141414] p-4 rounded-xl text-center border border-[#222]">
-          <p className="text-gray-400 text-xs">Level</p>
-          <p className="font-bold">{workoutData.level}</p>
-        </div>
+        <StatBox label="Trainer" value={workoutData.trainer_name} />
+        <StatBox label="Level" value={workoutData.level} />
+        <StatBox label="Duration" value={`${workoutData.duration_weeks}w`} />
 
-        <div className="flex-1 bg-[#141414] p-4 rounded-xl text-center border border-[#222]">
-          <p className="text-gray-400 text-xs">Duration</p>
-          <p className="font-bold">
-            {workoutData.duration_weeks}w
-          </p>
-        </div>
       </div>
 
       {/* ===== FILTER ===== */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2">
         {["ALL", "TODAY", "WEEK"].map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-full text-sm font-semibold ${
-              filter === f
+            className={`px-4 py-2 rounded-full text-sm transition
+              ${filter === f
                 ? "bg-red-600 text-white"
-                : "bg-[#222] text-gray-400"
-            }`}
+                : "bg-white/5 text-gray-400 border border-white/10"
+              }
+            `}
           >
-            {f === "ALL"
-              ? "All"
-              : f === "TODAY"
-              ? "Today"
-              : "This Week"}
+            {f === "ALL" ? "All" : f === "TODAY" ? "Today" : "This Week"}
           </button>
         ))}
       </div>
@@ -129,54 +113,69 @@ const Workouts = () => {
       {getFilteredDays().map(([day, exercises], index) => {
         const dayIndex = Number(day.replace("Day", "")) - 1;
 
-        const date = dayjs(workoutData.created_at)
-          .add(dayIndex, "day")
-          .format("DD-MM-YYYY");
+        const date = dayjs(workoutData.created_at).add(dayIndex, "day");
 
         return (
           <div
             key={index}
-            className="bg-[#141414] p-4 rounded-xl mb-4 border border-[#222]"
+            className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4"
           >
-            <div className="flex justify-between mb-3">
-              <h2 className="text-red-500 font-bold text-lg">
-                {date}
+            {/* DATE HEADER */}
+            <div className="flex justify-between items-center">
+              <h2 className="font-semibold text-lg">
+                {date.format("DD MMM YYYY")}
               </h2>
 
-              <span className="text-gray-400 text-sm">
-                {exercises.length} Exercises
+              <span className="text-xs text-gray-400 flex items-center gap-1">
+                <CalendarDays size={14} />
+                {date.format("dddd")}
               </span>
             </div>
 
-            {exercises.map((ex, i) => (
-              <div
-                key={i}
-                className="bg-[#1a1a1a] p-3 rounded-lg mb-3 border border-[#222]"
-              >
-                <div className="flex justify-between">
-                  <div>
-                    <p className="font-semibold">{ex.name}</p>
+            {/* EXERCISES */}
+            <div className="space-y-3">
+              {exercises.map((ex, i) => (
+                <div
+                  key={i}
+                  className="
+                  p-4 rounded-xl
+                  bg-gradient-to-br from-white/5 to-white/0
+                  border border-white/10
+                  hover:scale-[1.01] transition
+                  "
+                >
+                  {/* TOP */}
+                  <div className="flex justify-between items-start">
 
-                    <p className="text-gray-400 text-sm mt-1">
-                      {ex.type} · {ex.sets} sets · {ex.count} reps
-                    </p>
+                    <div>
+                      <p className="font-semibold text-white">
+                        {ex.name}
+                      </p>
+
+                      <p className="text-gray-400 text-sm mt-1">
+                        {ex.type} · {ex.sets} sets · {ex.count} reps
+                      </p>
+                    </div>
+
+                    <span className="text-xs text-gray-400">
+                      {ex.time || "No time"}
+                    </span>
+
                   </div>
 
-                  <span className="text-gray-400 text-sm">
-                    {ex.time}
-                  </span>
-                </div>
+                  {/* IMAGE */}
+                  {ex.media &&
+                    ex.mediaType?.includes("image") && (
+                      <img
+                        src={ex.media}
+                        alt="exercise"
+                        className="w-full h-40 object-cover rounded-xl mt-3"
+                      />
+                    )}
 
-                {ex.media &&
-                  ex.mediaType?.includes("image") && (
-                    <img
-                      src={ex.media}
-                      alt="exercise"
-                      className="w-full h-40 object-cover rounded-lg mt-3"
-                    />
-                  )}
-              </div>
-            ))}
+                </div>
+              ))}
+            </div>
           </div>
         );
       })}
@@ -185,3 +184,12 @@ const Workouts = () => {
 };
 
 export default Workouts;
+
+/* ================= COMPONENTS ================= */
+
+const StatBox = ({ label, value }) => (
+  <div className="bg-white/5 border border-white/10 p-4 rounded-xl text-center">
+    <p className="text-xs text-gray-400">{label}</p>
+    <p className="font-semibold mt-1">{value}</p>
+  </div>
+);
