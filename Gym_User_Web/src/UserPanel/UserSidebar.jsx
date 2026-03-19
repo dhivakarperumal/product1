@@ -14,8 +14,11 @@ import {
   Briefcase,
   User,
   Fan,
+  Gem,
 } from "lucide-react";
-import { useAuth } from "../PrivateRouter/AuthContext";
+import { useAuth} from "../PrivateRouter/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { LogOut } from "lucide-react";
 
 /* ================= NAV ITEMS ================= */
 const navItems = [
@@ -43,7 +46,7 @@ const navItems = [
   {
     path: "/user/pricing",
     label: "Pricing Plans",
-    icon: Home,
+    icon: Gem,
   },
   {
     path: "/user/facilities",
@@ -65,15 +68,14 @@ const navItems = [
     label: "Settings",
     icon: Settings,
   },
-
-  { path: "/", label: "Back Home", icon: Home },
 ];
 
 /* ================= SIDEBAR ================= */
 const UserSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
-  const { userProfile } = useAuth();
+  const { userProfile, logout } = useAuth();
   const location = useLocation();
   const [openMenu, setOpenMenu] = useState(null);
+  const navigate = useNavigate();
 
   /* ================= ACTIVE ROUTE MAP ================= */
   const activeRouteMap = {};
@@ -162,7 +164,7 @@ const UserSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = isRouteActive(item.path);
-            
+
             return (
               <NavLink
                 key={item.path}
@@ -181,7 +183,25 @@ const UserSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
               </NavLink>
             );
           })}
+
         </nav>
+        <div className="p-4 border-t border-white/10">
+          <button
+            onClick={() => {
+              logout();
+              navigate("/login");
+            }}
+            className="
+      w-full flex items-center justify-center gap-2
+      py-3 rounded-xl
+      bg-red-500/90 hover:bg-red-500
+      text-white font-medium
+    "
+          >
+            <LogOut className="w-5 h-5" />
+            {!collapsed && "Logout"}
+          </button>
+        </div>
 
         {/* ========== COLLAPSE BUTTON ========== */}
         <button
