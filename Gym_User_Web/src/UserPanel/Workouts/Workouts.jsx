@@ -1,68 +1,62 @@
 import React, { useEffect, useState } from "react";
 import api from "../../api";
-import { useNavigate } from "react-router-dom";
-import toast from "react-hot-toast";
 import { useAuth } from "../../PrivateRouter/AuthContext";
-import { FaDumbbell } from "react-icons/fa";
-import cache from "../../cache";
+import dayjs from "dayjs";
 
 const Workouts = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
 
   const [workouts, setWorkouts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [openWorkout, setOpenWorkout] = useState(null);
+  const [filter, setFilter] = useState("TODAY");
 
-  useEffect(() => {
-    if (user) fetchWorkouts();
-  }, [user]);
+  const workoutData = workouts[0];
 
+  // ================= FETCH =================
   const fetchWorkouts = async () => {
-    if (cache.workouts) {
-      setWorkouts(cache.workouts);
-      setLoading(false);
-    } else {
-      setLoading(true);
-    }
-
     try {
       const res = await api.get("/workouts");
       const data = Array.isArray(res.data) ? res.data : [];
 
       const myWorkouts = data.filter(
-        (item) => item.member_email === user.email
+        (item) => item.member_email === user?.email
       );
 
       setWorkouts(myWorkouts);
-      cache.workouts = myWorkouts;
     } catch (err) {
-      console.error("Workout fetch error:", err);
-      if (!cache.workouts) toast.error("Failed to load workouts");
-    } finally {
-      setLoading(false);
+      console.log("Workout fetch error:", err);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-32 gap-6">
-        <div className="relative">
-          <div className="w-16 h-16 border-4 border-red-500/20 border-t-red-500 rounded-full animate-spin" />
-          <div className="absolute inset-0 bg-red-500/10 blur-xl rounded-full animate-pulse" />
-        </div>
-        <p className="text-white/40 text-xs uppercase tracking-[0.4em] animate-pulse">
-          Assembling Routine
-        </p>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (user) fetchWorkouts();
+  }, [user]);
 
-  if (workouts.length === 0) {
+  // ================= FILTER =================
+  const getFilteredDays = () => {
+    if (!workoutData?.days || !workoutData?.created_at) return [];
+
+    const baseDate = dayjs(workoutData.created_at);
+    const today = dayjs();
+
+    return Object.entries(workoutData.days).filter(([day]) => {
+      const index = Number(day.replace("Day", "")) - 1;
+      const date = baseDate.add(index, "day");
+
+      if (filter === "TODAY") return date.isSame(today, "day");
+
+      if (filter === "WEEK")
+        return date.isAfter(today.subtract(7, "day"));
+
+      return true;
+    });
+  };
+
+  // ================= EMPTY =================
+  if (!workoutData) {
     return (
       <div className="flex flex-col items-center mt-20 text-center">
         <div className="w-28 h-28 bg-zinc-900 rounded-full flex items-center justify-center border border-zinc-700 mb-6">
-          <FaDumbbell className="text-red-500 text-4xl" />
+          <span className="text-red-500 text-4xl">🏋️</span>
         </div>
 
         <h2 className="text-xl font-bold text-white">
@@ -70,147 +64,122 @@ const Workouts = () => {
         </h2>
 
         <p className="text-gray-400 mt-2 max-w-sm">
-          You don't have any workout plans yet. Subscribe to a plan to unlock workouts.
+          Subscribe to a plan to unlock workouts.
         </p>
-
-        <button
-          onClick={() => navigate("/pricing")}
-          className="mt-6 bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg font-semibold text-white"
-        >
-          View Plans
-        </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="bg-black min-h-screen text-white p-6">
 
-      <h2 className="text-2xl font-bold text-red-500">
-        My Workouts
-      </h2>
+      {/* ===== HEADER ===== */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-extrabold">
+          {workoutData.member_name}'s Workout
+        </h1>
 
-      <div className="overflow-x-auto">
-        <div className="bg-gray-900 rounded-xl border border-red-500/20">
+        <p className="text-gray-400 mt-1">
+          {workoutData.duration_weeks} Weeks · {workoutData.level}
+        </p>
+      </div>
 
-          <table className="w-full text-sm">
-            <thead className="bg-gray-900 text-gray-300 uppercase border-b border-red-500/20">
-              <tr>
-                <th className="px-6 py-4 text-left">Category</th>
-                <th className="px-6 py-4 text-left">Goal</th>
-                <th className="px-6 py-4 text-left">Duration</th>
-                <th className="px-6 py-4 text-left">Level</th>
-                <th className="px-6 py-4 text-center">Action</th>
-              </tr>
-            </thead>
+      {/* ===== STATS ===== */}
+      <div className="flex gap-4 mb-6">
+        <div className="flex-1 bg-[#141414] p-4 rounded-xl text-center border border-[#222]">
+          <p className="text-gray-400 text-xs">Trainer</p>
+          <p className="font-bold">{workoutData.trainer_name}</p>
+        </div>
 
-            <tbody>
-              {workouts.map((item, index) => (
-                <React.Fragment key={index}>
-                  <tr className="border-t border-zinc-700 hover:bg-gray-800 transition">
-                    <td className="px-6 py-4 font-semibold text-white">
-                      {item.category}
-                    </td>
+        <div className="flex-1 bg-[#141414] p-4 rounded-xl text-center border border-[#222]">
+          <p className="text-gray-400 text-xs">Level</p>
+          <p className="font-bold">{workoutData.level}</p>
+        </div>
 
-                    <td className="px-6 py-4 text-gray-400">
-                      {item.goal}
-                    </td>
-
-                    <td className="px-6 py-4 text-gray-400">
-                      {item.duration_weeks} Weeks
-                    </td>
-
-                    <td className="px-6 py-4 text-gray-400">
-                      {item.level}
-                    </td>
-
-                    <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() =>
-                          setOpenWorkout(
-                            openWorkout === item.id ? null : item.id
-                          )
-                        }
-                        className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-semibold text-white"
-                      >
-                        {openWorkout === item.id ? "Close" : "View"}
-                      </button>
-                    </td>
-                  </tr>
-
-                  {openWorkout === item.id && (
-                    <tr className="bg-gray-800 border-t border-red-500/60">
-                      <td colSpan="5" className="px-8 py-6">
-
-                        {/* INFO CARDS */}
-                        <div className="grid md:grid-cols-3 gap-6 mb-6">
-                          <div className="bg-gray-900 p-4 rounded-xl border border-red-500/60 text-center">
-                            <p className="text-gray-400 text-sm">Trainer</p>
-                            <p className="font-bold text-white">
-                              {item.trainer_name}
-                            </p>
-                          </div>
-
-                          <div className="bg-gray-900 p-4 rounded-xl border border-red-500/60 text-center">
-                            <p className="text-gray-400 text-sm">Level</p>
-                            <p className="font-bold text-white">
-                              {item.level}
-                            </p>
-                          </div>
-
-                          <div className="bg-gray-900 p-4 rounded-xl border border-red-500/60 text-center">
-                            <p className="text-gray-400 text-sm">Duration</p>
-                            <p className="font-bold text-white">
-                              {item.duration_weeks} Weeks
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* WEEKLY SCHEDULE */}
-                        <h3 className="text-lg font-bold mb-4 text-white">
-                          Weekly Schedule
-                        </h3>
-
-                        {Object.entries(item.days || {}).map(
-                          ([day, exercises], i) => (
-                            <div
-                              key={i}
-                              className="bg-gray-900 rounded-xl p-4 mb-4 border border-red-500/60"
-                            >
-                              <div className="flex justify-between mb-3">
-                                <span className="text-red-500 font-bold">
-                                  {day}
-                                </span>
-                                <span className="text-gray-400 text-sm">
-                                  {exercises.length} Exercises
-                                </span>
-                              </div>
-
-                              {exercises.map((ex, j) => (
-                                <div
-                                  key={j}
-                                  className="flex justify-between text-sm border-b border-red-500/30 py-2 text-white"
-                                >
-                                  <span>{ex.name}</span>
-                                  <span className="text-gray-400">
-                                    {ex.time}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          )
-                        )}
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
-
+        <div className="flex-1 bg-[#141414] p-4 rounded-xl text-center border border-[#222]">
+          <p className="text-gray-400 text-xs">Duration</p>
+          <p className="font-bold">
+            {workoutData.duration_weeks}w
+          </p>
         </div>
       </div>
 
+      {/* ===== FILTER ===== */}
+      <div className="flex gap-2 mb-6">
+        {["ALL", "TODAY", "WEEK"].map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-4 py-2 rounded-full text-sm font-semibold ${
+              filter === f
+                ? "bg-red-600 text-white"
+                : "bg-[#222] text-gray-400"
+            }`}
+          >
+            {f === "ALL"
+              ? "All"
+              : f === "TODAY"
+              ? "Today"
+              : "This Week"}
+          </button>
+        ))}
+      </div>
+
+      {/* ===== WORKOUT DAYS ===== */}
+      {getFilteredDays().map(([day, exercises], index) => {
+        const dayIndex = Number(day.replace("Day", "")) - 1;
+
+        const date = dayjs(workoutData.created_at)
+          .add(dayIndex, "day")
+          .format("DD-MM-YYYY");
+
+        return (
+          <div
+            key={index}
+            className="bg-[#141414] p-4 rounded-xl mb-4 border border-[#222]"
+          >
+            <div className="flex justify-between mb-3">
+              <h2 className="text-red-500 font-bold text-lg">
+                {date}
+              </h2>
+
+              <span className="text-gray-400 text-sm">
+                {exercises.length} Exercises
+              </span>
+            </div>
+
+            {exercises.map((ex, i) => (
+              <div
+                key={i}
+                className="bg-[#1a1a1a] p-3 rounded-lg mb-3 border border-[#222]"
+              >
+                <div className="flex justify-between">
+                  <div>
+                    <p className="font-semibold">{ex.name}</p>
+
+                    <p className="text-gray-400 text-sm mt-1">
+                      {ex.type} · {ex.sets} sets · {ex.count} reps
+                    </p>
+                  </div>
+
+                  <span className="text-gray-400 text-sm">
+                    {ex.time}
+                  </span>
+                </div>
+
+                {ex.media &&
+                  ex.mediaType?.includes("image") && (
+                    <img
+                      src={ex.media}
+                      alt="exercise"
+                      className="w-full h-40 object-cover rounded-lg mt-3"
+                    />
+                  )}
+              </div>
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 };
