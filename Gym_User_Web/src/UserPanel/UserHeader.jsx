@@ -38,6 +38,11 @@ const UserHeader = ({ onMenuClick }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [alerts, setAlerts] = useState([]);
   const [fetchingAlerts, setFetchingAlerts] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+
+
+  const totalNotifications = alerts.length + messages.length;
 
   const { user, role, profileName, email, logout } = useAuth();
   const { cartCount, fetchCart } = useCart();
@@ -71,25 +76,26 @@ const UserHeader = ({ onMenuClick }) => {
     return () => clearInterval(interval);
   }, [user?.id]);
 
+
   /* ---- Page title --------------------------------------------------- */
   const getPageTitle = () => {
-  const path = location.pathname;
+    const path = location.pathname;
 
-  // ✅ exact match
-  if (pageTitles[path]) return pageTitles[path];
+    // ✅ exact match
+    if (pageTitles[path]) return pageTitles[path];
 
-  // ✅ handle dynamic routes
-  if (path.startsWith("/user/services/")) return "Service Details";
-  if (path.startsWith("/user/products/")) return "Product Details";
-  if (path.startsWith("/user/orders/")) return "Order Details";
+    // ✅ handle dynamic routes
+    if (path.startsWith("/user/services/")) return "Service Details";
+    if (path.startsWith("/user/products/")) return "Product Details";
+    if (path.startsWith("/user/orders/")) return "Order Details";
 
-  // fallback for nested
-  for (const [route, title] of Object.entries(pageTitles)) {
-    if (path.startsWith(route + "/")) return title;
-  }
+    // fallback for nested
+    for (const [route, title] of Object.entries(pageTitles)) {
+      if (path.startsWith(route + "/")) return title;
+    }
 
-  return "Dashboard";
-};
+    return "Dashboard";
+  };
 
   /* ---- Logout ------------------------------------------------------- */
   const handleLogout = async () => {
@@ -108,6 +114,49 @@ const UserHeader = ({ onMenuClick }) => {
   const userName = profileName || user?.username || user?.name || "User";
   const userEmail = email || user?.email || "";
   const userRole = role ? role.charAt(0).toUpperCase() + role.slice(1) : "User";
+
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (!userEmail) return;
+
+      try {
+        setLoadingMessages(true);
+
+        const res = await api.get("/send-message/history");
+        const allMessages = Array.isArray(res.data) ? res.data : [];
+
+        const filtered = allMessages.filter((msg) => {
+          try {
+            let recipients = msg.recipients_json;
+
+            if (typeof recipients === "string") {
+              recipients = JSON.parse(recipients);
+            }
+
+            if (!Array.isArray(recipients)) return false;
+
+            return recipients.some((r) => {
+              const rEmail = String(r.email || "").toLowerCase().trim();
+              const uEmail = String(userEmail || "").toLowerCase().trim();
+              return rEmail === uEmail && uEmail !== "";
+            });
+          } catch {
+            return false;
+          }
+        });
+
+        setMessages(filtered);
+      } catch (err) {
+        console.error("Failed to fetch messages:", err);
+      } finally {
+        setLoadingMessages(false);
+      }
+    };
+
+    fetchMessages();
+  }, [userEmail]);
+
+
 
   /* ---- Render ------------------------------------------------------- */
   return (
@@ -162,9 +211,9 @@ const UserHeader = ({ onMenuClick }) => {
               title="Expiring Memberships"
             >
               <Bell className="w-5 h-5" />
-              {alerts.length > 0 && (
+              {totalNotifications > 0 && (
                 <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-lg animate-pulse">
-                  {alerts.length}
+                  {totalNotifications}
                 </span>
               )}
             </button>
@@ -182,54 +231,70 @@ const UserHeader = ({ onMenuClick }) => {
                     </span>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto custom-scrollbar">
-                    {fetchingAlerts ? (
+                  <div className="flex-1 overflow-y-auto scrollbar-hide">
+
+                    {(fetchingAlerts || loadingMessages) ? (
                       <div className="p-10 text-center">
                         <div className="w-6 h-6 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mx-auto" />
                       </div>
-                    ) : alerts.length > 0 ? (
-                      <div className="divide-y divide-white/5">
-                        {alerts.map((alert, idx) => {
-                          const daysLeft = Math.ceil((new Date(alert.endDate) - new Date()) / (1000 * 60 * 60 * 24));
-                          return (
-                            <Link
-                              key={idx}
-                              to="/user"
-                              onClick={() => setShowNotifications(false)}
-                              className="p-4 block border-b border-white/5 hover:bg-white/5 transition group"
-                            >
-                              <div className="flex items-start gap-3">
-                                <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center text-red-500 shrink-0">
-                                  <Bell className="w-4 h-4" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-xs font-bold text-white group-hover:text-orange-400 transition-colors uppercase truncate">
-                                    {alert.planName || "Your Membership"}
-                                  </p>
-                                  <p className="text-[10px] text-gray-400 mt-1">
-                                    Status: <span className="text-gray-300">Active</span>
-                                  </p>
-                                  <div className="mt-2 flex items-center justify-between">
-                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-md ${
-                                      daysLeft <= 1 ? "bg-red-500/20 text-red-400" : "bg-orange-500/20 text-orange-400"
-                                    }`}>
-                                      {daysLeft <= 0 ? "Expiring Today" : `In ${daysLeft} days`}
-                                    </span>
-                                    <span className="text-[9px] text-gray-600">
-                                      {new Date(alert.endDate).toLocaleDateString()}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    ) : (
+                    ) : (alerts.length === 0 && messages.length === 0) ? (
+
                       <div className="p-10 text-center">
                         <Bell className="w-8 h-8 text-white/10 mx-auto mb-3" />
-                        <p className="text-xs text-gray-500">No expiration alerts for your memberships.</p>
+                        <p className="text-xs text-gray-500">No notifications found</p>
                       </div>
+
+                    ) : (
+
+                      <div className="divide-y divide-white/5">
+
+                        {/* 🔔 ALERTS */}
+                        {alerts.map((alert, idx) => {
+                          const daysLeft = Math.ceil(
+                            (new Date(alert.endDate) - new Date()) /
+                            (1000 * 60 * 60 * 24)
+                          );
+
+                          return (
+                            <div key={`alert-${idx}`} className="p-4">
+                              <p className="text-xs font-bold text-orange-400">
+                                {alert.planName || "Membership"}
+                              </p>
+
+                              <div className="flex justify-between mt-2 text-[10px]">
+                                <span>
+                                  {daysLeft <= 0 ? "Expiring Today" : `In ${daysLeft} days`}
+                                </span>
+                                <span className="text-gray-500">
+                                  {new Date(alert.endDate).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {/* 📩 MESSAGES */}
+                        {messages.map((msg, idx) => (
+                          <div
+                            key={`msg-${idx}`}
+                            className="p-4 hover:bg-white/5 transition cursor-pointer"
+                          >
+                            <p className="text-xs font-bold text-white">
+                              {msg.subject}
+                            </p>
+
+                            <p className="text-[10px] text-gray-400 mt-1">
+                              {new Date(msg.sent_at).toLocaleString()}
+                            </p>
+
+                            <p className="text-[11px] text-gray-300 mt-2 line-clamp-2">
+                              {msg.message}
+                            </p>
+                          </div>
+                        ))}
+
+                      </div>
+
                     )}
                   </div>
 
