@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../../api";
 import { useNavigate, useLocation } from "react-router-dom";
-import PageHeader from "../../Components/PageHeader";
 import PageContainer from "../../Components/PageContainer";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../../PrivateRouter/AuthContext";
@@ -21,24 +20,24 @@ const makeImageUrl = (img) => {
   return `${base.replace(/\/$/, "")}/${img.replace(/^\/+/, "")}`;
 };
 
-/* ---------------- RAZORPAY LOADER ---------------- */
+/* ---------------- ORDER ID ---------------- */
+const generateOrderNumber = async () => {
+  try {
+    const res = await api.post("/orders/generate-order-id");
+    return res.data.order_id;
+  } catch {
+    return `ORD${Date.now().toString().slice(-6)}`;
+  }
+};
+
+/* ---------------- RAZORPAY ---------------- */
 const loadRazorpay = () =>
   new Promise((resolve) => {
     if (window.Razorpay) return resolve(true);
-
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
-
-    script.onload = () => {
-      console.log("✅ Razorpay Loaded");
-      resolve(true);
-    };
-
-    script.onerror = () => {
-      console.error("❌ Razorpay Failed");
-      resolve(false);
-    };
-
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
     document.body.appendChild(script);
   });
 
@@ -52,7 +51,6 @@ export default function Checkout() {
   const [items, setItems] = useState([]);
   const [placing, setPlacing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("CASH");
-  const [orderType, setOrderType] = useState("DELIVERY");
 
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
@@ -78,12 +76,8 @@ export default function Checkout() {
     }
 
     const fetchCart = async () => {
-      try {
-        const res = await api.get("/cart", { params: { userId } });
-        setItems(res.data || []);
-      } catch (err) {
-        console.error(err);
-      }
+      const res = await api.get("/cart", { params: { userId } });
+      setItems(res.data || []);
     };
 
     fetchCart();
@@ -94,12 +88,8 @@ export default function Checkout() {
     if (!userId) return;
 
     const fetchAddresses = async () => {
-      try {
-        const res = await api.get(`/addresses/user/${userId}`);
-        setSavedAddresses(res.data || []);
-      } catch (err) {
-        console.error(err);
-      }
+      const res = await api.get(`/addresses/user/${userId}`);
+      setSavedAddresses(res.data || []);
     };
 
     fetchAddresses();
@@ -127,29 +117,22 @@ export default function Checkout() {
   const validate = () => {
     if (!shipping.name.trim()) return "Enter name";
     if (!shipping.phone.trim()) return "Enter phone";
-
-    if (orderType === "DELIVERY") {
-      if (!shipping.address.trim()) return "Enter address";
-      if (!shipping.state.trim()) return "Select state";
-    }
-
+    if (!shipping.address.trim()) return "Enter address";
+    if (!shipping.state.trim()) return "Select state";
     if (!items.length) return "Cart empty";
-
     return null;
   };
 
   /* ---------------- CLEAR CART ---------------- */
   const clearCart = async () => {
-    try {
-      await Promise.all(items.map((i) => api.delete(`/cart/${i.id}`)));
-    } catch (err) {
-      console.error(err);
-    }
+    await Promise.all(items.map((i) => api.delete(`/cart/${i.id}`)));
   };
 
   /* ---------------- SAVE ORDER ---------------- */
   const saveOrder = async (paymentId = null) => {
     try {
+      const orderId = await generateOrderNumber();
+
       const formattedItems = items.map((i) => ({
         product_id: i.productId || i.id,
         product_name: i.name,
@@ -158,48 +141,39 @@ export default function Checkout() {
         image: i.image || i.images?.[0],
       }));
 
-      /* ✅ BACKEND COMPATIBLE PAYLOAD */
       const orderData = {
+        order_id: orderId,
         user_id: userId,
         items: formattedItems,
-
-        shipping_address:
-          orderType === "DELIVERY"
-            ? `${shipping.name}, ${shipping.phone}, ${shipping.address}, ${shipping.city}, ${shipping.state}, ${shipping.zip}`
-            : "SHOP PICKUP",
-
-        total_price: total,
+        shipping,
+        subtotal,
+        total,
         payment_method: paymentMethod,
         payment_status: paymentMethod === "CASH" ? "Pending" : "Paid",
-        payment_id: paymentId || null,
+        payment_id: paymentId,
       };
 
       console.log("🚀 ORDER DATA:", orderData);
 
-      /* ✅ FIX: ignore duplicate address */
+      /* SAVE ADDRESS */
       try {
         await saveUserAddress(userId, shipping);
       } catch (err) {
         if (err.message === "DUPLICATE_ADDRESS") {
           console.log("Duplicate address ignored ✅");
-        } else {
-          console.warn("Address save failed:", err.message);
         }
       }
 
-      /* ✅ SAVE ORDER */
       await api.post("/orders", orderData);
 
       await clearCart();
 
-      toast.success("Order placed 🎉");
-      navigate("/account", { state: { tab: "orders" } });
+      toast.success(`Order ${orderId} placed 🎉`);
+      navigate("/user/orders");
     } catch (err) {
-      console.error("❌ FULL ERROR:", err.response?.data);
-
+      console.error("❌ ERROR:", err.response?.data);
       toast.error(
         err.response?.data?.message ||
-          JSON.stringify(err.response?.data) ||
           err.message ||
           "Order failed"
       );
@@ -215,59 +189,30 @@ export default function Checkout() {
 
     setPlacing(true);
 
-    if (paymentMethod === "CASH") {
-      return saveOrder();
-    }
+    if (paymentMethod === "CASH") return saveOrder();
 
     const loaded = await loadRazorpay();
+    if (!loaded) return toast.error("Razorpay failed");
 
-    if (!loaded) {
-      setPlacing(false);
-      return toast.error("Razorpay failed to load");
-    }
-
-    const key = "rzp_test_SGj8n5SyKSE10b";
-
-    console.log("KEY:", key);
-    console.log("TOTAL:", total);
-
-    if (!key) {
-      setPlacing(false);
-      return toast.error("Missing Razorpay key");
-    }
-
-    const rzp = new window.Razorpay({
-      key,
+    new window.Razorpay({
+      key: "rzp_test_SGj8n5SyKSE10b",
       amount: total * 100,
       currency: "INR",
       name: "Your Store",
-      description: "Order Payment",
-
       handler: async (res) => {
-        console.log("Payment success:", res);
         await saveOrder(res.razorpay_payment_id);
       },
-
-      modal: {
-        ondismiss: () => setPlacing(false),
-      },
-
+      modal: { ondismiss: () => setPlacing(false) },
       prefill: {
         name: shipping.name,
         email: shipping.email,
         contact: shipping.phone,
       },
-
-      theme: { color: "#ef4444" },
-    });
-
-    rzp.open();
+    }).open();
   };
 
   return (
     <div className="bg-black text-white min-h-screen">
-      {/* <PageHeader title="Checkout" /> */}
-
       <PageContainer>
         <div className="grid md:grid-cols-2 gap-10 py-10">
 
@@ -275,6 +220,7 @@ export default function Checkout() {
           <div>
             <h2 className="text-red-500 mb-4">Shipping</h2>
 
+            {/* SAVED ADDRESSES */}
             {savedAddresses.map((addr) => (
               <div
                 key={addr.id}
@@ -287,56 +233,52 @@ export default function Checkout() {
               >
                 <p>{addr.name}</p>
                 <p className="text-sm">{addr.address}</p>
+                <p className="text-xs">{addr.city}, {addr.state} - {addr.zip}</p>
+                <p className="text-xs">📞 {addr.phone}</p>
               </div>
             ))}
 
-            {["name", "email", "phone"].map((k) => (
+            {/* INPUTS */}
+            {["name","email","phone","city","zip"].map((k) => (
               <input
                 key={k}
                 placeholder={k}
                 value={shipping[k]}
-                onChange={(e) =>
-                  setShipping({ ...shipping, [k]: e.target.value })
-                }
+                onChange={(e)=>setShipping({...shipping,[k]:e.target.value})}
                 className="w-full p-3 mb-3 bg-black border border-red-500"
               />
             ))}
 
             <textarea
-              placeholder="Address"
+              placeholder="address"
               value={shipping.address}
-              onChange={(e) =>
-                setShipping({ ...shipping, address: e.target.value })
-              }
+              onChange={(e)=>setShipping({...shipping,address:e.target.value})}
               className="w-full p-3 mb-3 bg-black border border-red-500"
             />
 
             <input
-              placeholder="State"
+              placeholder="state"
               value={shipping.state}
-              onChange={(e) =>
-                setShipping({ ...shipping, state: e.target.value })
-              }
+              onChange={(e)=>setShipping({...shipping,state:e.target.value})}
               className="w-full p-3 mb-3 bg-black border border-red-500"
             />
 
+            {/* PAYMENT */}
             <div className="mt-4">
               <label>
                 <input
                   type="radio"
-                  checked={paymentMethod === "CASH"}
-                  onChange={() => setPaymentMethod("CASH")}
-                />
-                COD
+                  checked={paymentMethod==="CASH"}
+                  onChange={()=>setPaymentMethod("CASH")}
+                /> COD
               </label>
 
               <label className="ml-4">
                 <input
                   type="radio"
-                  checked={paymentMethod === "ONLINE"}
-                  onChange={() => setPaymentMethod("ONLINE")}
-                />
-                Online
+                  checked={paymentMethod==="ONLINE"}
+                  onChange={()=>setPaymentMethod("ONLINE")}
+                /> Online
               </label>
             </div>
           </div>
@@ -345,17 +287,14 @@ export default function Checkout() {
           <div>
             <h2 className="text-red-500 mb-4">Summary</h2>
 
-            {items.map((i) => (
+            {items.map((i)=>(
               <div key={i.id} className="flex gap-3 mb-3">
-                <img
-                  src={makeImageUrl(i.image || i.images?.[0])}
-                  className="w-14 h-14"
-                />
+                <img src={makeImageUrl(i.image || i.images?.[0])} className="w-14 h-14"/>
                 <div>
                   <p>{i.name}</p>
                   <p>Qty: {i.quantity}</p>
                 </div>
-                <p>₹{i.price * i.quantity}</p>
+                <p>₹{i.price*i.quantity}</p>
               </div>
             ))}
 
@@ -372,6 +311,7 @@ export default function Checkout() {
               {placing ? "Processing..." : "Place Order"}
             </button>
           </div>
+
         </div>
       </PageContainer>
     </div>

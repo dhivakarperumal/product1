@@ -166,7 +166,7 @@ const Cart = () => {
           </div>
 
           <button
-            onClick={() => navigate("/checkout")}
+            onClick={() => navigate("/user/checkout")}
             className="mt-4 w-full bg-red-600 py-3 rounded-lg"
           >
             Checkout
