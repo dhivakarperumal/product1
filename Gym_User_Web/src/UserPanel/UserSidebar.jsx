@@ -12,6 +12,8 @@ import {
   Receipt,
   MapPin,
   Briefcase,
+  User,
+  Fan,
 } from "lucide-react";
 import { useAuth } from "../PrivateRouter/AuthContext";
 
@@ -46,12 +48,12 @@ const navItems = [
   {
     path: "/user/facilities",
     label: "Facilities",
-    icon: MapPin,
+    icon: Fan,
   },
   {
     path: "/user/trainers",
     label: "Trainers",
-    icon: MapPin,
+    icon: User,
   },
   {
     path: "/user/services",

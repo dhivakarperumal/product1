@@ -68,12 +68,12 @@ const Trainers = () => {
   return (
     <div className="p-6  min-h-screen">
       {/* HEADER */}
-      <div className="mb-6">
+      {/* <div className="mb-6">
         <h1 className="text-3xl font-bold text-white">Trainers</h1>
         <p className="text-white/60">
           Meet your professional fitness coaches
         </p>
-      </div>
+      </div> */}
 
       {/* CONTENT */}
       {loading ? (
