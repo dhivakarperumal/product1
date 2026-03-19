@@ -53,6 +53,7 @@ import UserHealthSettings from "./UserPanel/Settingss/HealthSettings.jsx";
 import UserNotificationSettings from "./UserPanel/Settingss/NotificationSettings.jsx";
 import UserPrivacySettings from "./UserPanel/Settingss/PrivacySettings.jsx";
 import UserServices from "./UserPanel/Services/Services.jsx";
+import UserTrainers from "./UserPanel/Trainers/Trainers.jsx";
 
 // ✅ Lazy components
 const Login = lazy(() => import("./Components/Login.jsx"));
@@ -149,7 +150,9 @@ const router = createBrowserRouter([
       { path: "orders", element: <Orders /> },
       { path: "pricing", element: <UserPricing /> },
       { path: "profile", element: <PersonalDetails /> },
-      { path: "notifications", element: <Notification /> },      { path: "services", element: <UserServices /> },
+      { path: "notifications", element: <Notification /> },      
+      { path: "services", element: <UserServices /> },
+      { path: "trainers", element: <UserTrainers /> },
       
       // ✅ Settings routes
       { path: "settings", element: <UserSettings /> },
