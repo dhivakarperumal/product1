@@ -44,6 +44,8 @@ import UserProductDetails from "./UserPanel/Products/ProductDetails.jsx";
 import UserCart from "./UserPanel/Products/Cart.jsx";
 import UserCheckout from "./UserPanel/Products/Checkout.jsx";
 import Orders from "./UserPanel/Orders/Orders.jsx";
+import PersonalDetails from "./UserPanel/PersonalDetails.jsx";
+import Notification from "./UserPanel/Notification.jsx";
 import UserSettings from "./UserPanel/Settingss/Settings.jsx";
 import UserProfileSettings from "./UserPanel/Settingss/ProfileSettings.jsx";
 import UserSecuritySettings from "./UserPanel/Settingss/SecuritySettings.jsx";
@@ -51,6 +53,7 @@ import UserHealthSettings from "./UserPanel/Settingss/HealthSettings.jsx";
 import UserNotificationSettings from "./UserPanel/Settingss/NotificationSettings.jsx";
 import UserPrivacySettings from "./UserPanel/Settingss/PrivacySettings.jsx";
 import UserServices from "./UserPanel/Services/Services.jsx";
+import UserTrainers from "./UserPanel/Trainers/Trainers.jsx";
 
 // ✅ Lazy components
 const Login = lazy(() => import("./Components/Login.jsx"));
@@ -146,7 +149,10 @@ const router = createBrowserRouter([
       { path: "checkout", element: <UserCheckout /> },
       { path: "orders", element: <Orders /> },
       { path: "pricing", element: <UserPricing /> },
+      { path: "profile", element: <PersonalDetails /> },
+      { path: "notifications", element: <Notification /> },      
       { path: "services", element: <UserServices /> },
+      { path: "trainers", element: <UserTrainers /> },
       
       // ✅ Settings routes
       { path: "settings", element: <UserSettings /> },

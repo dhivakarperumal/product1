@@ -49,6 +49,11 @@ const navItems = [
     icon: MapPin,
   },
   {
+    path: "/user/trainers",
+    label: "Trainers",
+    icon: MapPin,
+  },
+  {
     path: "/user/services",
     label: "Services",
     icon: Briefcase,
@@ -115,9 +120,9 @@ const UserSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
         className={`
           fixed top-0 left-0 z-50 h-full
           bg-white/10 backdrop-blur-xl
-          border-r border-white/20
+          border-r border-white/20 
           shadow-[0_20px_50px_rgba(0,0,0,0.35)]
-          flex flex-col transition-all duration-300
+          flex flex-col transition-all duration-300 
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
           lg:translate-x-0
           ${collapsed ? "w-20" : "w-64"}
@@ -151,7 +156,7 @@ const UserSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
         </div>
 
         {/* ========== NAVIGATION ========== */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto hide-scrollbar">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-hide">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = isRouteActive(item.path);

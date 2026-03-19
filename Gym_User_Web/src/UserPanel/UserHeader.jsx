@@ -25,6 +25,8 @@ const pageTitles = {
   "/user/cart": "Shopping Cart",
   "/user/checkout": "Checkout",
   "/user/orders": "My Orders",
+  "/user/trainers": "Trainers",
+  "/user/services": "Services",
   "/user/pricing": "Pricing Plans",
   "/user/facilities": "Gym Facilities",
   "/user/settings": "Settings",

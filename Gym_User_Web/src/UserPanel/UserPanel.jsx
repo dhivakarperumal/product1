@@ -14,6 +14,7 @@ const UserPanel = () => {
     const handleResize = () => {
       const isLg = window.innerWidth >= 1024;
       setIsLargeScreen(isLg);
+
       if (isLg) setSidebarOpen(false);
     };
 

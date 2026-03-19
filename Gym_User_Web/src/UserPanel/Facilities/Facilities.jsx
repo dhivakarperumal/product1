@@ -6,20 +6,24 @@ import toast from "react-hot-toast";
 // Image URL builder with fallback
 const makeImageUrl = (img) => {
   if (!img) return null;
+
   if (img.startsWith("http") || img.startsWith("data:")) return img;
+
   const maybeBase64 = /^[A-Za-z0-9+/=]+$/.test(img);
   if (maybeBase64 && img.length > 50) {
     return `data:image/webp;base64,${img}`;
   }
-  const base = import.meta.env.VITE_API_URL || "";
+
+  const base = import.meta.env.VITE_API_URL || window.location.origin;
+
   return `${base.replace(/\/$/, "")}/${img.replace(/^\/+/, "")}`;
 };
 
 const FacilityCard = ({ facility, onClick }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
-  
-  const imageUrl = makeImageUrl(facility.image);
+
+  const imageUrl = makeImageUrl(facility.image || facility.heroImage);
 
   // Pre-defined gradient backgrounds for each facility
   const gradientMap = {
@@ -54,9 +58,8 @@ const FacilityCard = ({ facility, onClick }) => {
               setImageError(true);
               setImageLoaded(true);
             }}
-            className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-300 ${
-              imageLoaded ? "opacity-100" : "opacity-0"
-            }`}
+            className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"
+              }`}
             crossOrigin="anonymous"
           />
         )}
@@ -109,7 +112,18 @@ const Facilities = () => {
   const fetchFacilities = useCallback(async () => {
     try {
       const res = await api.get("/facilities");
-      setFacilities(res.data || []);
+      const mappedData = (res.data || []).map((item) => ({
+        id: item.id,
+        name: item.title,
+        description: item.shortDesc,
+        image: item.heroImage,
+        slug: item.slug,
+        amenities: item.amenities || [],
+        hours: item.hours,
+        contact: item.contact,
+      }));
+
+      setFacilities(mappedData);
     } catch (error) {
       console.error("Error fetching facilities:", error);
       // Mock data for demo - using placeholder URLs
@@ -190,11 +204,11 @@ const Facilities = () => {
 
       {/* FACILITY DETAILS MODAL */}
       {selectedFacility && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn"
           onClick={() => setSelectedFacility(null)}
         >
-          <div 
+          <div
             className="bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] border border-red-600/30 rounded-3xl overflow-hidden w-full max-w-3xl max-h-[90vh] overflow-y-auto animate-slideUp"
             onClick={(e) => e.stopPropagation()}
           >
@@ -214,9 +228,8 @@ const Facilities = () => {
                   alt={selectedFacility.name}
                   onLoad={() => setImageLoaded(true)}
                   onError={() => setImageLoaded(true)}
-                  className={`w-full h-full object-cover transition-opacity ${
-                    imageLoaded ? "opacity-100" : "opacity-0"
-                  }`}
+                  className={`w-full h-full object-cover transition-opacity ${imageLoaded ? "opacity-100" : "opacity-0"
+                    }`}
                   crossOrigin="anonymous"
                 />
               )}
@@ -227,7 +240,7 @@ const Facilities = () => {
               )}
 
               <div className="absolute inset-0 bg-gradient-to-t from-[#0f0c29] via-transparent to-transparent"></div>
-              
+
               {/* CLOSE BUTTON */}
               <button
                 onClick={() => setSelectedFacility(null)}
