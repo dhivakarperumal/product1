@@ -29,6 +29,7 @@ export default function ProductDetails() {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
+  const [relatedProducts, setRelatedProducts] = useState([]);
   
   // Variant selection states
   const [selectedWeight, setSelectedWeight] = useState(null);
@@ -62,6 +63,28 @@ export default function ProductDetails() {
 
     if (id) load();
   }, [id]);
+
+  // ✅ Fetch related products
+  useEffect(() => {
+    const fetchRelated = async () => {
+      if (!product || !product.category) return;
+      try {
+        const res = await api.get("/products");
+        const allProducts = Array.isArray(res.data) ? res.data : [];
+        const related = allProducts
+          .filter(
+            (p) =>
+              p.category === product.category &&
+              (p.id || p._id || p.product_id) !== (product.id || product._id || product.product_id)
+          )
+          .slice(0, 4); // Show max 4 related products
+        setRelatedProducts(related);
+      } catch (err) {
+        console.error("Failed to fetch related products:", err);
+      }
+    };
+    fetchRelated();
+  }, [product]);
 
   // ✅ Variant key calculation
   const getVariantKey = () => {
@@ -354,6 +377,42 @@ export default function ProductDetails() {
           </div>
         </div>
       </div>
+
+      {/* RELATED PRODUCTS */}
+      {relatedProducts.length > 0 && (
+        <div className="mt-16 pt-8 border-t border-white/20">
+          <h2 className="text-2xl font-bold text-red-500 mb-8">Related Products</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {relatedProducts.map((p) => {
+              const relatedImage = Array.isArray(p.images)
+                ? p.images[0]
+                : p.images;
+              return (
+                <div
+                  key={p.id || p._id || p.product_id}
+                  onClick={() => navigate(`/user/products/${p.id || p._id || p.product_id}`)}
+                  className="bg-[#0e1016] p-4 rounded-xl cursor-pointer hover:border hover:border-red-500 transition"
+                >
+                  <img
+                    src={makeImageUrl(relatedImage) || "https://via.placeholder.com/200"}
+                    alt={p.name}
+                    className="w-full h-40 object-contain mb-3"
+                  />
+                  <h3 className="text-white font-semibold text-sm line-clamp-2">{p.name}</h3>
+                  <div className="flex gap-2 items-center mt-2">
+                    <span className="text-red-500 font-bold">₹{p.offer_price || p.offerPrice || p.mrp}</span>
+                    {(p.mrp || p.MRP) && (
+                      <span className="line-through text-white/50 text-sm">
+                        ₹{p.mrp || p.MRP}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
