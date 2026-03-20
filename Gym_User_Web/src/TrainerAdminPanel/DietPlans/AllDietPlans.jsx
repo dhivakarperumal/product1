@@ -297,7 +297,9 @@ const AllDietPlans = () => {
                           key={t.label}
                           className="p-4 border-r border-gray-800"
                         >
-                          {dayData?.[t.key] || "-"}
+                          {typeof dayData?.[t.key] === 'object' 
+                            ? dayData[t.key]?.food || "-"
+                            : dayData?.[t.key] || "-"}
                         </div>
                       ))}
                     </div>

@@ -179,7 +179,7 @@ const Dashboard = () => {
               {Object.entries(todayDiet).map(([meal, val]) => (
                 <InnerCard key={meal}>
                   <p className="font-semibold text-green-400">{meal}</p>
-                  <p className="text-sm">{val.food}</p>
+                  <p className="text-sm">{typeof val === 'object' ? val?.food || '-' : val}</p>
                 </InnerCard>
               ))}
             </PopupContainer>
