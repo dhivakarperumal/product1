@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../PrivateRouter/AuthContext";
+import dayjs from "dayjs";
 
 import api from "../../api";
 import { Search, Users, CheckSquare, Square, X, RefreshCw } from "lucide-react";
@@ -158,6 +159,7 @@ const AddDietPlans = () => {
           totalCalories: data.totalCalories || data.total_calories || "",
           duration: data.duration || 1,
           days: fixedDays,
+          createdAt: data.created_at,
         });
       } catch (err) {
         console.error(err);
@@ -333,7 +335,7 @@ const AddDietPlans = () => {
         if (failCount > 0) {
           toast.error(`Failed for ${failCount} member(s)`);
         }
-        
+
         if (successCount > 0) {
           setTimeout(() => navigate("/trainer/alladddietplans"), 1200);
         }
@@ -396,6 +398,11 @@ const AddDietPlans = () => {
     );
   }
 
+  const baseDate =
+    id && form.createdAt
+      ? dayjs(form.createdAt)
+      : dayjs();
+
   return (
     <div className="min-h-screen p-6 text-white">
       <div className="max-w-6xl mx-auto bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-6">
@@ -414,7 +421,7 @@ const AddDietPlans = () => {
                   <Users size={18} className="text-emerald-400" />
                   Select Members ({selected.size} / {members.length})
                 </label>
-                <div 
+                <div
                   onClick={selectAll}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer transition border border-white/5"
                 >
@@ -468,9 +475,8 @@ const AddDietPlans = () => {
                       <div
                         key={m.id}
                         onClick={() => toggleOne(m.id)}
-                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition border ${
-                          isSelected ? "bg-emerald-500/20 border-emerald-500/50" : "bg-white/5 border-white/5 hover:bg-white/10"
-                        }`}
+                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition border ${isSelected ? "bg-emerald-500/20 border-emerald-500/50" : "bg-white/5 border-white/5 hover:bg-white/10"
+                          }`}
                       >
                         {isSelected ? (
                           <CheckSquare size={18} className="text-emerald-400 shrink-0" />
@@ -479,7 +485,7 @@ const AddDietPlans = () => {
                         )}
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate flex items-center gap-2">
-                            {m.name} 
+                            {m.name}
                             {m.weight && <span className="text-xs text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">({m.weight}kg)</span>}
                           </p>
                           <p className="text-[10px] text-white/40 truncate">
@@ -579,17 +585,36 @@ const AddDietPlans = () => {
                   className="bg-black/30 border border-white/10 rounded-lg p-4 space-y-4"
                 >
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-emerald-400">{day}</h3>
-                    {day === "Day1" && Object.keys(form.days).length > 1 && (
-                      <button
-                        type="button"
-                        onClick={handleCopyDay1ToAll}
-                        className="text-xs font-semibold bg-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-500/30 hover:bg-emerald-500/30 transition flex items-center gap-1"
-                      >
-                        Copy to All Days
-                      </button>
-                    )}
-                  </div>
+  {(() => {
+    const dayIndex = Number(day.replace("Day", "")) - 1;
+    const date = dayjs(baseDate).add(dayIndex, "day");
+
+    return (
+      <>
+        {/* LEFT SIDE (DATE) */}
+        <h3 className="font-semibold text-emerald-400">
+          {date.format("DD MMM YYYY")}
+          <span className="text-xs text-white/40 ml-2">
+            ({date.format("dddd")})
+          </span>
+        </h3>
+
+        {/* RIGHT SIDE (BUTTON) */}
+        {day === "Day1" && Object.keys(form.days).length > 1 && (
+          <button
+            type="button"
+            onClick={handleCopyDay1ToAll}
+            className="text-xs font-semibold bg-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-500/30 hover:bg-emerald-500/30 transition"
+          >
+            Copy to All Days
+          </button>
+        )}
+      </>
+    );
+  })()}
+</div>
+
+                 
 
                   {meals.map((meal) => (
                     <div key={meal} className="grid grid-cols-1 md:grid-cols-6 items-center gap-3">
