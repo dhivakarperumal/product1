@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import imageCompression from "browser-image-compression";
 import { useAuth } from "../../PrivateRouter/AuthContext";
+import dayjs from "dayjs";
 
 import api from "../../api";
 import { Search, Users, CheckSquare, Square, X, RefreshCw } from "lucide-react";
@@ -22,7 +23,7 @@ const workoutTypes = [
 ];
 
 const AddWorkout = () => {
-    const { user } = useAuth();
+  const { user } = useAuth();
   // ensure numeric comparison for trainer id
   const trainerId = user ? Number(user.id) : undefined;
   const trainerName = user?.username || "Trainer";
@@ -46,7 +47,7 @@ const AddWorkout = () => {
   const [days, setDays] = useState({
     Day1: [{ time: "", type: "Weight Training", name: "", sets: "", count: "", media: "", mediaType: "url" }],
   });
-  
+
   // For debugging - show all assignments
   const [allAssignments, setAllAssignments] = useState([]);
   const [search, setSearch] = useState("");
@@ -107,6 +108,7 @@ const AddWorkout = () => {
           memberName: data.member_name,
           level: data.level,
           durationWeeks: data.duration_weeks,
+          createdAt: data.created_at,
         });
         setDays(data.days || { Day1: [{ time: "", name: "" }] });
       } catch (err) {
@@ -223,7 +225,7 @@ const AddWorkout = () => {
         if (failCount > 0) {
           toast.error(`Failed to create for ${failCount} member(s)`);
         }
-        
+
         if (successCount > 0) {
           navigate("/trainer/alladdworkouts");
         }
@@ -301,11 +303,15 @@ const AddWorkout = () => {
     }
   };
 
+  const baseDate = isEditMode && form.createdAt
+    ? dayjs(form.createdAt)
+    : dayjs();
+
 
   return (
     <div className="min-h-screen p-6 text-white">
-      
-      
+
+
 
       <div className="max-w-6xl mx-auto bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-6">
 
@@ -325,7 +331,7 @@ const AddWorkout = () => {
                   <Users size={18} className="text-orange-400" />
                   Select Members ({selected.size} / {members.length})
                 </label>
-                <div 
+                <div
                   onClick={selectAll}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer transition border border-white/5"
                 >
@@ -379,9 +385,8 @@ const AddWorkout = () => {
                       <div
                         key={m.id}
                         onClick={() => toggleOne(m.id)}
-                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition border ${
-                          isSelected ? "bg-orange-500/20 border-orange-500/50" : "bg-white/5 border-white/5 hover:bg-white/10"
-                        }`}
+                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition border ${isSelected ? "bg-orange-500/20 border-orange-500/50" : "bg-white/5 border-white/5 hover:bg-white/10"
+                          }`}
                       >
                         {isSelected ? (
                           <CheckSquare size={18} className="text-orange-400 shrink-0" />
@@ -454,9 +459,19 @@ const AddWorkout = () => {
           {/* DAYS */}
           {Object.keys(days).map((dayKey) => (
             <div key={dayKey} className="bg-black/40 p-4 rounded-xl">
-              <h3 className="font-semibold mb-4 text-orange-400 border-b border-white/10 pb-2">
-                {dayKey}
-              </h3>
+              {(() => {
+                const dayIndex = Number(dayKey.replace("Day", "")) - 1;
+                const date = baseDate.add(dayIndex, "day");
+
+                return (
+                  <h3 className="font-semibold mb-4 text-orange-400 border-b border-white/10 pb-2">
+                    {date.format("DD MMM YYYY")}
+                    <span className="text-xs text-white/40 ml-2">
+                      ({date.format("dddd")})
+                    </span>
+                  </h3>
+                );
+              })()}
 
               {days[dayKey].map((item, index) => (
                 <div
@@ -573,7 +588,7 @@ const AddWorkout = () => {
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                           />
                           <div className={inputClass + " flex items-center justify-center border-dashed border-2 hover:border-orange-500/50 transition"}>
-                             <span className="text-white/40 text-xs">Click to upload Image or Video (Max 20MB for video)</span>
+                            <span className="text-white/40 text-xs">Click to upload Image or Video (Max 20MB for video)</span>
                           </div>
                         </div>
                       )}
@@ -584,7 +599,7 @@ const AddWorkout = () => {
                   {item.media && (
                     <div className="mt-2 space-y-2">
                       <div className="flex items-center justify-between">
-                         <div className="text-[10px] text-orange-400 flex items-center gap-2">
+                        <div className="text-[10px] text-orange-400 flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
                           Media attached
                         </div>
@@ -596,7 +611,7 @@ const AddWorkout = () => {
                           Clear Media
                         </button>
                       </div>
-                      
+
                       <div className="relative w-full aspect-video max-w-sm overflow-hidden rounded-lg border border-white/10 bg-black/20">
                         {item.media.startsWith('data:video') || item.media.match(/\.(mp4|webm|ogg)$/i) || item.media.includes('youtube.com') || item.media.includes('youtu.be') ? (
                           item.media.includes('youtube.com') || item.media.includes('youtu.be') ? (
