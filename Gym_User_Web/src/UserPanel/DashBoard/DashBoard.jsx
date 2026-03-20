@@ -151,17 +151,26 @@ const Dashboard = () => {
                 <tr>
                   <th className="text-left py-2">Meal</th>
                   <th className="text-left py-2">Food</th>
+                  <th className="text-left py-2">Calories</th>
+                  <th className="text-left py-2">Time</th>
+                  <th className="text-left py-2">Qty</th>
                 </tr>
               </thead>
+
               <tbody>
-                {Object.entries(todayDiet).map(([meal, val]) => (
-                  <tr key={meal} className="border-b border-white/5">
-                    <td className="py-2 text-green-400">{meal}</td>
-                    <td className="py-2">
-                      {typeof val === "object" ? val?.food : val}
-                    </td>
-                  </tr>
-                ))}
+                {Object.entries(todayDiet).map(([meal, val]) => {
+                  const item = typeof val === "object" ? val : { food: val };
+
+                  return (
+                    <tr key={meal} className="border-b border-white/5">
+                      <td className="py-2 text-green-400 font-medium">{meal}</td>
+                      <td className="py-2">{item.food || "-"}</td>
+                      <td className="py-2">{item.calories || "-"}</td>
+                      <td className="py-2">{item.time || "-"}</td>
+                      <td className="py-2">{item.quantity || "-"}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           ) : (
