@@ -128,18 +128,15 @@ const Header = ({ onMenuClick }) => {
     return "Dashboard";
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     try {
-      // Clear AuthContext first
+      // Clear AuthContext and localStorage
       logout();
-      // Then sign out from Firebase
-      await signOut(auth);
       // Navigate to login
       navigate("/login", { replace: true });
     } catch (error) {
       console.error("Logout error:", error);
-      // Still navigate even if Firebase signout fails
-      logout();
+      // Still navigate even if logout fails
       navigate("/login", { replace: true });
     }
   };

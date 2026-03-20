@@ -40,11 +40,23 @@ export const AuthProvider = ({ children }) => {
     cache.clear();
   };
 
+  const profileName =
+    user?.profileName ||
+    user?.name ||
+    user?.displayName ||
+    user?.username ||
+    "Admin";
+
+  const email = user?.email || "";
+
   return (
     <AuthContext.Provider
       value={{
         user,
         role,
+        profileName,
+        email,
+        userProfile: user,
         login,
         logout,
       }}

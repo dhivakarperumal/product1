@@ -10,6 +10,27 @@ import { useAuth } from "../../PrivateRouter/AuthContext";
 
 import api from "../../api";
 
+const formatText = (value) => {
+  if (value === null || value === undefined) return "-";
+  if (React.isValidElement(value)) return value;
+  if (typeof value === "string" || typeof value === "number") return value;
+  if (value instanceof Date) return value.toLocaleDateString();
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+};
+
+const safeNumber = (value) => {
+  if (typeof value === "number") return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
 /* -------------------- STAT CARD -------------------- */
 const StatCard = ({ title, value, icon, color }) => (
   <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6 flex justify-between items-center">
@@ -17,7 +38,7 @@ const StatCard = ({ title, value, icon, color }) => (
       <p className="text-xs uppercase tracking-widest text-gray-300">
         {title}
       </p>
-      <h2 className="text-3xl font-bold text-white mt-2">{value !== undefined ? value : 0}</h2>
+      <h2 className="text-3xl font-bold text-white mt-2">{safeNumber(value)}</h2>
     </div>
 
     <div
@@ -118,10 +139,10 @@ const TrainerDashboard = () => {
         }
 
         setStats({
-          members: uniqueMembers.length,
-          todayCheckins: checkinCount,
-          workoutPlans: workoutCount,
-          dietPlans: dietCount,
+          members: safeNumber(uniqueMembers.length),
+          todayCheckins: safeNumber(checkinCount),
+          workoutPlans: safeNumber(workoutCount),
+          dietPlans: safeNumber(dietCount),
         });
 
       } catch (err) {
@@ -230,16 +251,16 @@ const TrainerDashboard = () => {
 
                         <td className="px-4 py-4">
                           <span className="text-orange-400 font-medium">
-                            {m.planName || m.plan_name || "-"}
+                            {formatText(m.planName || m.plan_name || "-")}
                           </span>
                         </td>
 
                         <td className="px-4 py-4 text-gray-400">
-                          {m.planStartDate ? new Date(m.planStartDate).toLocaleDateString() : "-"}
+                          {m.planStartDate ? formatText(new Date(m.planStartDate).toLocaleDateString()) : "-"}
                         </td>
 
                         <td className="px-4 py-4 text-gray-400">
-                          {m.planEndDate ? new Date(m.planEndDate).toLocaleDateString() : "-"}
+                          {m.planEndDate ? formatText(new Date(m.planEndDate).toLocaleDateString()) : "-"}
                         </td>
 
                         <td className="px-4 py-4">
@@ -275,29 +296,29 @@ const TrainerDashboard = () => {
 
                       <div>
                         <p className="font-semibold">
-                          {m.username || m.user_name || "No Name"}
+                          {formatText(m.username || m.user_name || "No Name")}
                         </p>
 
                         <p className="text-xs text-gray-400">
-                          {m.userEmail || m.user_email || "-"}
+                          {formatText(m.userEmail || m.user_email || "-")}
                         </p>
 
                         <p className="text-xs text-gray-400">
-                          {m.userMobile || m.user_mobile || "-"}
+                          {formatText(m.userMobile || m.user_mobile || "-")}
                         </p>
 
                         <p className="text-xs text-gray-400 mt-1">
-                          Plan: <span className="text-orange-400">{m.planName || m.plan_name || "-"}</span>
+                          Plan: <span className="text-orange-400">{formatText(m.planName || m.plan_name || "-")}</span>
                         </p>
                         
                         <div className="flex gap-4 mt-2">
                           <div>
                             <p className="text-[10px] text-gray-500 uppercase">Starts</p>
-                            <p className="text-[11px] text-gray-300">{m.planStartDate ? new Date(m.planStartDate).toLocaleDateString() : "-"}</p>
+                            <p className="text-[11px] text-gray-300">{m.planStartDate ? formatText(new Date(m.planStartDate).toLocaleDateString()) : "-"}</p>
                           </div>
                           <div>
                             <p className="text-[10px] text-gray-500 uppercase">Ends</p>
-                            <p className="text-[11px] text-gray-300">{m.planEndDate ? new Date(m.planEndDate).toLocaleDateString() : "-"}</p>
+                            <p className="text-[11px] text-gray-300">{m.planEndDate ? formatText(new Date(m.planEndDate).toLocaleDateString()) : "-"}</p>
                           </div>
                         </div>
                       </div>

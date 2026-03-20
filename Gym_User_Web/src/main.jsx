@@ -7,6 +7,7 @@ import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom"
 import App from "./App.jsx";
 import Home from "./Home/Home.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
+import RouteError from "./RouteError.jsx";
 
 import { AuthProvider } from "./PrivateRouter/AuthContext.jsx";
 import { CartProvider } from "./CartContext.jsx";
@@ -119,6 +120,7 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <App />,
+    errorElement: <RouteError />,
     children: [
       { index: true, element: <Navigate to="/login" replace /> },
       { path: "/", element: <Home /> },
@@ -149,6 +151,7 @@ const router = createBrowserRouter([
         <UserPanel />
       </PrivateRoute>
     ),
+    errorElement: <RouteError />,
     children: [
       { index: true, element: <UsesDashboard /> },
       { path: "diet", element: <UserDiet /> },
@@ -186,6 +189,7 @@ const router = createBrowserRouter([
         <AdminPanel />
       </PrivateRoute>
     ),
+    errorElement: <RouteError />,
     children: [
       { index: true, element: <Dashboard /> },
       
@@ -258,6 +262,7 @@ const router = createBrowserRouter([
         <TrainerAdminPanel />
       </PrivateRoute>
     ),
+    errorElement: <RouteError />,
     children: [
       { index: true, element: <TrainerDashboard /> },
        { path: "reports", element: <TrainerReports /> },
