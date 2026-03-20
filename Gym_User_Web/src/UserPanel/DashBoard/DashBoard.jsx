@@ -2,36 +2,11 @@ import React, { useEffect, useState } from "react";
 import api from "../../api";
 import dayjs from "dayjs";
 import { useAuth } from "../../PrivateRouter/AuthContext";
-import {
-  X,
-  Dumbbell,
-  Salad,
-  ShoppingCart,
-  CalendarDays,
-  CreditCard,
-} from "lucide-react";
+import { Dumbbell, Salad, ShoppingCart, CreditCard } from "lucide-react";
 
-const makeImageUrl = (img) => {
-  if (!img) return "";
-  if (img.startsWith("http") || img.startsWith("data:")) return img;
-
-  const maybeBase64 = /^[A-Za-z0-9+/=]+$/.test(img);
-  if (maybeBase64 && img.length > 50) {
-    return `data:image/webp;base64,${img}`;
-  }
-
-  const base = import.meta.env.VITE_API_URL || "";
-  return `${base.replace(/\/$/, "")}/${img.replace(/^\/+/, "")}`;
-};
-
-const ORDER_STEPS = [
-  "OrderPlaced",
-  "Processing",
-  "Packing",
-  "Shipped",
-  "OutForDelivery",
-  "Delivered",
-];
+/* ---------- HELPERS ---------- */
+const formatDate = (date) =>
+  date ? dayjs(date).format("DD MMM YYYY") : "-";
 
 const normalizeStatus = (status) => {
   if (!status) return "OrderPlaced";
@@ -46,16 +21,14 @@ const normalizeStatus = (status) => {
   return "OrderPlaced";
 };
 
+/* ---------- MAIN ---------- */
 const Dashboard = () => {
   const { user } = useAuth();
 
   const [userPlan, setUserPlan] = useState(null);
   const [todayWorkout, setTodayWorkout] = useState([]);
   const [todayDiet, setTodayDiet] = useState({});
-  const [todayOrders, setTodayOrders] = useState([]);
-  const [popup, setPopup] = useState(null);
-
-  const formatDate = (date) => date ? dayjs(date).format("DD MMM YYYY") : "-";
+  const [orders, setOrders] = useState([]);
 
   useEffect(() => {
     if (user) fetchData();
@@ -63,66 +36,81 @@ const Dashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [planRes, workoutRes, dietRes, orderRes] = await Promise.all([
-        api.get(`/memberships?userId=${user.id}`),
-        api.get("/workouts"),
-        api.get("/diet-plans"),
-        api.get(`/orders/user/${user.id}`),
-      ]);
+      const [planRes, workoutRes, dietRes, orderRes] =
+        await Promise.all([
+          api.get(`/memberships?userId=${user.id}`),
+          api.get("/workouts"),
+          api.get("/diet-plans"),
+          api.get(`/orders/user/${user.id}`),
+        ]);
 
       const today = dayjs();
 
+      /* PLAN */
       const plans = planRes.data?.memberships || planRes.data || [];
-      const active = plans.find(p => new Date(p.endDate) > new Date());
+      const active = plans.find(
+        (p) => new Date(p.endDate) > new Date()
+      );
       setUserPlan(active || plans[0] || null);
 
-      const myWorkout = workoutRes.data.find(w => 
-        (w.member_email && user?.email && w.member_email.toLowerCase() === user.email.toLowerCase()) ||
-        (w.member_id && Number(w.member_id) === Number(user.id))
+      /* WORKOUT */
+      const myWorkout = workoutRes.data.find(
+        (w) =>
+          w.member_email?.toLowerCase() === user.email?.toLowerCase() ||
+          Number(w.member_id) === Number(user.id)
       );
+
       if (myWorkout?.days) {
         const base = dayjs(myWorkout.created_at);
         Object.entries(myWorkout.days).forEach(([day, ex]) => {
-          const date = base.add(Number(day.replace("Day", "")) - 1, "day");
+          const date = base.add(
+            Number(day.replace("Day", "")) - 1,
+            "day"
+          );
           if (date.isSame(today, "day")) setTodayWorkout(ex || []);
         });
       }
 
-      const myDiet = dietRes.data.find(d => 
-        (d.member_email && user?.email && d.member_email.toLowerCase() === user.email.toLowerCase()) ||
-        (d.member_id && Number(d.member_id) === Number(user.id))
+      /* DIET */
+      const myDiet = dietRes.data.find(
+        (d) =>
+          d.member_email?.toLowerCase() === user.email?.toLowerCase() ||
+          Number(d.member_id) === Number(user.id)
       );
+
       if (myDiet?.days) {
         const base = dayjs(myDiet.created_at);
         Object.entries(myDiet.days).forEach(([day, meal]) => {
-          const date = base.add(Number(day.replace("Day", "")) - 1, "day");
+          const date = base.add(
+            Number(day.replace("Day", "")) - 1,
+            "day"
+          );
           if (date.isSame(today, "day")) setTodayDiet(meal || {});
         });
       }
 
-      const activeOrders = (orderRes.data || []).filter(o => {
-        return normalizeStatus(o.status) !== "Delivered";
-      });
-
-      setTodayOrders(activeOrders);
-
+      /* ORDERS */
+      const activeOrders = (orderRes.data || []).filter(
+        (o) => normalizeStatus(o.status) !== "Delivered"
+      );
+      setOrders(activeOrders);
     } catch (err) {
       console.log(err);
     }
   };
 
   return (
-    <div className="min-h-screen p-5 text-white space-y-8">
+    <div className="min-h-screen p-6 text-white space-y-8">
 
-      {/* STATS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* ================= STATS ================= */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
         <StatCard
           title="ACTIVE PLAN"
           value={userPlan?.planName || "No Plan"}
           sub={`${formatDate(userPlan?.startDate)} → ${formatDate(userPlan?.endDate)}`}
           icon={<CreditCard />}
-          gradient="from-blue-500 to-cyan-500"
+          color="bg-blue-500"
         />
 
         <StatCard
@@ -130,7 +118,7 @@ const Dashboard = () => {
           value={Object.keys(todayDiet).length}
           sub="Meals"
           icon={<Salad />}
-          gradient="from-green-500 to-emerald-500"
+          color="bg-green-500"
         />
 
         <StatCard
@@ -138,81 +126,108 @@ const Dashboard = () => {
           value={todayWorkout.length}
           sub="Exercises"
           icon={<Dumbbell />}
-          gradient="from-pink-500 to-purple-500"
+          color="bg-pink-500"
         />
 
+        <StatCard
+          title="ORDERS"
+          value={orders.length}
+          sub="Active"
+          icon={<ShoppingCart />}
+          color="bg-orange-500"
+        />
       </div>
 
-      {/* CARDS */}
-      <div className="grid md:grid-cols-2 gap-6">
+      {/* ================= DIET + WORKOUT ================= */}
+      <div className="grid lg:grid-cols-2 gap-6">
 
-        <PremiumCard onClick={() => setPopup("diet")}>
-          <Header icon={<Salad />} title="Today's Diet" />
-          <h2 className="text-xl font-bold">
-            {Object.keys(todayDiet).length ? "Meals Available" : "No Diet"}
-          </h2>
-          <DateText />
-        </PremiumCard>
+        {/* DIET TABLE */}
+        <div className="bg-white/5 p-6 rounded-2xl">
+          <h2 className="text-lg font-semibold mb-4">Today's Diet</h2>
 
-        <PremiumCard onClick={() => setPopup("workout")}>
-          <Header icon={<Dumbbell />} title="Today's Workout" />
-          <h2 className="text-xl font-bold">
-            {todayWorkout.length ? `${todayWorkout.length} Exercises` : "Rest Day"}
-          </h2>
-          <DateText />
-        </PremiumCard>
+          {Object.keys(todayDiet).length ? (
+            <table className="w-full text-sm">
+              <thead className="text-gray-400 border-b border-white/10">
+                <tr>
+                  <th className="text-left py-2">Meal</th>
+                  <th className="text-left py-2">Food</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(todayDiet).map(([meal, val]) => (
+                  <tr key={meal} className="border-b border-white/5">
+                    <td className="py-2 text-green-400">{meal}</td>
+                    <td className="py-2">
+                      {typeof val === "object" ? val?.food : val}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-gray-400">No Diet Assigned</p>
+          )}
+        </div>
 
+        {/* WORKOUT TABLE */}
+        <div className="bg-white/5 p-6 rounded-2xl">
+          <h2 className="text-lg font-semibold mb-4">Today's Workout</h2>
+
+          {todayWorkout.length ? (
+            <table className="w-full text-sm">
+              <thead className="text-gray-400 border-b border-white/10">
+                <tr>
+                  <th className="text-left py-2">Exercise</th>
+                  <th className="text-left py-2">Sets/Reps</th>
+                </tr>
+              </thead>
+              <tbody>
+                {todayWorkout.map((ex, i) => (
+                  <tr key={i} className="border-b border-white/5">
+                    <td className="py-2">{ex.name}</td>
+                    <td className="py-2 text-gray-400">
+                      {ex.sets || "-"} x {ex.reps || "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-gray-400">Rest Day</p>
+          )}
+        </div>
       </div>
 
-      {/* ORDERS */}
-      <div className="grid md:grid-cols-2 gap-6">
-        {todayOrders.map(order => (
-          <PremiumCard key={order.id} onClick={() => setPopup(order)}>
-            <Header icon={<ShoppingCart />} title="Order" />
-            <p className="font-bold text-purple-300">{order.order_id}</p>
-            <p className="text-gray-400 text-sm">₹{order.total}</p>
-          </PremiumCard>
-        ))}
+      {/* ================= ORDERS ================= */}
+      <div className="bg-white/5 p-6 rounded-2xl">
+        <h2 className="text-lg font-semibold mb-4">Active Orders</h2>
+
+        {orders.length ? (
+          <div className="space-y-4">
+            {orders.map((order) => (
+              <div
+                key={order.id}
+                className="p-4 rounded-xl bg-black/40 flex justify-between items-center"
+              >
+                <div>
+                  <p className="font-semibold text-purple-300">
+                    {order.order_id}
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    ₹{order.total}
+                  </p>
+                </div>
+
+                <span className="text-xs px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-400">
+                  {normalizeStatus(order.status)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-400">No Active Orders</p>
+        )}
       </div>
-
-      {/* POPUP */}
-      {popup && (
-        <Modal onClose={() => setPopup(null)}>
-
-          {/* DIET */}
-          {popup === "diet" && (
-            <PopupContainer title="Today's Diet" icon={<Salad />}>
-              {Object.entries(todayDiet).map(([meal, val]) => (
-                <InnerCard key={meal}>
-                  <p className="font-semibold text-green-400">{meal}</p>
-                  <p className="text-sm">{typeof val === 'object' ? val?.food || '-' : val}</p>
-                </InnerCard>
-              ))}
-            </PopupContainer>
-          )}
-
-          {/* WORKOUT */}
-          {popup === "workout" && (
-            <PopupContainer title="Workout" icon={<Dumbbell />}>
-              {todayWorkout.map((ex, i) => (
-                <InnerCard key={i}>
-                  <p>{ex.name}</p>
-                </InnerCard>
-              ))}
-            </PopupContainer>
-          )}
-
-          {/* ORDER (FIXED) */}
-          {typeof popup === "object" && popup?.order_id && (
-            <div>
-              <h2 className="text-xl font-bold mb-4">Order Details</h2>
-              <p>{popup.order_id}</p>
-              <p>₹{popup.total}</p>
-            </div>
-          )}
-
-        </Modal>
-      )}
 
     </div>
   );
@@ -220,49 +235,18 @@ const Dashboard = () => {
 
 export default Dashboard;
 
-/* UI COMPONENTS */
+/* ---------- UI ---------- */
 
-const StatCard = ({ title, value, sub, icon, gradient }) => (
-  <div className="bg-white/5 p-6 rounded-2xl flex justify-between">
+const StatCard = ({ title, value, sub, icon, color }) => (
+  <div className="bg-white/5 p-6 rounded-2xl flex justify-between items-center">
     <div>
-      <p>{title}</p>
-      <h2>{value}</h2>
-      <p>{sub}</p>
+      <p className="text-sm text-gray-400">{title}</p>
+      <h2 className="text-xl font-bold">{value}</h2>
+      <p className="text-xs text-gray-500">{sub}</p>
     </div>
-    <div>{icon}</div>
-  </div>
-);
 
-const PremiumCard = ({ children, onClick }) => (
-  <div onClick={onClick} className="p-6 bg-white/5 rounded-2xl cursor-pointer">
-    {children}
-  </div>
-);
-
-const Header = ({ icon, title }) => (
-  <div className="flex gap-2">{icon} {title}</div>
-);
-
-const DateText = () => (
-  <p>{dayjs().format("DD MMM YYYY")}</p>
-);
-
-const Modal = ({ children, onClose }) => (
-  <div className="fixed inset-0 bg-black/70 flex items-center justify-center">
-    <div className="bg-black p-6 rounded-xl relative">
-      <button onClick={onClose}><X /></button>
-      {children}
+    <div className={`p-3 rounded-xl ${color}`}>
+      {icon}
     </div>
   </div>
-);
-
-const PopupContainer = ({ title, children }) => (
-  <div>
-    <h2>{title}</h2>
-    {children}
-  </div>
-);
-
-const InnerCard = ({ children }) => (
-  <div className="p-3 bg-white/5 rounded">{children}</div>
 );
