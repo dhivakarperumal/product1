@@ -1,24 +1,43 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import api from "../../api";
 import { useNavigate } from "react-router-dom";
 
 const Services = () => {
   const [services, setServices] = useState([]);
+  const isMountedRef = useRef(true);
+  const ITEMS_PER_PAGE = 12;
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchServices();
+    const abortController = new AbortController();
+    isMountedRef.current = true;
+    
+    const load = async () => {
+      try {
+        const res = await api.get(`/services?limit=${ITEMS_PER_PAGE}&offset=0`, {
+          signal: abortController.signal
+        });
+        const data = Array.isArray(res.data) ? res.data : [];
+        
+        if (isMountedRef.current) {
+          setServices(data);
+        }
+      } catch (err) {
+        if (err.name !== 'CanceledError') {
+          console.log("Service fetch error:", err.message);
+          if (isMountedRef.current) {
+            setServices([]);
+          }
+        }
+      }
+    };
+    
+    load();
+    return () => {
+      isMountedRef.current = false;
+      abortController.abort();
+    };
   }, []);
-
-  const fetchServices = async () => {
-    try {
-      const res = await api.get("/services");
-      setServices(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      console.log("Service fetch error:", err.message);
-      setServices([]);
-    }
-  };
 
   // ✅ SAME IMAGE LOGIC AS MOBILE APP
   const getImageUrl = (service) => {

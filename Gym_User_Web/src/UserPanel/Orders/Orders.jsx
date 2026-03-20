@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../PrivateRouter/AuthContext";
 import api from "../../api";
 import { ShoppingCart, X, Package, CheckCircle, Truck, Clock } from "lucide-react";
-import toast from "react-hot-toast";
+
+// ✅ Cache for orders
+const ordersCache = {};
 
 // ✅ Image helper
 const makeImageUrl = (img) => {
@@ -49,27 +51,49 @@ const Orders = () => {
   const { user } = useAuth();
   const userId = user?.id;
   const navigate = useNavigate();
+  const isMountedRef = useRef(true);
 
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // ✅ Initialize state from cache if available
+  const initialOrders = userId && ordersCache[userId] ? ordersCache[userId] : [];
+  const [orders, setOrders] = useState(initialOrders);
+  const [loading, setLoading] = useState(!initialOrders.length && !ordersCache[userId]);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
-  // ✅ Fetch Orders
+  // ✅ Fetch Orders (with instant caching)
   useEffect(() => {
     if (!userId) return;
 
+    const abortController = new AbortController();
+    isMountedRef.current = true;
+    
     const fetchOrders = async () => {
       try {
-        const res = await api.get(`/orders/user/${userId}`);
-        setOrders(Array.isArray(res.data) ? res.data : []);
+        const res = await api.get(`/orders/user/${userId}`, {
+          signal: abortController.signal
+        });
+        const fetchedOrders = Array.isArray(res.data) ? res.data : [];
+        
+        if (isMountedRef.current) {
+          setOrders(fetchedOrders);
+          setLoading(false);
+          ordersCache[userId] = fetchedOrders;
+        }
       } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
+        if (err.name !== 'CanceledError') {
+          console.error(err);
+          if (isMountedRef.current) {
+            setLoading(false);
+          }
+        }
       }
     };
 
     fetchOrders();
+    
+    return () => {
+      isMountedRef.current = false;
+      abortController.abort();
+    };
   }, [userId]);
 
   // ✅ Loading
@@ -284,7 +308,6 @@ const Orders = () => {
                       {ORDER_STEPS.map((step, idx) => {
                         const currentStepIndex = ORDER_STEPS.indexOf(normalizeStatus(selectedOrder.status));
                         const isCompleted = idx <= currentStepIndex;
-                        const isCurrent = idx === currentStepIndex;
 
                         return (
                           <div key={step} className="flex flex-col items-center flex-1">

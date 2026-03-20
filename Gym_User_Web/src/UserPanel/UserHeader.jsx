@@ -58,22 +58,29 @@ const UserHeader = ({ onMenuClick }) => {
 
   /* ---- Alerts for expiring memberships -------- */
   useEffect(() => {
+    const abortController = new AbortController();
+    
     const fetchAlerts = async () => {
       if (!user?.id) return;
       try {
         setFetchingAlerts(true);
-        const res = await api.get(`/memberships/alerts/expiring-soon?userId=${user.id}`);
+        const res = await api.get(`/memberships/alerts/expiring-soon?userId=${user.id}`, {
+          signal: abortController.signal
+        });
         setAlerts(res.data || []);
       } catch (err) {
-        console.error("Failed to fetch alerts:", err);
+        if (err.name !== 'CanceledError') {
+          console.error("Failed to fetch alerts:", err);
+        }
       } finally {
         setFetchingAlerts(false);
       }
     };
 
     fetchAlerts();
-    const interval = setInterval(fetchAlerts, 30 * 60 * 1000);
-    return () => clearInterval(interval);
+    // Only fetch alerts when user explicitly opens notifications, not periodically
+    // This reduces unnecessary requests and improves performance
+    return () => abortController.abort();
   }, [user?.id]);
 
 
@@ -116,13 +123,17 @@ const UserHeader = ({ onMenuClick }) => {
   const userRole = role ? role.charAt(0).toUpperCase() + role.slice(1) : "User";
 
   useEffect(() => {
+    const abortController = new AbortController();
+    
     const fetchMessages = async () => {
       if (!userEmail) return;
 
       try {
         setLoadingMessages(true);
 
-        const res = await api.get("/send-message/history");
+        const res = await api.get("/send-message/history", {
+          signal: abortController.signal
+        });
         const allMessages = Array.isArray(res.data) ? res.data : [];
 
         const filtered = allMessages.filter((msg) => {
@@ -147,13 +158,16 @@ const UserHeader = ({ onMenuClick }) => {
 
         setMessages(filtered);
       } catch (err) {
-        console.error("Failed to fetch messages:", err);
+        if (err.name !== 'CanceledError') {
+          console.error("Failed to fetch messages:", err);
+        }
       } finally {
         setLoadingMessages(false);
       }
     };
 
     fetchMessages();
+    return () => abortController.abort();
   }, [userEmail]);
 
 
@@ -204,10 +218,10 @@ const UserHeader = ({ onMenuClick }) => {
           </Link>
 
           {/* ALERTS/NOTIFICATIONS ICON */}
-          <div className="relative">
+          <div className="relative cursor-pointer">
             <button
               onClick={() => setShowNotifications(p => !p)}
-              className={`p-2 rounded-xl transition relative ${showNotifications ? "bg-orange-500 text-white" : "bg-white/10 text-white hover:bg-white/20"}`}
+              className={`p-2  rounded-xl transition relative ${showNotifications ? "bg-orange-500 text-white" : "bg-white/10 text-white hover:bg-white/20"}`}
               title="Expiring Memberships"
             >
               <Bell className="w-5 h-5" />
@@ -312,7 +326,7 @@ const UserHeader = ({ onMenuClick }) => {
           <div className="relative">
             <button
               onClick={() => setShowDropdown(p => !p)}
-              className="flex items-center gap-2 p-2 rounded-xl bg-white/10 hover:bg-white/20 transition"
+              className="flex items-center gap-2 p-2 rounded-xl bg-white/10 hover:bg-white/20 transition cursor-pointer"
             >
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white font-semibold text-xs">
                 {userName.charAt(0).toUpperCase()}
@@ -337,7 +351,7 @@ const UserHeader = ({ onMenuClick }) => {
 
                   <button
                     onClick={handleLogout}
-                    className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-red-500/20 text-sm text-red-400 w-full transition"
+                    className="flex items-center gap-3 px-3  py-2 rounded-xl hover:bg-red-500/20 text-sm text-red-400 w-full  transition cursor-pointer"
                   >
                     <LogOut className="w-4 h-4" /> Logout
                   </button>

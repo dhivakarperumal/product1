@@ -1,9 +1,12 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../api";
 import toast from "react-hot-toast";
 import { useAuth } from "../../PrivateRouter/AuthContext";
 import { useCart } from "../../CartContext";
+
+// ✅ Product cache with local storage
+const productCache = {};
 
 // ✅ Image helper (memoized)
 const makeImageUrl = (img) => {
@@ -25,9 +28,11 @@ export default function ProductDetails() {
   const { user } = useAuth();
   const userId = user?.id;
   const { addToCart } = useCart();
+  const isMountedRef = useRef(true);
 
   const [product, setProduct] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [relatedProducts, setRelatedProducts] = useState([]);
   
@@ -36,47 +41,93 @@ export default function ProductDetails() {
   const [selectedSize, setSelectedSize] = useState(null);
   const [selectedGender, setSelectedGender] = useState(null);
 
-  // ✅ Fetch product (only once per id)
+  // ✅ Helper to initialize variants (defined early for use in effects)
+  const initializeVariants = useCallback((data) => {
+    if (data?.weight?.length) setSelectedWeight(data.weight[0]);
+    if (data?.size?.length) setSelectedSize(data.size[0]);
+    if (data?.gender?.length) setSelectedGender(data.gender[0]);
+  }, []);
+
+  // ✅ Fetch product (with caching to avoid loading state)
   useEffect(() => {
+    const abortController = new AbortController();
+    isMountedRef.current = true;
+    
     const load = async () => {
+      // 1. Check product cache first - show immediately without loading
+      if (productCache[id]) {
+        if (isMountedRef.current) {
+          setProduct(productCache[id]);
+          setHasError(false);
+          initializeVariants(productCache[id]);
+        }
+        // Still fetch fresh data in background
+      } else {
+        // Only show loading if we don't have cached data
+        if (isMountedRef.current) setLoading(true);
+      }
+
       try {
         console.log("Fetching product ID:", id);
 
-        const res = await api.get(`/products/${id}`);
+        const res = await api.get(`/products/${id}`, {
+          signal: abortController.signal
+        });
         const data = res.data;
 
         console.log("PRODUCT:", data);
 
-        setProduct(data);
-        
-        // Initialize variant selections
-        if (data.weight?.length) setSelectedWeight(data.weight[0]);
-        if (data.size?.length) setSelectedSize(data.size[0]);
-        if (data.gender?.length) setSelectedGender(data.gender[0]);
+        if (isMountedRef.current) {
+          setProduct(data);
+          setHasError(false);
+          setLoading(false);
+          productCache[id] = data; // Cache for next time
+          initializeVariants(data);
+        }
       } catch (err) {
-        console.error(err);
-        toast.error("Failed to load product");
-      } finally {
-        setLoading(false);
+        if (err.name !== 'CanceledError') {
+          console.error(err);
+          if (isMountedRef.current) {
+            setLoading(false);
+            // Only show error if we don't have cached data
+            if (!productCache[id]) {
+              setHasError(true);
+              toast.error("Failed to load product");
+            }
+          }
+        }
       }
     };
 
     if (id) load();
-  }, [id]);
+    
+    return () => {
+      isMountedRef.current = false;
+      abortController.abort();
+    };
+  }, [id, initializeVariants]);
 
-  // ✅ Fetch related products (same category)
+  // ✅ Fetch related products (same category) - optimized with limit
   useEffect(() => {
+    const abortController = new AbortController();
+    
     const loadRelated = async () => {
       if (!product) return;
       try {
-        const res = await api.get(`/products?category=${product.category}&limit=6`);
+        const res = await api.get(`/products?category=${product.category}&limit=5`, {
+          signal: abortController.signal
+        });
         const filtered = res.data?.filter((p) => p.id !== id).slice(0, 4);
         setRelatedProducts(filtered || []);
       } catch (err) {
-        console.error("Failed to load related products", err);
+        if (err.name !== 'CanceledError') {
+          console.error("Failed to load related products", err);
+        }
       }
     };
     loadRelated();
+    
+    return () => abortController.abort();
   }, [product, id]);
 
   // ✅ Variant key calculation
@@ -236,20 +287,43 @@ export default function ProductDetails() {
     }
   }, [userId, variantKey, availableStock, quantity, product, pricing, navigate]);
 
-  // ✅ Loading UI
-  if (loading) {
+  // ✅ Show skeleton/loading only if no product cached yet
+  if (loading && !product) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        Loading...
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mx-auto"></div>
+          <p className="text-white/60">Loading product details...</p>
+        </div>
       </div>
     );
   }
 
-  // ❌ Not found
+  // ❌ Show error only if failed to load and no cached data
+  if (hasError && !product) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white gap-4">
+        <div className="text-center">
+          <p className="text-2xl mb-4">❌ Product not found</p>
+          <button
+            onClick={() => navigate("/user/products")}
+            className="px-6 py-2 bg-orange-600 rounded-lg hover:bg-orange-700"
+          >
+            Back to Products
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ If no product at all, show placeholder
   if (!product) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        Product not found
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mx-auto"></div>
+          <p className="text-white/60">Loading...</p>
+        </div>
       </div>
     );
   }

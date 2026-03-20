@@ -106,12 +106,14 @@ const Facilities = () => {
   const [imageLoaded, setImageLoaded] = useState(false);
 
   useEffect(() => {
-    fetchFacilities();
+    const abortController = new AbortController();
+    fetchFacilities(abortController.signal);
+    return () => abortController.abort();
   }, []);
 
-  const fetchFacilities = useCallback(async () => {
+  const fetchFacilities = useCallback(async (signal) => {
     try {
-      const res = await api.get("/facilities");
+      const res = await api.get("/facilities", { signal });
       const mappedData = (res.data || []).map((item) => ({
         id: item.id,
         name: item.title,
@@ -125,7 +127,9 @@ const Facilities = () => {
 
       setFacilities(mappedData);
     } catch (error) {
-      console.error("Error fetching facilities:", error);
+      if (error.name !== 'CanceledError') {
+        console.error("Error fetching facilities:", error);
+      }
       // Mock data for demo - using placeholder URLs
       setFacilities([
         {

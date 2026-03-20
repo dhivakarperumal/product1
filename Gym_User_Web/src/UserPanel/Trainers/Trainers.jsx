@@ -26,6 +26,8 @@ const Trainers = () => {
 
   /* ================= FETCH ================= */
   useEffect(() => {
+    const abortController = new AbortController();
+    
     const fetchTrainers = async () => {
       // ✅ cache first
       if (cache.trainers) {
@@ -36,7 +38,9 @@ const Trainers = () => {
       }
 
       try {
-        const res = await api.get("/staff");
+        const res = await api.get("/staff", {
+          signal: abortController.signal
+        });
 
         const mapped = (res.data || []).map((t) => ({
           ...t,
@@ -46,13 +50,16 @@ const Trainers = () => {
         setTrainers(mapped);
         cache.trainers = mapped;
       } catch (err) {
-        console.error("Failed to load trainers:", err);
+        if (err.name !== 'CanceledError') {
+          console.error("Failed to load trainers:", err);
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchTrainers();
+    return () => abortController.abort();
   }, []);
 
   /* ================= AOS ================= */

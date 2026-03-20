@@ -1,24 +1,49 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import api from "../../api";
 import { useAuth } from "../../PrivateRouter/AuthContext";
 import dayjs from "dayjs";
 import { Dumbbell, CalendarDays } from "lucide-react";
 
+const workoutsCache = {};
+
 const Workouts = () => {
   const { user } = useAuth();
+  const isMountedRef = useRef(true);
 
   const [workouts, setWorkouts] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("TODAY");
 
   const workoutData = workouts[0];
 
   useEffect(() => {
-    if (user) fetchWorkouts();
-  }, [user]);
+    if (!user?.id) return;
 
-  const fetchWorkouts = async () => {
+    const abortController = new AbortController();
+    isMountedRef.current = true;
+
+    const cacheKey = user.id;
+    
+    // Show cached data immediately
+    if (workoutsCache[cacheKey]) {
+      if (isMountedRef.current) {
+        setWorkouts(workoutsCache[cacheKey]);
+      }
+    } else {
+      if (isMountedRef.current) setLoading(true);
+    }
+
+    fetchWorkouts(abortController.signal, cacheKey);
+    
+    return () => {
+      isMountedRef.current = false;
+      abortController.abort();
+    };
+  }, [user?.id, user?.email]);
+
+  const fetchWorkouts = async (signal, cacheKey) => {
     try {
-      const res = await api.get("/workouts");
+      const res = await api.get("/workouts", { signal });
       const data = Array.isArray(res.data) ? res.data : [];
 
       const myWorkouts = data.filter(
@@ -27,9 +52,16 @@ const Workouts = () => {
           (item.member_id && user?.id && item.member_id === Number(user.id))
       );
 
-      setWorkouts(myWorkouts);
+      if (isMountedRef.current) {
+        setWorkouts(myWorkouts);
+        setLoading(false);
+        workoutsCache[cacheKey] = myWorkouts;
+      }
     } catch (err) {
-      console.log(err);
+      if (err.name !== 'CanceledError') {
+        console.log(err);
+        if (isMountedRef.current) setLoading(false);
+      }
     }
   };
 

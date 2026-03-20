@@ -12,6 +12,9 @@ const Products = () => {
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const ITEMS_PER_PAGE = 20;
 
   // ✅ Image helper
   const makeImageUrl = (img) => {
@@ -63,26 +66,42 @@ const Products = () => {
     return null;
   };
 
-  // ✅ Load products
+  // ✅ Load products with pagination and request cancellation
   useEffect(() => {
+    const abortController = new AbortController();
+    
     const load = async () => {
-      if (cache.products) {
+      // Use cached data for first page only
+      if (page === 1 && cache.products) {
         setProducts(cache.products);
         setLoading(false);
+        return;
       }
 
       try {
-        const res = await api.get("/products");
+        const offset = (page - 1) * ITEMS_PER_PAGE;
+        const res = await api.get(`/products?limit=${ITEMS_PER_PAGE}&offset=${offset}`, {
+          signal: abortController.signal
+        });
         const data = Array.isArray(res.data) ? res.data : [];
 
         console.log("PRODUCTS:", data); // 🔍 DEBUG
 
-        setProducts(data);
-        cache.products = data;
+        if (page === 1) {
+          setProducts(data);
+          cache.products = data;
+        } else {
+          setProducts(prev => [...prev, ...data]);
+        }
+        
+        // Check if there are more products
+        setHasMore(data.length === ITEMS_PER_PAGE);
       } catch (err) {
-        console.error("load products", err);
-        if (!cache.products) {
-          toast.error("Failed to load products");
+        if (err.name !== 'CanceledError') {
+          console.error("load products", err);
+          if (page === 1 && !cache.products) {
+            toast.error("Failed to load products");
+          }
         }
       } finally {
         setLoading(false);
@@ -90,7 +109,16 @@ const Products = () => {
     };
 
     load();
-  }, []);
+    
+    return () => abortController.abort();
+  }, [page]);
+
+  // ✅ Load more handler
+  const handleLoadMore = () => {
+    if (hasMore && !loading) {
+      setPage(prev => prev + 1);
+    }
+  };
 
   // ✅ Add to cart
   const addToCart = async (prod) => {
@@ -127,7 +155,7 @@ const Products = () => {
     <div className="space-y-6 p-4">
 
       {/* Loading */}
-      {loading ? (
+      {page === 1 && loading ? (
         <div className="flex flex-col items-center justify-center py-32 gap-6">
           <div className="w-16 h-16 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
           <p className="text-white/40 text-xs uppercase">
@@ -139,90 +167,106 @@ const Products = () => {
           No products found 😢
         </div>
       ) : (
-        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {products.map((product, index) => {
-            const productId =
-              product.id ??
-              product.product_id ??
-              product._id ??
-              index;
+        <>
+          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {products.map((product, index) => {
+              const productId =
+                product.id ??
+                product.product_id ??
+                product._id ??
+                index;
 
-            const pricing = getProductPricing(product);
+              const pricing = getProductPricing(product);
 
-            const safeName =
-              typeof product.name === "string"
-                ? product.name
-                : "Unnamed product";
+              const safeName =
+                typeof product.name === "string"
+                  ? product.name
+                  : "Unnamed product";
 
-            const image = Array.isArray(product.images)
-              ? product.images[0]
-              : product.images;
+              const image = Array.isArray(product.images)
+                ? product.images[0]
+                : product.images;
 
-            const goToDetails = () => {
-              navigate(`/user/products/${productId}`);
-            };
+              const goToDetails = () => {
+                navigate(`/user/products/${productId}`);
+              };
 
-            return (
-              <div
-                key={productId}
-                className="
-                  relative h-full flex flex-col
-                  bg-gradient-to-br from-[#0e1016] via-black to-[#0e1016]
-                  border-2 border-orange-500/60 rounded-3xl overflow-hidden
-                  hover:-translate-y-1 transition-all duration-300
-                "
-              >
-                {/* IMAGE */}
-                <div className="h-52 bg-black">
-                  <img
-                    onClick={goToDetails}
-                    src={
-                      makeImageUrl(image) ||
-                      "https://via.placeholder.com/300x300"
-                    }
-                    className="w-full h-full object-cover cursor-pointer"
-                  />
-                </div>
-
-                {/* CONTENT */}
-                <div className="p-4 flex flex-col flex-1">
-                  <h3
-                    onClick={goToDetails}
-                    className="text-orange-500 font-semibold cursor-pointer line-clamp-1"
-                  >
-                    {safeName}
-                  </h3>
-
-                  <div className="flex gap-2 mt-2">
-                    {pricing ? (
-                      <>
-                        <span className="text-white font-bold">
-                          ₹{pricing.offerPrice}
-                        </span>
-                        <span className="line-through text-white/50">
-                          ₹{pricing.mrp}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-gray-400 text-sm">
-                        No price
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="mt-auto pt-4">
-                    <button
+              return (
+                <div
+                  key={productId}
+                  className="
+                    relative h-full flex flex-col
+                    bg-gradient-to-br from-[#0e1016] via-black to-[#0e1016]
+                    border-2 border-orange-500/60 rounded-3xl overflow-hidden
+                    hover:-translate-y-1 transition-all duration-300
+                  "
+                >
+                  {/* IMAGE */}
+                  <div className="h-52 bg-black">
+                    <img
                       onClick={goToDetails}
-                      className="w-full bg-orange-600 text-white py-2 rounded-lg cursor-pointer"
+                      src={
+                        makeImageUrl(image) ||
+                        "https://via.placeholder.com/300x300"
+                      }
+                      className="w-full h-full object-cover cursor-pointer"
+                      loading="lazy"
+                    />
+                  </div>
+
+                  {/* CONTENT */}
+                  <div className="p-4 flex flex-col flex-1">
+                    <h3
+                      onClick={goToDetails}
+                      className="text-orange-500 font-semibold cursor-pointer line-clamp-1"
                     >
-                      VIEW DETAILS
-                    </button>
+                      {safeName}
+                    </h3>
+
+                    <div className="flex gap-2 mt-2">
+                      {pricing ? (
+                        <>
+                          <span className="text-white font-bold">
+                            ₹{pricing.offerPrice}
+                          </span>
+                          <span className="line-through text-white/50">
+                            ₹{pricing.mrp}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-gray-400 text-sm">
+                          No price
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-auto pt-4">
+                      <button
+                        onClick={goToDetails}
+                        className="w-full bg-orange-600 text-white py-2 rounded-lg cursor-pointer"
+                      >
+                        VIEW DETAILS
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+
+          {/* Load More Button */}
+          {hasMore && (
+            <div className="flex justify-center py-6">
+              <button
+                onClick={handleLoadMore}
+                disabled={loading}
+                className="px-8 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {loading ? "Loading..." : "Load More Products"}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

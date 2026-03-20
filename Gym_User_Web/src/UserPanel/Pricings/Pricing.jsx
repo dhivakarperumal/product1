@@ -18,13 +18,17 @@ const Pricing = () => {
 
   /* ================= FETCH PLANS ================= */
   useEffect(() => {
+    const abortController = new AbortController();
+    
     const fetchPlans = async () => {
       if (cache.plans) {
         setServices(cache.plans);
       }
 
       try {
-        const res = await api.get("/plans");
+        const res = await api.get("/plans", {
+          signal: abortController.signal
+        });
         const plans = Array.isArray(res.data) ? res.data : [];
 
         setServices(plans);
@@ -35,11 +39,14 @@ const Pricing = () => {
         ];
         setAvailableDurations(durations);
       } catch (err) {
-        console.error(err);
+        if (err.name !== 'CanceledError') {
+          console.error(err);
+        }
       }
     };
 
     fetchPlans();
+    return () => abortController.abort();
   }, []);
 
   /* ================= FILTER ================= */
@@ -58,20 +65,27 @@ const Pricing = () => {
       return;
     }
 
+    const abortController = new AbortController();
+    
     const check = async () => {
       try {
-        const res = await api.get(`/memberships/user/${user.id}`);
+        const res = await api.get(`/memberships/user/${user.id}`, {
+          signal: abortController.signal
+        });
         const active = res.data?.some((p) => p.status === "active");
         setHasActivePlan(active);
       } catch (err) {
-        console.error(err);
+        if (err.name !== 'CanceledError') {
+          console.error(err);
+        }
       } finally {
         setCheckingPlan(false);
       }
     };
 
     check();
-  }, [user]);
+    return () => abortController.abort();
+  }, [user?.id]);
 
   return (
     <div className="min-h-screen text-white overflow-x-hidden">

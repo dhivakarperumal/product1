@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   FaCalendarCheck,
   FaDumbbell,
@@ -81,7 +81,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   /* ---------- TOP STATS (GYM) ---------- */
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState(() => cache.dashboardStats || {
     members: 0,
     checkinsToday: 0,
     activePlans: 0,
@@ -97,7 +97,8 @@ export default function Dashboard() {
   });
 
   /* ---------- LOADING STATE ---------- */
-  const [loading, setLoading] = useState(true);
+  const isMountedRef = useRef(true);
+  const [loading, setLoading] = useState(() => !cache.dashboardStats);
 
   /* ---------- FILTER STATE ---------- */
   const [filterRange, setFilterRange] = useState({ type: 'Today', range: null });
@@ -108,7 +109,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      setLoading(true);
+      // Only set loading if no cache exists
+      if (!cache.dashboardStats && isMountedRef.current) {
+        setLoading(true);
+      }
 
       try {
         const [
@@ -206,13 +210,21 @@ export default function Dashboard() {
 
       } catch (err) {
         console.error('Error fetching stats:', err);
-        toast.error('Failed to load dashboard data');
+        if (isMountedRef.current) {
+          toast.error('Failed to load dashboard data');
+        }
       } finally {
-        setLoading(false);
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
       }
     };
 
+    isMountedRef.current = true;
     fetchStats();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [filterRange]);
 
   /* ---------- WEEKLY CHECK-IN CHART ---------- */

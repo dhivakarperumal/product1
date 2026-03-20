@@ -341,9 +341,9 @@ export default function Checkout() {
         <p className="text-white/60 mt-1">Complete your purchase</p>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* LEFT - SHIPPING & PAYMENT */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6 order-2 lg:order-1">
           {/* SHIPPING INFO */}
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
             <h3 className="text-xl font-bold text-white mb-4">Shipping Details</h3>
@@ -352,7 +352,7 @@ export default function Checkout() {
             <div className="flex gap-4 mb-6">
               <button
                 onClick={() => setOrderType("DELIVERY")}
-                className={`flex-1 py-3 rounded-xl border transition ${
+                className={`flex-1 py-3 rounded-xl border cursor-pointer transition ${
                   orderType === "DELIVERY"
                     ? "bg-orange-500/20 border-orange-500"
                     : "border-white/10 hover:border-white/20"
@@ -362,7 +362,7 @@ export default function Checkout() {
               </button>
               <button
                 onClick={() => setOrderType("PICKUP")}
-                className={`flex-1 py-3 rounded-xl border transition ${
+                className={`flex-1 py-3 rounded-xl border cursor-pointer transition ${
                   orderType === "PICKUP"
                     ? "bg-orange-500/20 border-orange-500"
                     : "border-white/10 hover:border-white/20"
@@ -521,7 +521,7 @@ export default function Checkout() {
         </div>
 
         {/* RIGHT - ORDER SUMMARY */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 h-fit sticky top-6">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 h-fit sticky top-6 order-1 lg:order-2">
           <h3 className="text-xl font-bold text-white mb-4">Order Summary</h3>
 
           <div className="space-y-3 mb-6 pb-6 border-b border-white/10 max-h-64 overflow-y-auto">

@@ -1,24 +1,52 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import dayjs from "dayjs";
 import api from "../../api";
 import { useAuth } from "../../PrivateRouter/AuthContext";
 import { Salad, CalendarDays } from "lucide-react";
 
+const dietCache = {};
+
 const Diet = () => {
   const { user } = useAuth();
+  const isMountedRef = useRef(true);
 
   const [diet, setDiet] = useState(null);
   const [title, setTitle] = useState("");
   const [createdAt, setCreatedAt] = useState(null);
   const [filter, setFilter] = useState("TODAY");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (user) fetchDietPlan();
-  }, [user]);
+    if (!user?.id) return;
 
-  const fetchDietPlan = async () => {
+    const abortController = new AbortController();
+    isMountedRef.current = true;
+
+    const cacheKey = user.id;
+    
+    // Show cached data immediately
+    if (dietCache[cacheKey]) {
+      const { diet: cachedDiet, title: cachedTitle, createdAt: cachedDate } = dietCache[cacheKey];
+      if (isMountedRef.current) {
+        setDiet(cachedDiet);
+        setTitle(cachedTitle);
+        setCreatedAt(cachedDate);
+      }
+    } else {
+      if (isMountedRef.current) setLoading(true);
+    }
+
+    fetchDietPlan(abortController.signal, cacheKey);
+    
+    return () => {
+      isMountedRef.current = false;
+      abortController.abort();
+    };
+  }, [user?.id, user?.email]);
+
+  const fetchDietPlan = async (signal, cacheKey) => {
     try {
-      const res = await api.get("/diet-plans");
+      const res = await api.get("/diet-plans", { signal });
 
       const myDiet = res.data.find(
         (item) => 
@@ -27,12 +55,25 @@ const Diet = () => {
       );
 
       if (myDiet) {
-        setTitle(myDiet.title);
-        setDiet(myDiet.days);
-        setCreatedAt(myDiet.created_at);
+        if (isMountedRef.current) {
+          setTitle(myDiet.title);
+          setDiet(myDiet.days);
+          setCreatedAt(myDiet.created_at);
+          setLoading(false);
+          dietCache[cacheKey] = {
+            diet: myDiet.days,
+            title: myDiet.title,
+            createdAt: myDiet.created_at,
+          };
+        }
+      } else {
+        if (isMountedRef.current) setLoading(false);
       }
     } catch (err) {
-      console.log(err);
+      if (err.name !== 'CanceledError') {
+        console.log(err);
+        if (isMountedRef.current) setLoading(false);
+      }
     }
   };
 

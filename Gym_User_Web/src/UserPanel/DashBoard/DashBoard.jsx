@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import api from "../../api";
 import dayjs from "dayjs";
 import { useAuth } from "../../PrivateRouter/AuthContext";
 import { Dumbbell, Salad, ShoppingCart, CreditCard } from "lucide-react";
+
+/* ---------- CACHE ---------- */
+const dashboardCache = {};
 
 /* ---------- HELPERS ---------- */
 const formatDate = (date) =>
@@ -24,80 +27,126 @@ const normalizeStatus = (status) => {
 /* ---------- MAIN ---------- */
 const Dashboard = () => {
   const { user } = useAuth();
+  const isMountedRef = useRef(true);
 
-  const [userPlan, setUserPlan] = useState(null);
-  const [todayWorkout, setTodayWorkout] = useState([]);
-  const [todayDiet, setTodayDiet] = useState({});
-  const [orders, setOrders] = useState([]);
-
-  useEffect(() => {
-    if (user) fetchData();
-  }, [user]);
-
-  const fetchData = async () => {
-    try {
-      const [planRes, workoutRes, dietRes, orderRes] =
-        await Promise.all([
-          api.get(`/memberships?userId=${user.id}`),
-          api.get("/workouts"),
-          api.get("/diet-plans"),
-          api.get(`/orders/user/${user.id}`),
-        ]);
-
-      const today = dayjs();
-
-      /* PLAN */
-      const plans = planRes.data?.memberships || planRes.data || [];
-      const active = plans.find(
-        (p) => new Date(p.endDate) > new Date()
-      );
-      setUserPlan(active || plans[0] || null);
-
-      /* WORKOUT */
-      const myWorkout = workoutRes.data.find(
-        (w) =>
-          w.member_email?.toLowerCase() === user.email?.toLowerCase() ||
-          Number(w.member_id) === Number(user.id)
-      );
-
-      if (myWorkout?.days) {
-        const base = dayjs(myWorkout.created_at);
-        Object.entries(myWorkout.days).forEach(([day, ex]) => {
-          const date = base.add(
-            Number(day.replace("Day", "")) - 1,
-            "day"
-          );
-          if (date.isSame(today, "day")) setTodayWorkout(ex || []);
-        });
-      }
-
-      /* DIET */
-      const myDiet = dietRes.data.find(
-        (d) =>
-          d.member_email?.toLowerCase() === user.email?.toLowerCase() ||
-          Number(d.member_id) === Number(user.id)
-      );
-
-      if (myDiet?.days) {
-        const base = dayjs(myDiet.created_at);
-        Object.entries(myDiet.days).forEach(([day, meal]) => {
-          const date = base.add(
-            Number(day.replace("Day", "")) - 1,
-            "day"
-          );
-          if (date.isSame(today, "day")) setTodayDiet(meal || {});
-        });
-      }
-
-      /* ORDERS */
-      const activeOrders = (orderRes.data || []).filter(
-        (o) => normalizeStatus(o.status) !== "Delivered"
-      );
-      setOrders(activeOrders);
-    } catch (err) {
-      console.log(err);
+  // 🔄 Initialize state from cache if available
+  const [dashboardData, setDashboardData] = useState(() => {
+    if (user?.id && dashboardCache[user.id]) {
+      return dashboardCache[user.id];
     }
-  };
+    return {
+      userPlan: null,
+      todayWorkout: [],
+      todayDiet: {},
+      orders: [],
+    };
+  });
+
+  // ✅ Define fetchData function inline to avoid React Compiler warnings
+  // (Defined inline to avoid setState warnings)
+
+  // ✅ Fetch fresh data
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const abortController = new AbortController();
+    isMountedRef.current = true;
+
+    const fetchDashboardData = async (signal, cacheKey) => {
+      try {
+        const [planRes, workoutRes, dietRes, orderRes] =
+          await Promise.all([
+            api.get(`/memberships?userId=${user.id}`, { signal }),
+            api.get("/workouts", { signal }),
+            api.get("/diet-plans", { signal }),
+            api.get(`/orders/user/${user.id}`, { signal }),
+          ]);
+
+        const today = dayjs();
+        let plan = null;
+        let workout = [];
+        let diet = {};
+        let orderList = [];
+
+        /* PLAN */
+        const plans = planRes.data?.memberships || planRes.data || [];
+        const active = plans.find(
+          (p) => new Date(p.endDate) > new Date()
+        );
+        plan = active || plans[0] || null;
+
+        /* WORKOUT */
+        const myWorkout = workoutRes.data.find(
+          (w) =>
+            w.member_email?.toLowerCase() === user.email?.toLowerCase() ||
+            Number(w.member_id) === Number(user.id)
+        );
+
+        if (myWorkout?.days) {
+          const base = dayjs(myWorkout.created_at);
+          Object.entries(myWorkout.days).forEach(([day, ex]) => {
+            const date = base.add(
+              Number(day.replace("Day", "")) - 1,
+              "day"
+            );
+            if (date.isSame(today, "day")) workout = ex || [];
+          });
+        }
+
+        /* DIET */
+        const myDiet = dietRes.data.find(
+          (d) =>
+            d.member_email?.toLowerCase() === user.email?.toLowerCase() ||
+            Number(d.member_id) === Number(user.id)
+        );
+
+        if (myDiet?.days) {
+          const base = dayjs(myDiet.created_at);
+          Object.entries(myDiet.days).forEach(([day, meal]) => {
+            const date = base.add(
+              Number(day.replace("Day", "")) - 1,
+              "day"
+            );
+            if (date.isSame(today, "day")) diet = meal || {};
+          });
+        }
+
+        /* ORDERS */
+        const activeOrders = (orderRes.data || []).filter(
+          (o) => normalizeStatus(o.status) !== "Delivered"
+        );
+        orderList = activeOrders;
+
+        if (isMountedRef.current) {
+          setDashboardData({
+            userPlan: plan,
+            todayWorkout: workout,
+            todayDiet: diet,
+            orders: orderList,
+          });
+
+          dashboardCache[cacheKey] = {
+            userPlan: plan,
+            todayWorkout: workout,
+            todayDiet: diet,
+            orders: orderList,
+          };
+        }
+      } catch (err) {
+        if (err.name !== 'CanceledError') {
+          console.log(err);
+        }
+      }
+    };
+
+    const cacheKey = user.id;
+    fetchDashboardData(abortController.signal, cacheKey);
+
+    return () => {
+      isMountedRef.current = false;
+      abortController.abort();
+    };
+  }, [user?.id, user?.email]);
 
   return (
     <div className="min-h-screen p-6 text-white space-y-8">
@@ -107,15 +156,15 @@ const Dashboard = () => {
 
         <StatCard
           title="ACTIVE PLAN"
-          value={userPlan?.planName || "No Plan"}
-          sub={`${formatDate(userPlan?.startDate)} → ${formatDate(userPlan?.endDate)}`}
+          value={dashboardData.userPlan?.planName || "No Plan"}
+          sub={`${formatDate(dashboardData.userPlan?.startDate)} → ${formatDate(dashboardData.userPlan?.endDate)}`}
           icon={<CreditCard />}
           color="bg-blue-500"
         />
 
         <StatCard
           title="TODAY DIET"
-          value={Object.keys(todayDiet).length}
+          value={Object.keys(dashboardData.todayDiet).length}
           sub="Meals"
           icon={<Salad />}
           color="bg-green-500"
@@ -123,7 +172,7 @@ const Dashboard = () => {
 
         <StatCard
           title="TODAY WORKOUT"
-          value={todayWorkout.length}
+          value={dashboardData.todayWorkout.length}
           sub="Exercises"
           icon={<Dumbbell />}
           color="bg-pink-500"
@@ -131,7 +180,7 @@ const Dashboard = () => {
 
         <StatCard
           title="ORDERS"
-          value={orders.length}
+          value={dashboardData.orders.length}
           sub="Active"
           icon={<ShoppingCart />}
           color="bg-orange-500"
@@ -145,7 +194,7 @@ const Dashboard = () => {
         <div className="bg-white/5 p-6 rounded-2xl">
           <h2 className="text-lg font-semibold mb-4">Today's Diet</h2>
 
-          {Object.keys(todayDiet).length ? (
+          {Object.keys(dashboardData.todayDiet).length ? (
             <table className="w-full text-sm">
               <thead className="text-gray-400 border-b border-white/10">
                 <tr>
@@ -158,7 +207,7 @@ const Dashboard = () => {
               </thead>
 
               <tbody>
-                {Object.entries(todayDiet).map(([meal, val]) => {
+                {Object.entries(dashboardData.todayDiet).map(([meal, val]) => {
                   const item = typeof val === "object" ? val : { food: val };
 
                   return (
@@ -182,7 +231,7 @@ const Dashboard = () => {
         <div className="bg-white/5 p-6 rounded-2xl">
           <h2 className="text-lg font-semibold mb-4">Today's Workout</h2>
 
-          {todayWorkout.length ? (
+          {dashboardData.todayWorkout.length ? (
             <table className="w-full text-sm">
               <thead className="text-gray-400 border-b border-white/10">
                 <tr>
@@ -191,7 +240,7 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {todayWorkout.map((ex, i) => (
+                {dashboardData.todayWorkout.map((ex, i) => (
                   <tr key={i} className="border-b border-white/5">
                     <td className="py-2">{ex.name}</td>
                     <td className="py-2 text-gray-400">
@@ -211,9 +260,9 @@ const Dashboard = () => {
       <div className="bg-white/5 p-6 rounded-2xl">
         <h2 className="text-lg font-semibold mb-4">Active Orders</h2>
 
-        {orders.length ? (
+        {dashboardData.orders.length ? (
           <div className="space-y-4">
-            {orders.map((order) => (
+            {dashboardData.orders.map((order) => (
               <div
                 key={order.id}
                 className="p-4 rounded-xl bg-black/40 flex justify-between items-center"
