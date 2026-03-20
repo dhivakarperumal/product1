@@ -187,15 +187,24 @@ const Dashboard = () => {
               <thead className="text-gray-400 border-b border-white/10">
                 <tr>
                   <th className="text-left py-2">Exercise</th>
-                  <th className="text-left py-2">Sets/Reps</th>
+                  <th className="text-left py-2">Type</th>
+                  <th className="text-left py-2">Sets</th>
+                  <th className="text-left py-2">Reps</th>
+                  <th className="text-left py-2">Time</th>
                 </tr>
               </thead>
+
               <tbody>
                 {todayWorkout.map((ex, i) => (
                   <tr key={i} className="border-b border-white/5">
-                    <td className="py-2">{ex.name}</td>
+                    <td className="py-2 text-orange-400 font-medium">
+                      {ex.name}
+                    </td>
+                    <td className="py-2">{ex.type || "-"}</td>
+                    <td className="py-2">{ex.sets || "-"}</td>
+                    <td className="py-2">{ex.count || "-"}</td>
                     <td className="py-2 text-gray-400">
-                      {ex.sets || "-"} x {ex.reps || "-"}
+                      {ex.time || "-"}
                     </td>
                   </tr>
                 ))}
