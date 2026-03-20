@@ -64,27 +64,20 @@ export default function ProductDetails() {
     if (id) load();
   }, [id]);
 
-  // ✅ Fetch related products
+  // ✅ Fetch related products (same category)
   useEffect(() => {
-    const fetchRelated = async () => {
-      if (!product || !product.category) return;
+    const loadRelated = async () => {
+      if (!product) return;
       try {
-        const res = await api.get("/products");
-        const allProducts = Array.isArray(res.data) ? res.data : [];
-        const related = allProducts
-          .filter(
-            (p) =>
-              p.category === product.category &&
-              (p.id || p._id || p.product_id) !== (product.id || product._id || product.product_id)
-          )
-          .slice(0, 4); // Show max 4 related products
-        setRelatedProducts(related);
+        const res = await api.get(`/products?category=${product.category}&limit=6`);
+        const filtered = res.data?.filter((p) => p.id !== id).slice(0, 4);
+        setRelatedProducts(filtered || []);
       } catch (err) {
-        console.error("Failed to fetch related products:", err);
+        console.error("Failed to load related products", err);
       }
     };
-    fetchRelated();
-  }, [product]);
+    loadRelated();
+  }, [product, id]);
 
   // ✅ Variant key calculation
   const getVariantKey = () => {
@@ -197,6 +190,52 @@ export default function ProductDetails() {
     }
   }, [userId, variantKey, availableStock, quantity, product, pricing, addToCart, navigate]);
 
+  // ✅ Buy Now handler (add to cart + navigate to checkout)
+  const handleBuyNow = useCallback(async () => {
+    if (!userId) {
+      navigate("/login");
+      return;
+    }
+
+    if (!variantKey) {
+      toast.error("Please select a variant");
+      return;
+    }
+
+    // ✅ Check stock availability
+    if (availableStock <= 0) {
+      toast.error(`Insufficient stock for ${product.name}. Available: 0, Requested: ${quantity}`);
+      return;
+    }
+
+    if (quantity > availableStock) {
+      toast.error(`Insufficient stock. Available: ${availableStock}, Requested: ${quantity}`);
+      return;
+    }
+
+    const buyNowItem = {
+      id: product.id ?? product.product_id ?? product._id,
+      productId: product.id ?? product.product_id ?? product._id,
+      quantity,
+      variant: variantKey,
+      price: Number(pricing?.offerPrice ?? pricing?.mrp ?? 0),
+      name: product.name,
+      image: product.images?.[0] || "",
+      images: product.images || [],
+    };
+
+    try {
+      // Navigate to checkout with the item data
+      navigate("../checkout", { 
+        state: { buyNowItem }
+      });
+      toast.success("Proceeding to checkout...");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to proceed to checkout");
+    }
+  }, [userId, variantKey, availableStock, quantity, product, pricing, navigate]);
+
   // ✅ Loading UI
   if (loading) {
     return (
@@ -237,7 +276,7 @@ export default function ProductDetails() {
         {/* DETAILS */}
         <div className="flex flex-col gap-4">
 
-          <h1 className="text-3xl font-bold text-orange-500">
+          <h1 className="text-3xl font-bold text-red-500">
             {product.name}
           </h1>
 
@@ -369,10 +408,15 @@ export default function ProductDetails() {
             </button>
 
             <button
-              onClick={() => navigate("/cart")}
-              className="border border-orange-500 px-6 py-3 rounded-lg hover:bg-orange-500/10"
+              onClick={handleBuyNow}
+              disabled={availableStock <= 0}
+              className={`px-6 py-3 rounded-lg font-semibold border border-red-500 ${
+                availableStock > 0
+                  ? 'bg-red-600 hover:bg-red-700 cursor-pointer'
+                  : 'bg-gray-600 cursor-not-allowed opacity-50'
+              }`}
             >
-              GO TO CART
+              {availableStock > 0 ? 'Buy Now' : 'OUT OF STOCK'}
             </button>
           </div>
         </div>
@@ -380,36 +424,53 @@ export default function ProductDetails() {
 
       {/* RELATED PRODUCTS */}
       {relatedProducts.length > 0 && (
-        <div className="mt-16 pt-8 border-t border-white/20">
-          <h2 className="text-2xl font-bold text-red-500 mb-8">Related Products</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {relatedProducts.map((p) => {
-              const relatedImage = Array.isArray(p.images)
-                ? p.images[0]
-                : p.images;
-              return (
-                <div
-                  key={p.id || p._id || p.product_id}
-                  onClick={() => navigate(`/user/products/${p.id || p._id || p.product_id}`)}
-                  className="bg-[#0e1016] p-4 rounded-xl cursor-pointer hover:border hover:border-red-500 transition"
-                >
+        <div className="mt-16">
+          <h2 className="text-3xl font-bold text-red-500 mb-8">Related Products</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {relatedProducts.map((p) => (
+              <div
+                key={p.id}
+                onClick={() => navigate(`/user/products/${p.id}`)}
+                className="bg-[#0e1016] rounded-xl overflow-hidden hover:shadow-lg hover:shadow-red-500/50 transition cursor-pointer group"
+              >
+                {/* Image */}
+                <div className="bg-white/5 p-4 h-48 flex items-center justify-center overflow-hidden">
                   <img
-                    src={makeImageUrl(relatedImage) || "https://via.placeholder.com/200"}
-                    alt={p.name}
-                    className="w-full h-40 object-contain mb-3"
+                    src={
+                      makeImageUrl(
+                        Array.isArray(p.images) ? p.images[0] : p.images
+                      ) || "https://via.placeholder.com/150"
+                    }
+                    className="w-full h-full object-contain group-hover:scale-110 transition duration-300"
                   />
-                  <h3 className="text-white font-semibold text-sm line-clamp-2">{p.name}</h3>
-                  <div className="flex gap-2 items-center mt-2">
-                    <span className="text-red-500 font-bold">₹{p.offer_price || p.offerPrice || p.mrp}</span>
-                    {(p.mrp || p.MRP) && (
-                      <span className="line-through text-white/50 text-sm">
-                        ₹{p.mrp || p.MRP}
-                      </span>
+                </div>
+
+                {/* Details */}
+                <div className="p-4">
+                  <h3 className="text-red-500 font-bold text-sm line-clamp-2">{p.name}</h3>
+                  <p className="text-white/60 text-xs mt-1">
+                    {p.category}{p.subcategory ? ` • ${p.subcategory}` : ""}
+                  </p>
+
+                  {/* Price */}
+                  <div className="flex gap-2 items-center mt-3">
+                    <span className="font-bold text-white">₹{p.offer_price || p.offerPrice || p.mrp}</span>
+                    {(p.offer_price || p.offerPrice) && (
+                      <span className="line-through text-white/50 text-sm">₹{p.mrp}</span>
+                    )}
+                  </div>
+
+                  {/* Stock */}
+                  <div className="mt-3">
+                    {Object.values(p.stock || {}).some((s) => s?.qty > 0) ? (
+                      <span className="text-xs text-green-400 font-semibold">✓ In Stock</span>
+                    ) : (
+                      <span className="text-xs text-red-400 font-semibold">✗ Out of Stock</span>
                     )}
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </div>
       )}

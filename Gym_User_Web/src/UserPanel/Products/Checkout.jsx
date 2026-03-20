@@ -539,6 +539,11 @@ export default function Checkout() {
                 />
                 <div className="flex-1">
                   <p className="text-white text-sm font-semibold line-clamp-2">{i.name}</p>
+                  {(i.variant || i.weight || i.size) && (
+                    <p className="text-white/50 text-xs mt-1">
+                      {i.weight ? `Weight: ${i.weight}` : i.size ? `Size: ${i.size}` : `Variant: ${i.variant}`}
+                    </p>
+                  )}
                   <p className="text-white/60 text-xs mt-1">Qty: {i.quantity}</p>
                   <p className="text-orange-400 font-semibold text-sm mt-1">
                     ₹{(i.price * i.quantity).toLocaleString()}
