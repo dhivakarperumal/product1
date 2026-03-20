@@ -49,8 +49,12 @@ const Login = () => {
         password: loginPassword,
       });
 
-      const userData = res.data.user;
-      const token = res.data.token;
+      const userData = res.data?.user;
+      const token = res.data?.token;
+
+      if (!userData || typeof userData !== 'object' || !userData.role) {
+        throw new Error("Invalid login response from server");
+      }
 
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(userData));

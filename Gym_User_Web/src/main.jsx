@@ -6,6 +6,7 @@ import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom"
 
 import App from "./App.jsx";
 import Home from "./Home/Home.jsx";
+import ErrorBoundary from "./ErrorBoundary.jsx";
 
 import { AuthProvider } from "./PrivateRouter/AuthContext.jsx";
 import { CartProvider } from "./CartContext.jsx";
@@ -67,10 +68,12 @@ const Dashboard = lazy(() => import("./Admin/Dashboard/Dashboard.jsx"));
 
 // ✅ Admin Route Components
 const AdminMembers = lazy(() => import("./Admin/Members/Members.jsx"));
+const UserManagement = lazy(() => import("./Admin/Settingss/UserManagement.jsx"));
+const ReviewsSettings = lazy(() => import("./Admin/Settingss/Review.jsx"));
 const AddMembers = lazy(() => import("./Admin/Members/AddMembers.jsx"));
 const AdminSendMessage = lazy(() => import("./Admin/Members/SendMessage.jsx"));
 const AdminEnquiry = lazy(() => import("./Admin/Enquiry/Enquiry.jsx"));
-const AdminOrders = lazy(() => import("./Admin/Orders/All Orders.jsx"));
+const AdminOrders = lazy(() => import("./Admin/Orders/AllOrders.jsx"));
 const OrderDetails = lazy(() => import("./Admin/Orders/OrderDetails.jsx"));
 const AdminProducts = lazy(() => import("./Admin/Products/AllProducts.jsx"));
 const AddProducts = lazy(() => import("./Admin/Products/AddProducts.jsx"));
@@ -94,13 +97,22 @@ const AdminBilling = lazy(() => import("./Admin/Billing/Billing.jsx"));
 const AdminPayments = lazy(() => import("./Admin/Payments/Payments.jsx"));
 const CommenWorkoutDiet = lazy(() => import("./Admin/CommenWorkDiet/CommenWorkDiet.jsx"));
 const AdminReports = lazy(() => import("./Admin/Reports/Reports.jsx"));
+const Settings = lazy(() => import("./Admin/Settingss/Settings.jsx"));
 
-const TrainerAdminPanel = lazy(() =>
-  import("./TrainerAdminPanel/TrainerAdminPanel.jsx")
-);
-const TrainerDashboard = lazy(() =>
-  import("./TrainerAdminPanel/TrainerDashboard/TrainerDashboard.jsx")
-);
+
+const TrainerAdminPanel = lazy(() => import("./TrainerAdminPanel/TrainerAdminPanel.jsx"));
+const TrainerDashboard = lazy(() => import("./TrainerAdminPanel/TrainerDashboard/TrainerDashboard.jsx"));
+const AddWorkout = lazy(() => import("./TrainerAdminPanel/AddWrokouts/AddWorkout.jsx"));
+const AllWorkouts = lazy(() => import("./TrainerAdminPanel/AddWrokouts/AllWorkouts.jsx"));
+const AddDietPlans = lazy(() => import("./TrainerAdminPanel/DietPlans/AddDietPlans.jsx"));
+const AllDietPlans = lazy(() => import("./TrainerAdminPanel/DietPlans/AllDietPlans.jsx"));
+const TrainerOverallAttendance = lazy(() => import("./TrainerAdminPanel/TrainerAttendance/OverallAttendance.jsx"));
+const TrainerReports = lazy(() => import("./TrainerAdminPanel/TrainerReports/Reports.jsx"));
+const TrainerSendMessage = lazy(() => import("./TrainerAdminPanel/TrainerSendMessage/TrainerSendMessage.jsx"));
+const AssingnedTrainers = lazy(() => import("./Admin/Payments/AssingnedTrainers.jsx"));
+const GymWorkoutManager = lazy(() => import("./Admin/CommenWorkDiet/CommenWorkDiet.jsx"));
+const UpdateWeight = lazy(() => import("./TrainerAdminPanel/UpdateWeight/UpdateWeight.jsx"));
+const ProfileSettings = lazy(() => import("./TrainerAdminPanel/Settingss/ProfileSettings.jsx"));
 
 // ✅ Router setup
 const router = createBrowserRouter([
@@ -145,12 +157,10 @@ const router = createBrowserRouter([
       { path: "pricing", element: <UserPricing /> },
       { path: "workouts", element: <UserWorkouts /> },
       { path: "products", element: <UserProducts /> },
-      { path: "products", element: <UserProducts /> }, // All Products
       { path: "products/:id", element: <UserProductDetails /> }, // Details
       { path: "cart", element: <UserCart /> },
       { path: "checkout", element: <UserCheckout /> },
       { path: "orders", element: <Orders /> },
-      { path: "pricing", element: <UserPricing /> },
       { path: "profile", element: <PersonalDetails /> },
       { path: "notifications", element: <Notification /> },      
       { path: "services", element: <UserServices /> },
@@ -192,6 +202,7 @@ const router = createBrowserRouter([
       // Orders routes
       { path: "orders", element: <AdminOrders /> },
       { path: "orders/:id", element: <OrderDetails /> },
+      
       
       // Products routes
       { path: "products", element: <AdminProducts /> },
@@ -247,25 +258,45 @@ const router = createBrowserRouter([
         <TrainerAdminPanel />
       </PrivateRoute>
     ),
-    children: [{ index: true, element: <TrainerDashboard /> }],
+    children: [
+      { index: true, element: <TrainerDashboard /> },
+       { path: "reports", element: <TrainerReports /> },
+      { path: "overall-attendance", element: <TrainerOverallAttendance /> },
+      { path: "addworkouts", element: <AddWorkout /> },
+      { path: "addworkouts/:id", element: <AddWorkout /> },
+      { path: "alladdworkouts", element: <AllWorkouts /> },
+      { path: "adddietplans", element: <AddDietPlans /> },
+      { path: "adddietplans/:id", element: <AddDietPlans /> },
+      { path: "alladddietplans", element: <AllDietPlans /> },
+      { path: "update-weight", element: <UpdateWeight /> },
+      { path: "send-message", element: <TrainerSendMessage /> },
+      { path: "settings", element: <Settings /> },
+      { path: "settings/profile", element: <ProfileSettings /> },
+      { path: "settings/usermanagement", element: <UserManagement /> },
+      { path: "settings/reviews", element: <ReviewsSettings /> },
+      { path: "member-attendance", element: <MemberAttendance /> },
+      
+    ],
   },
 ]);
 
 // ✅ Render
 createRoot(document.getElementById("root")).render(
-  <StrictMode>
-    <GoogleOAuthProvider clientId="YOUR_GOOGLE_CLIENT_ID">
-      <AuthProvider>
-        <CartProvider>
-          {/* 🔔 Toast */}
-          <Toaster position="top-left" />
+  <ErrorBoundary>
+    <StrictMode>
+      <GoogleOAuthProvider clientId="788596465962-h22auho4kp5sfnuc59udl0k10e8uu6ra.apps.googleusercontent.com">
+        <AuthProvider>
+          <CartProvider>
+            {/* 🔔 Toast */}
+            <Toaster position="top-left" />
 
-          {/* ✅ REQUIRED for lazy */}
-          <Suspense fallback={<div>Loading...</div>}>
-            <RouterProvider router={router} />
-          </Suspense>
-        </CartProvider>
-      </AuthProvider>
-    </GoogleOAuthProvider>
-  </StrictMode>
+            {/* ✅ REQUIRED for lazy */}
+            <Suspense fallback={<div>Loading...</div>}>
+              <RouterProvider router={router} />
+            </Suspense>
+          </CartProvider>
+        </AuthProvider>
+      </GoogleOAuthProvider>
+    </StrictMode>
+  </ErrorBoundary>
 );

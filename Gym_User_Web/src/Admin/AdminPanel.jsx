@@ -1,6 +1,5 @@
 import { useState, useEffect, Suspense } from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
 import React from "react";
 import { PacmanLoader } from "react-spinners";
 import Sidebar from "./Sidebar";
@@ -59,17 +58,9 @@ const AdminLayout = () => {
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         {/* ⚡ ROUTE PROGRESS BAR */}
-        <AnimatePresence>
-          {isTransitioning && (
-            <motion.div 
-              initial={{ width: "0%", opacity: 1 }}
-              animate={{ width: "100%", opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.4, ease: "easeInOut" }}
-              className="fixed top-0 left-0 h-[3px] bg-gradient-to-r from-red-600 to-orange-500 z-[99999] shadow-[0_0_10px_rgba(239,68,68,0.5)]"
-            />
-          )}
-        </AnimatePresence>
+        {isTransitioning && (
+          <div className="fixed top-0 left-0 h-[3px] w-full bg-gradient-to-r from-red-600 to-orange-500 z-[99999] shadow-[0_0_10px_rgba(239,68,68,0.5)] animate-pulse" />
+        )}
 
         {/* Page Content */}
         <main className="flex-1 p-4 sm:p-5 lg:p-6 overflow-y-auto">
