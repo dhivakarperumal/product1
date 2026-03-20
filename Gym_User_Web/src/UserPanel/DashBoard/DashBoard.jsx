@@ -76,7 +76,10 @@ const Dashboard = () => {
       const active = plans.find(p => new Date(p.endDate) > new Date());
       setUserPlan(active || plans[0] || null);
 
-      const myWorkout = workoutRes.data.find(w => w.member_email === user.email);
+      const myWorkout = workoutRes.data.find(w => 
+        (w.member_email && user?.email && w.member_email.toLowerCase() === user.email.toLowerCase()) ||
+        (w.member_id && Number(w.member_id) === Number(user.id))
+      );
       if (myWorkout?.days) {
         const base = dayjs(myWorkout.created_at);
         Object.entries(myWorkout.days).forEach(([day, ex]) => {
@@ -85,7 +88,10 @@ const Dashboard = () => {
         });
       }
 
-      const myDiet = dietRes.data.find(d => d.member_email === user.email);
+      const myDiet = dietRes.data.find(d => 
+        (d.member_email && user?.email && d.member_email.toLowerCase() === user.email.toLowerCase()) ||
+        (d.member_id && Number(d.member_id) === Number(user.id))
+      );
       if (myDiet?.days) {
         const base = dayjs(myDiet.created_at);
         Object.entries(myDiet.days).forEach(([day, meal]) => {

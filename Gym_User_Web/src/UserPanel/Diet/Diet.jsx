@@ -21,7 +21,9 @@ const Diet = () => {
       const res = await api.get("/diet-plans");
 
       const myDiet = res.data.find(
-        (item) => item.member_email === user?.email
+        (item) => 
+          (item.member_email && user?.email && item.member_email.toLowerCase() === user.email.toLowerCase()) ||
+          (item.member_id && user?.id && item.member_id === Number(user.id))
       );
 
       if (myDiet) {

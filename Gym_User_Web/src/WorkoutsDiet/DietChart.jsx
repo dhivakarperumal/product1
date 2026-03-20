@@ -40,8 +40,9 @@ const DietChart = () => {
 
       const userPlans = data.filter(
         (item) =>
-          item.member_email &&
-          item.member_email.toLowerCase() === user.email.toLowerCase()
+          (item.member_email &&
+          item.member_email.toLowerCase() === user.email.toLowerCase()) ||
+          (item.member_id && Number(item.member_id) === Number(user.id))
       );
 
       if (userPlans.length === 0) return;

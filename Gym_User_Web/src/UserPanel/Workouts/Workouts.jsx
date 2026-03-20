@@ -22,7 +22,9 @@ const Workouts = () => {
       const data = Array.isArray(res.data) ? res.data : [];
 
       const myWorkouts = data.filter(
-        (item) => item.member_email === user?.email
+        (item) => 
+          (item.member_email && user?.email && item.member_email.toLowerCase() === user.email.toLowerCase()) ||
+          (item.member_id && user?.id && item.member_id === Number(user.id))
       );
 
       setWorkouts(myWorkouts);
