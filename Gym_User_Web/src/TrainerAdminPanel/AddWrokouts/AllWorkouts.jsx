@@ -360,7 +360,7 @@ const AllWorkouts = () => {
                               <div className="bg-orange-500 text-black rounded-xl p-4 w-full">
                                 <ul className="text-xs text-left space-y-1">
                                   {exercises.map((ex, i) => (
-                                    <li key={i}>• {ex}</li>
+                                    <li key={i}>• {typeof ex === 'object' ? ex.name : ex}</li>
                                   ))}
                                 </ul>
                               </div>
@@ -398,7 +398,7 @@ const AllWorkouts = () => {
                               {slot.exercises ? (
                                 <ul className="text-xs text-gray-200 mt-1 space-y-1">
                                   {slot.exercises.map((ex, i) => (
-                                    <li key={i}>• {ex}</li>
+                                    <li key={i}>• {typeof ex === 'object' ? ex.name : ex}</li>
                                   ))}
                                 </ul>
                               ) : (
