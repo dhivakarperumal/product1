@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "../PrivateRouter/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { LogOut } from "lucide-react";
 
 /* ================= NAV ITEMS ================= */
 const navItems = [
@@ -48,11 +50,11 @@ const navItems = [
     ],
   },
 
-{ path: "/admin/billing", label: "Billing", icon: Receipt },
-  
+  { path: "/admin/billing", label: "Billing", icon: Receipt },
+
   { path: "/admin/orders", label: "Orders", icon: ShoppingCart },
   { path: "/admin/payments", label: "Payments", icon: CreditCard },
-  
+
 
   {
     label: "Trainers & Staff",
@@ -74,14 +76,13 @@ const navItems = [
   },
   { path: "/admin/commenworkoutdiet", label: "Workout & Diet", icon: HeartPulse },
   { path: "/admin/reports", label: "Reports & Analytics", icon: BarChart3 },
-  
-  
-  { path: "/", label: "Back Home", icon: Home },
+
 ];
 
 /* ================= SIDEBAR ================= */
 const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
-  const { userProfile } = useAuth();
+  const { userProfile,logout } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
   const [openMenu, setOpenMenu] = useState(null);
 
@@ -201,9 +202,8 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
                       <>
                         <span className="flex-1 text-left">{item.label}</span>
                         <ChevronDown
-                          className={`w-4 h-4 transition-transform ${
-                            isMenuOpen ? "rotate-180" : ""
-                          }`}
+                          className={`w-4 h-4 transition-transform ${isMenuOpen ? "rotate-180" : ""
+                            }`}
                         />
                       </>
                     )}
@@ -225,10 +225,9 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
                           onClick={() => isOpen && onClose()}
                           className={`
                             flex items-center gap-2 px-3 py-2 rounded-lg text-sm
-                            ${
-                              isActive
-                                ? "bg-orange-500 text-white"
-                                : "text-white/70 hover:bg-white/20"
+                            ${isActive
+                              ? "bg-orange-500 text-white"
+                              : "text-white/70 hover:bg-white/20"
                             }
                           `}
                         >
@@ -253,10 +252,9 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
                 onClick={() => isOpen && onClose()}
                 className={`
                   flex items-center gap-3 px-4 py-2.5 rounded-xl
-                  ${
-                    isActive
-                      ? "bg-orange-500 text-white"
-                      : "text-white/80 hover:bg-white/20"
+                  ${isActive
+                    ? "bg-orange-500 text-white"
+                    : "text-white/80 hover:bg-white/20"
                   }
                 `}
               >
@@ -266,6 +264,25 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
             );
           })}
         </nav>
+
+        {/* ========== LOGOUT BUTTON (FIXED BOTTOM) ========== */}
+        <div className="p-4 border-t border-white/10">
+          <button
+            onClick={() => {
+              logout();
+              navigate("/login");
+            }}
+            className="
+              w-full flex items-center justify-center gap-2
+              py-3 rounded-xl
+              bg-red-500/90 hover:bg-red-500
+              text-white font-medium
+            "
+          >
+            <LogOut className="w-5 h-5" />
+            {!collapsed && "Logout"}
+          </button>
+        </div>
 
         {/* ========== COLLAPSE BUTTON ========== */}
         <button
@@ -280,9 +297,8 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
           "
         >
           <ChevronLeft
-            className={`w-4 h-4 transition-transform ${
-              collapsed ? "rotate-180" : ""
-            }`}
+            className={`w-4 h-4 transition-transform ${collapsed ? "rotate-180" : ""
+              }`}
           />
         </button>
       </aside>
