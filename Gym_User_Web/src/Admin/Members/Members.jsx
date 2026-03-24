@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Trash2, Pencil, Plus, ChevronLeft, ChevronRight, LayoutGrid, List, Search, Users, Mail, Phone, Calendar } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -13,40 +13,46 @@ const Members = () => {
   const [searchParams] = useSearchParams();
   const querySearch = searchParams.get("search") || "";
   const [search, setSearch] = useState(querySearch);
-  const [members, setMembers] = useState([]);
+  const [members, setMembers] = useState(() => cache.adminMembers || []);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [dateRange, setDateRange] = useState({ type: 'All Time', range: null });
+  const [loading, setLoading] = useState(() => !cache.adminMembers);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
     setSearch(querySearch);
   }, [querySearch]);
-  const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState("table"); // table, card
   const navigate = useNavigate();
 
   // 🔄 FETCH MEMBERS
   const fetchMembers = async () => {
-    if (cache.adminMembers) {
-      setMembers(cache.adminMembers);
-    } else {
+    if (!cache.adminMembers && isMountedRef.current) {
       setLoading(true);
     }
 
     try {
       const res = await api.get("/members");
       const data = Array.isArray(res.data) ? res.data : [];
-      setMembers(data);
-      cache.adminMembers = data;
-    } catch {
-      if (!cache.adminMembers) toast.error("Failed to load members");
-    } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setMembers(data);
+        setLoading(false);
+        cache.adminMembers = data;
+      }
+    } catch (err) {
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
     fetchMembers();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   // 🔎 SEARCH & DATE FILTER - Robust filtering

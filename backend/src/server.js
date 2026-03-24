@@ -60,12 +60,18 @@ app.use(
       } catch (err) {
         // malformed origin, reject
       }
-      // optionally allow your production domain(s) here:
+      // allow production domains
       const allowed = [
+        "https://mygym.qtechx.com",
+        "https://www.mygym.qtechx.com",
         "https://yourproductiondomain.com",
         "https://api.yourproductiondomain.com",
       ];
       if (allowed.includes(origin)) {
+        return callback(null, true);
+      }
+      // Also allow vercel deployments
+      if (origin && origin.includes("vercel.app")) {
         return callback(null, true);
       }
       callback(new Error("Not allowed by CORS"));

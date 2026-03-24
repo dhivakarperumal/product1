@@ -3,30 +3,13 @@ const db = require('../config/db');
 // Helper function to parse JSON fields
 const parseProduct = (product) => {
   if (!product) return product;
-  
-  // Parse and normalize stock quantities to numbers
-  let parsedStock = typeof product.stock === 'string' ? JSON.parse(product.stock || '{}') : (product.stock || {});
-  
-  // Ensure all qty values are numbers
-  const normalizedStock = {};
-  for (const key in parsedStock) {
-    const variant = parsedStock[key];
-    normalizedStock[key] = {
-      ...variant,
-      qty: typeof variant.qty === 'string' ? parseInt(variant.qty, 10) : (variant.qty || 0),
-      mrp: typeof variant.mrp === 'string' ? parseFloat(variant.mrp) : (variant.mrp || 0),
-      offerPrice: typeof variant.offerPrice === 'string' ? parseFloat(variant.offerPrice) : (variant.offerPrice || 0),
-      offer: typeof variant.offer === 'string' ? parseInt(variant.offer, 10) : (variant.offer || 0)
-    };
-  }
-  
   return {
     ...product,
     weight: typeof product.weight === 'string' ? JSON.parse(product.weight || '[]') : (product.weight || []),
     size: typeof product.size === 'string' ? JSON.parse(product.size || '[]') : (product.size || []),
     gender: typeof product.gender === 'string' ? JSON.parse(product.gender || '[]') : (product.gender || []),
     images: typeof product.images === 'string' ? JSON.parse(product.images || '[]') : (product.images || []),
-    stock: normalizedStock
+    stock: typeof product.stock === 'string' ? JSON.parse(product.stock || '{}') : (product.stock || {})
   };
 };
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Search,
@@ -48,12 +48,13 @@ const AllProducts = () => {
   const [searchParams] = useSearchParams();
   const querySearch = searchParams.get("search") || "";
 
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [products, setProducts] = useState(() => cache.adminProducts || []);
+  const [loading, setLoading] = useState(() => !cache.adminProducts);
   const [search, setSearch] = useState(querySearch);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState("table");
+  const isMountedRef = useRef(true);
 
   // Update search state if URL search param changes
   useEffect(() => {
@@ -67,27 +68,32 @@ const AllProducts = () => {
   /* ================= LOAD PRODUCTS ================= */
 
   const loadProducts = async () => {
-    if (cache.adminProducts) {
-      setProducts(cache.adminProducts);
-    } else {
+    if (!cache.adminProducts && isMountedRef.current) {
       setLoading(true);
     }
 
     try {
       const res = await api.get(API);
       const data = res.data || [];
-      setProducts(data);
-      cache.adminProducts = data;
+      if (isMountedRef.current) {
+        setProducts(data);
+        setLoading(false);
+        cache.adminProducts = data;
+      }
     } catch (err) {
       console.error(err);
-      if (!cache.adminProducts) toast.error("Failed to load products");
-    } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
     loadProducts();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   /* ================= DELETE PRODUCT ================= */

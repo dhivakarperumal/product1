@@ -7,8 +7,8 @@ import {
   deleteDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "../../firebase";
-import { defaultPlans } from "../../../public/commonGymWorkouts";
+import { db } from "../../../firebase";
+import { defaultPlans } from "./commonGymWorkouts";
 
 const GymWorkoutManager = () => {
   const [plans, setPlans] = useState(defaultPlans);

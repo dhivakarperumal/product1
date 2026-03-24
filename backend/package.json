@@ -8,7 +8,8 @@
     "dev": "nodemon src/server.js",
     "init-db": "node src/config/init.js",
     "migrate": "node src/config/migrate.js",
-    "migration:create": "node src/config/createMigration.js"
+    "migration:create": "node src/config/createMigration.js",
+    "test-db": "node test-db.js"
   },
   "keywords": [],
   "author": "",

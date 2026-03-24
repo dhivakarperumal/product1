@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import api from "../../api";
@@ -19,8 +19,9 @@ const statCard =
    shadow-[0_0_40px_rgba(255,140,0,0.08)]";
 
 const Staffs = () => {
-  const [staff, setStaff] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [staff, setStaff] = useState(() => cache.adminStaff || []);
+  const [loading, setLoading] = useState(() => !cache.adminStaff);
+  const isMountedRef = useRef(true);
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
@@ -32,10 +33,7 @@ const Staffs = () => {
 
 
   const loadStaff = async () => {
-    if (cache.adminStaff) {
-      setStaff(cache.adminStaff);
-      setLoading(false);
-    } else {
+    if (!cache.adminStaff && isMountedRef.current) {
       setLoading(true);
     }
 
@@ -55,13 +53,16 @@ const Staffs = () => {
         timeOut: r.time_out,
         status: r.status,
       }));
-      setStaff(mapped);
-      cache.adminStaff = mapped;
+      if (isMountedRef.current) {
+        setStaff(mapped);
+        setLoading(false);
+        cache.adminStaff = mapped;
+      }
     } catch (err) {
       console.error(err);
-      if (!cache.adminStaff) toast.error('Failed to load staff');
-    } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -93,8 +94,12 @@ const Staffs = () => {
   // }, []);
 
   useEffect(() => {
+    isMountedRef.current = true;
     loadStaff();
     setCurrentPage(1);
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [search, statusFilter, departmentFilter]);
 
 

@@ -54,12 +54,21 @@ async function login(req, res) {
     );
 
     if (rows.length === 0) {
+      logger.warn('login failed: user not found for identifier: %s', identifier);
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
     const user = rows[0];
+    
+    // Check if password_hash exists in the user object
+    if (!user.password_hash) {
+      logger.error('login error: password_hash column missing for user %d', user.id);
+      return res.status(500).json({ message: 'Server error: password column not found' });
+    }
+
     const match = await bcrypt.compare(password, user.password_hash);
     if (!match) {
+      logger.warn('login failed: invalid password for identifier: %s', identifier);
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
@@ -71,9 +80,11 @@ async function login(req, res) {
 
     // strip password_hash before sending user back
     const { password_hash, ...userData } = user;
+    logger.info('login successful for user: %d', user.id);
     res.json({ token, user: userData });
   } catch (err) {
     logger.error('login error: %O', err);
+    logger.error('login error details - code: %s, message: %s, stack: %s', err.code, err.message, err.stack);
     res.status(500).json({ message: 'Server error', error: process.env.NODE_ENV === 'development' ? err.message : undefined });
   }
 }
