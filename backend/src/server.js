@@ -62,8 +62,8 @@ app.use(
       }
       // allow production domains
       const allowed = [
-        "https://mygym.qtechx.com",
-        "https://www.mygym.qtechx.com",
+        "https://product1.qtechx.com",
+        "https://www.product1.qtechx.com",
         "https://yourproductiondomain.com",
         "https://api.yourproductiondomain.com",
       ];
