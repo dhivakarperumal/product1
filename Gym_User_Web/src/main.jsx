@@ -91,8 +91,6 @@ const ViewStaff = lazy(() => import("./Admin/Staff/ViewStaff.jsx"));
 const AssignedTrainers = lazy(() => import("./Admin/Staff/Memberattendance.jsx"));
 const OverallAttendance = lazy(() => import("./Admin/Attendance/OverallAttendance.jsx"));
 const MemberAttendance = lazy(() => import("./Admin/Staff/Memberattendance.jsx"));
-const AdminEquipment = lazy(() => import("./Admin/Equipment/Equipment.jsx"));
-const AddEquipment = lazy(() => import("./Admin/Equipment/AddEquipments.jsx"));
 const AdminBilling = lazy(() => import("./Admin/Billing/Billing.jsx"));
 const AdminPayments = lazy(() => import("./Admin/Payments/Payments.jsx"));
 const CommenWorkoutDiet = lazy(() => import("./Admin/CommenWorkDiet/CommenWorkDiet.jsx"));
@@ -234,10 +232,6 @@ const router = createBrowserRouter([
       // Attendance routes
       { path: "overall-attendance", element: <OverallAttendance /> },
       { path: "member-attendance", element: <MemberAttendance /> },
-      
-      // Equipment routes
-      { path: "equipment", element: <AdminEquipment /> },
-      { path: "addequipment", element: <AddEquipment /> },
       
       // Billing route
       { path: "billing", element: <AdminBilling /> },

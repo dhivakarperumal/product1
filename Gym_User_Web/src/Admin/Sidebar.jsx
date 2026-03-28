@@ -65,7 +65,6 @@ const navItems = [
     ],
   },
 
-  { path: "/admin/equipment", label: "Gym Equipment", icon: Activity },
   {
     label: "Attendance",
     icon: CalendarCheck,
@@ -89,7 +88,6 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
   /* ================= ACTIVE ROUTE MAP ================= */
   const activeRouteMap = {
     "/admin/members": ["/admin/members", "/admin/addmembers"],
-    "/admin/equipment": ["/admin/equipment", "/admin/addequipment"],
     "/admin/staff": ["/admin/staff", "/admin/addstaff"],
     "/admin/products": ["/admin/products", "/admin/addproducts"],
     "/admin/plansall": ["/admin/plansall", "/admin/addplan"],
