@@ -65,6 +65,7 @@ import Payment from "./SuperAdmin/PaymentList/Payment.jsx";
 import Users from "./SuperAdmin/Users/Users.jsx";
 import Profile from "./SuperAdmin/Profile/Profile.jsx";
 import AddUser from "./SuperAdmin/Users/AddUser.jsx";
+import EditUser from "./SuperAdmin/Users/EditUser.jsx";
 
 // ✅ Lazy components
 const Login = lazy(() => import("./Components/Login.jsx"));
@@ -306,6 +307,7 @@ const router = createBrowserRouter([
       { path: "profile", element: <Profile /> },
       { path: "users", element: <Users /> },
       { path: "adduser", element: <AddUser /> },
+      { path: "edituser/:id", element: <EditUser /> },
     ],
   },
 ]);

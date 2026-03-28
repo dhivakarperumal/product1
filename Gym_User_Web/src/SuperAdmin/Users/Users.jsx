@@ -28,11 +28,17 @@ const Users = () => {
     if (!window.confirm("Are you sure you want to delete this user?")) return;
 
     try {
-      await api.delete(`/users/${id}`);
+      console.log("Deleting user with ID:", id, "Type:", typeof id);
+      const response = await api.delete(`/users/${id}`);
+      console.log("Delete response:", response.data);
       toast.success("User deleted successfully 🗑️");
       loadUsers();
     } catch (err) {
-      toast.error("Failed to delete user ❌");
+      console.error("Delete error:", err);
+      console.error("Error response:", err.response?.data);
+      console.error("Error status:", err.response?.status);
+      const errorMessage = err.response?.data?.error || "Failed to delete user";
+      toast.error(errorMessage);
     }
   };
 
@@ -144,7 +150,7 @@ const Users = () => {
 
         <button
           onClick={() => navigate("/superadmin/adduser")}
-          className="flex items-center gap-2 px-5 py-2 rounded-full bg-blue-500 hover:bg-blue-600 transition text-white font-medium"
+          className="flex items-center gap-2 px-5 py-2 rounded-full bg-orange-500 hover:bg-orange-600 transition text-white font-medium"
         >
           <FaUserPlus /> Add User
         </button>
@@ -313,7 +319,7 @@ const Users = () => {
             <button
               key={i}
               onClick={() => setPage(i + 1)}
-              className={`px-3 py-1 rounded ${page === i + 1 ? "bg-blue-500" : "bg-white/10 hover:bg-white/20"}`}
+              className={`px-3 py-1 rounded ${page === i + 1 ? "bg-orange-500" : "bg-white/10 hover:bg-white/20"}`}
             >
               {i + 1}
             </button>
