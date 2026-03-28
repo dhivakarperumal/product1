@@ -205,7 +205,7 @@ const Login = () => {
                 disabled={loading}
                 className="w-full bg-gradient-to-r from-red-600 to-orange-500 
                            text-white py-3 rounded-lg font-bold tracking-wide 
-                           hover:opacity-90 transition disabled:opacity-50"
+                           hover:opacity-90 transition disabled:opacity-50 cursor-pointer"
               >
                 {loading ? "Logging in..." : "Login"}
               </button>
@@ -222,7 +222,7 @@ const Login = () => {
             <button 
               onClick={() => googleLogin()}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 text-black py-3 rounded-lg font-bold transition mb-4 disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 text-black py-3 rounded-lg font-bold transition mb-4 disabled:opacity-50 cursor-pointer"
             >
               <img 
                 src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" 

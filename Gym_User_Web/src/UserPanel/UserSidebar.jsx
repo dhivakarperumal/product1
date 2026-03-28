@@ -49,19 +49,25 @@ const navItems = [
     icon: Gem,
   },
   {
-    path: "/user/facilities",
-    label: "Facilities",
-    icon: Fan,
-  },
-  {
-    path: "/user/trainers",
-    label: "Trainers",
-    icon: User,
-  },
-  {
-    path: "/user/services",
-    label: "Services",
-    icon: Briefcase,
+    label: "About Gym",
+    icon: MapPin,
+    children: [
+      {
+        path: "/user/facilities",
+        label: "Facilities",
+        icon: Fan,
+      },
+      {
+        path: "/user/trainers",
+        label: "Trainers",
+        icon: User,
+      },
+      {
+        path: "/user/services",
+        label: "Services",
+        icon: Briefcase,
+      },
+    ],
   },
   {
     path: "/user/settings",
@@ -163,6 +169,51 @@ const UserSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-hide">
           {navItems.map((item) => {
             const Icon = item.icon;
+
+            if (item.children) {
+              const isMenuOpen = openMenu === item.label;
+
+              return (
+                <div key={item.label}>
+                  <button
+                    type="button"
+                    onClick={() => toggleMenu(item.label)}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-white/80 hover:bg-white/20"
+                  >
+                    <Icon className="w-5 h-5 shrink-0" />
+                    {!collapsed && (
+                      <>
+                        <span className="flex-1 text-left">{item.label}</span>
+                        <ChevronLeft className={`w-4 h-4 transition-transform ${isMenuOpen ? "rotate-180" : ""}`} />
+                      </>
+                    )}
+                  </button>
+
+                  <div className={`ml-4 mt-1 space-y-1 overflow-hidden transition-all ${isMenuOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"}`}>
+                    {item.children.map((sub) => {
+                      const SubIcon = sub.icon;
+                      const isActive = isRouteActive(sub.path);
+
+                      return (
+                        <NavLink
+                          key={sub.path}
+                          to={sub.path}
+                          onClick={() => {
+                            if (isOpen) onClose();
+                            if (!collapsed) setOpenMenu(item.label);
+                          }}
+                          className={`flex items-center gap-3 px-4 py-2 rounded-xl text-sm ${isActive ? "bg-orange-500 text-white" : "text-white/70 hover:bg-white/20"}`}
+                        >
+                          <SubIcon className="w-4 h-4 shrink-0" />
+                          {!collapsed && <span>{sub.label}</span>}
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            }
+
             const isActive = isRouteActive(item.path);
 
             return (
@@ -171,12 +222,7 @@ const UserSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
                 to={item.path}
                 end={item.exact}
                 onClick={() => isOpen && onClose()}
-                className={`
-                  flex items-center gap-3 px-4 py-2.5 rounded-xl
-                  ${isActive
-                    ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20"
-                    : "text-white/80 hover:bg-white/20"}
-                `}
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl ${isActive ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "text-white/80 hover:bg-white/20"}`}
               >
                 <Icon className="w-5 h-5 shrink-0" />
                 {!collapsed && <span>{item.label}</span>}
@@ -193,9 +239,9 @@ const UserSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
             }}
             className="
       w-full flex items-center justify-center gap-2
-      py-3 rounded-xl
-      bg-red-500/90 hover:bg-red-500
-      text-white font-medium
+      py-3 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600
+      hover:scale-105 transition
+      text-white font-medium cursor-pointer 
     "
           >
             <LogOut className="w-5 h-5" />

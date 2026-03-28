@@ -357,7 +357,6 @@ export default function Dashboard() {
         <StatCard title="Active Plans" value={loading ? "..." : stats.activePlans} icon={<FaDumbbell />} color="from-purple-500 to-pink-500" />
         <StatCard title="Pending Payments" value={loading ? "..." : stats.pendingPayments} icon={<FaFileInvoiceDollar />} color="from-amber-500 to-orange-500" />
         <StatCard title="Available Trainers" value={loading ? "..." : stats.trainers} icon={<FaUserTie />} color="from-indigo-500 to-violet-500" />
-        <StatCard title="Equipment Due" value={loading ? "..." : stats.equipmentDue} icon={<FaBox />} color="from-green-500 to-emerald-500" />
         <StatCard title="Total Products" value={loading ? "..." : stats.totalProducts} icon={<FaBox />} color="from-green-500 to-emerald-500" />
         <StatCard title="Low Stock Alert" value={loading ? "..." : stats.lowStockCount} icon={<FaBox />} color="from-orange-500 to-red-500" />
         <StatCard title="Expiring Plans" value={loading ? "..." : stats.expiringCount} icon={<FaCalendarCheck />} color="from-red-500 to-rose-700" />

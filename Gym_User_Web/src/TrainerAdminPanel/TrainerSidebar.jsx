@@ -38,7 +38,7 @@ const navItems = [
   // },
   {
     path: "/trainer/alladdworkouts",
-    label: "All Workouts",
+    label: "Add Workouts",
     icon: Activity,
   },
   // {
@@ -48,7 +48,7 @@ const navItems = [
   // },
   {
     path: "/trainer/alladddietplans",
-    label: "All Diet Plans",
+    label: "Add Diet Plans",
     icon: Boxes,
   },
   {
@@ -259,10 +259,10 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
               navigate("/login");
             }}
             className="
-      w-full flex items-center justify-center gap-2
-      py-3 rounded-xl
-      bg-red-500/90 hover:bg-red-500
-      text-white font-medium
+     w-full flex items-center justify-center gap-2
+      py-3 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600
+      hover:scale-105 transition
+      text-white font-medium cursor-pointer 
     "
           >
             <LogOut className="w-5 h-5" />

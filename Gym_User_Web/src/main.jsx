@@ -2,7 +2,7 @@ import { StrictMode, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 
-import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
+import { createHashRouter, Navigate, RouterProvider } from "react-router-dom";
 
 import App from "./App.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
@@ -113,7 +113,7 @@ const UpdateWeight = lazy(() => import("./TrainerAdminPanel/UpdateWeight/UpdateW
 const ProfileSettings = lazy(() => import("./TrainerAdminPanel/Settingss/ProfileSettings.jsx"));
 
 // ✅ Router setup
-const router = createBrowserRouter([
+const router = createHashRouter([
   {
     path: "/",
     element: <App />,
