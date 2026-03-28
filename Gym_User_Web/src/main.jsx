@@ -5,7 +5,6 @@ import "./index.css";
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
 
 import App from "./App.jsx";
-import Home from "./Home/Home.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import RouteError from "./RouteError.jsx";
 
@@ -15,22 +14,22 @@ import PrivateRoute from "./PrivateRouter/PrivateRouter.jsx";
 
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { Toaster } from "react-hot-toast";
-import Trainers from "./Components/Trainers.jsx";
-import TrainerDetails from "./Components/TrainersDetails.jsx";
-import FacilitiesSwiper from "./Components/FacilitiesSwiper.jsx";
-import Contact from "./Components/Contact.jsx";
-import Facilities from "./Components/Facilities.jsx";
-import Account from "./Components/Account.jsx";
-import FacilityDetail from "./Components/FacilityDetail.jsx";
-import Pricing from "./Components/Pricing.jsx";
-import BuyPlan from "./Components/BuyPlan.jsx";
-import Products from "./Pages/Products.jsx";
-import Cart from "./Components/Cart.jsx";
-import Checkout from "./Components/Checkout.jsx";
-import ProductDetails from "./Components/ProductDetails.jsx";
-import Services from "./Components/Services.jsx";
-import ServicesDetails from "./Components/ServicesDetails.jsx";
-import ClassesTable from "./Components/ClassesTable.jsx";
+// import Trainers from "./Components/Trainers.jsx";
+// import TrainerDetails from "./Components/TrainersDetails.jsx";
+// import FacilitiesSwiper from "./Components/FacilitiesSwiper.jsx";
+// import Contact from "./Components/Contact.jsx";
+// import Facilities from "./Components/Facilities.jsx";
+// import Account from "./Components/Account.jsx";
+// import FacilityDetail from "./Components/FacilityDetail.jsx";
+// import Pricing from "./Components/Pricing.jsx";
+// import BuyPlan from "./Components/BuyPlan.jsx";
+// import Products from "./Pages/Products.jsx";
+// import Cart from "./Components/Cart.jsx";
+// import Checkout from "./Components/Checkout.jsx";
+// import ProductDetails from "./Components/ProductDetails.jsx";
+// import Services from "./Components/Services.jsx";
+// import ServicesDetails from "./Components/ServicesDetails.jsx";
+// import ClassesTable from "./Components/ClassesTable.jsx";
 
 
 // User Panel Components
@@ -92,8 +91,6 @@ const ViewStaff = lazy(() => import("./Admin/Staff/ViewStaff.jsx"));
 const AssignedTrainers = lazy(() => import("./Admin/Staff/Memberattendance.jsx"));
 const OverallAttendance = lazy(() => import("./Admin/Attendance/OverallAttendance.jsx"));
 const MemberAttendance = lazy(() => import("./Admin/Staff/Memberattendance.jsx"));
-const AdminEquipment = lazy(() => import("./Admin/Equipment/Equipment.jsx"));
-const AddEquipment = lazy(() => import("./Admin/Equipment/AddEquipments.jsx"));
 const AdminBilling = lazy(() => import("./Admin/Billing/Billing.jsx"));
 const AdminPayments = lazy(() => import("./Admin/Payments/Payments.jsx"));
 const CommenWorkoutDiet = lazy(() => import("./Admin/CommenWorkDiet/CommenWorkDiet.jsx"));
@@ -123,22 +120,22 @@ const router = createBrowserRouter([
     errorElement: <RouteError />,
     children: [
       { index: true, element: <Navigate to="/login" replace /> },
-      { path: "/", element: <Home /> },
-      { path: "/trainers", element: <Trainers /> },
-      { path: "trainersdetails/:id", element: <TrainerDetails /> },
-      { path: "facilities", element: <Facilities /> },
-      { path: "account", element: <Account /> },
-      { path: "facilities/:slug", element: <FacilityDetail /> },
-      { path: "pricing", element: <Pricing /> },
-      { path: "buy-plan", element: <BuyPlan /> },
-      { path: "products", element: <Products /> },
-      { path: "/cart", element: <Cart /> },
-      { path: "/checkout", element: <Checkout /> },
-      { path: "/products/:id", element: <ProductDetails /> },
-      { path: "/services", element: <Services /> },
-      { path: "/services/:slug", element: <ServicesDetails /> },
-      { path: "/calendar", element: <ClassesTable /> },
-      { path: "/contact", element: <Contact /> },
+      // { path: "/", element: <Home /> },
+      // { path: "/trainers", element: <Trainers /> },
+      // { path: "trainersdetails/:id", element: <TrainerDetails /> },
+      // { path: "facilities", element: <Facilities /> },
+      // { path: "account", element: <Account /> },
+      // { path: "facilities/:slug", element: <FacilityDetail /> },
+      // { path: "pricing", element: <Pricing /> },
+      // { path: "buy-plan", element: <BuyPlan /> },
+      // { path: "products", element: <Products /> },
+      // { path: "/cart", element: <Cart /> },
+      // { path: "/checkout", element: <Checkout /> },
+      // { path: "/products/:id", element: <ProductDetails /> },
+      // { path: "/services", element: <Services /> },
+      // { path: "/services/:slug", element: <ServicesDetails /> },
+      // { path: "/calendar", element: <ClassesTable /> },
+      // { path: "/contact", element: <Contact /> },
       { path: "/login", element: <Login /> },
       { path: "/register", element: <Register /> },
     ]
@@ -228,17 +225,13 @@ const router = createBrowserRouter([
       
       // Staff routes
       { path: "staff", element: <AdminStaff /> },
-      { path: "addstaff", element: <AddStaff /> },
+      { path: "addstaff/:id", element: <AddStaff /> },
       { path: "staff/:id", element: <ViewStaff /> },
       { path: "assignedtrainers", element: <AssignedTrainers /> },
       
       // Attendance routes
       { path: "overall-attendance", element: <OverallAttendance /> },
       { path: "member-attendance", element: <MemberAttendance /> },
-      
-      // Equipment routes
-      { path: "equipment", element: <AdminEquipment /> },
-      { path: "addequipment", element: <AddEquipment /> },
       
       // Billing route
       { path: "billing", element: <AdminBilling /> },
