@@ -58,6 +58,13 @@ import UserTrainers from "./UserPanel/Trainers/Trainers.jsx";
 import BuyNow from "./UserPanel/Pricings/BuyNow.jsx";
 import ServiceDetails from "./UserPanel/Services/ServiceDetails.jsx";
 
+// Super Admin Routes
+import SuperAdminPanel from "./SuperAdmin/SuperAdminPanel.jsx";
+import SuperAdminDasboard from "./SuperAdmin/Dashboard/Dasboard.jsx";
+import Payment from "./SuperAdmin/PaymentList/Payment.jsx";
+import Users from "./SuperAdmin/Users/Users.jsx";
+import Profile from "./SuperAdmin/Profile/Profile.jsx";
+
 // ✅ Lazy components
 const Login = lazy(() => import("./Components/Login.jsx"));
 const Register = lazy(() => import("./Components/Register.jsx"));
@@ -274,6 +281,22 @@ const router = createBrowserRouter([
       { path: "settings/reviews", element: <ReviewsSettings /> },
       { path: "member-attendance", element: <MemberAttendance /> },
       
+    ],
+  },
+
+  {
+    path: "/superadmin",
+    element: (
+      
+        <SuperAdminPanel />
+      
+    ),
+    errorElement: <RouteError />,
+    children: [
+      { index: true, element: <SuperAdminDasboard /> },
+      { path: "paymentlist", element: <Payment /> },
+      { path: "profile", element: <Profile /> },
+      { path: "users", element: <Users /> },
     ],
   },
 ]);
