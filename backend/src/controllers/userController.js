@@ -36,23 +36,28 @@ async function updateUserRole(req, res) {
     const { role, username, mobile } = req.body;
     const idNum = parseInt(id, 10);
 
+    if (isNaN(idNum)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
     const updates = [];
     const params = [];
 
-    if (role) {
-      if (!['admin', 'trainer', 'staff', 'member'].includes(role)) {
-        return res.status(400).json({ error: 'Invalid role' });
+    if (role !== undefined && role !== null && role !== '') {
+      const validRoles = ['admin', 'super admin', 'trainer', 'staff', 'member'];
+      if (!validRoles.includes(role)) {
+        return res.status(400).json({ error: `Invalid role '${role}'. Must be one of: ${validRoles.join(', ')}` });
       }
       updates.push('role = ?');
       params.push(role);
     }
 
-    if (username) {
+    if (username !== undefined && username !== null && username !== '') {
       updates.push('username = ?');
       params.push(username);
     }
 
-    if (mobile) {
+    if (mobile !== undefined && mobile !== null && mobile !== '') {
       updates.push('mobile = ?');
       params.push(mobile);
     }
