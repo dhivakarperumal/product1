@@ -293,9 +293,9 @@ const router = createBrowserRouter([
   {
     path: "/superadmin",
     element: (
-      <PrivateRoute allowedRoles={["super admin"]}>
+      
         <SuperAdminPanel />
-      </PrivateRoute>
+      
     ),
     errorElement: <RouteError />,
     children: [

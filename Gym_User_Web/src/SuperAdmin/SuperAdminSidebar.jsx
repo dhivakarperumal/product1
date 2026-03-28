@@ -34,9 +34,10 @@ const navItems = [
 
   { path: "/superadmin/paymentlist", label: "PaymentList", icon: CreditCard },
 
-  { path: "/superadmin/profile", label: "Profile", icon: UserRound },
-
   { path: "/superadmin/users", label: "Users", icon: Users },
+  
+  { path: "/superadmin/profile", label: "Profile", icon: UserRound },
+  
 ];
 
 /* ================= SuperAdminSidebar ================= */
