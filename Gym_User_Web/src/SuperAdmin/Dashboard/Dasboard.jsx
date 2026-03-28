@@ -73,7 +73,7 @@ const Dashboard = () => {
 
       {/* HEADER */}
       <div>
-        <h1 className="text-2xl font-bold">Super Admin Dashboard</h1>
+        <h1 className="text-2xl font-bold">Dashboard</h1>
         <p className="text-gray-400 text-sm">
           Users & Payments Overview
         </p>
