@@ -45,7 +45,7 @@ const UserManagement = () => {
           email: u.email,
           mobile: u.mobile,
           active: true,
-          role: u.role || "member",
+          role: (u.role || "member").toLowerCase(), // Normalize role to lowercase
         }))
       );
     } catch (err) {
@@ -58,12 +58,26 @@ const UserManagement = () => {
 
   const updateRole = async (id, role) => {
     try {
-      await api.put(`/users/${id}`, { role });
-      toast.success("Role updated");
+      // Ensure role is a valid string
+      if (!role || typeof role !== 'string' || role.trim() === '') {
+        toast.error('Invalid role selected');
+        return;
+      }
+
+      const trimmedRole = role.trim().toLowerCase();
+      const validRoles = ['admin', 'super admin', 'trainer', 'staff', 'member'];
+      if (!validRoles.includes(trimmedRole)) {
+        toast.error('Invalid role selected');
+        return;
+      }
+
+      await api.put(`/users/${id}`, { role: trimmedRole });
+      toast.success("Role updated successfully");
       loadUsers();
     } catch (err) {
       console.error("Failed to update role:", err);
-      toast.error("Failed to update role");
+      const errorMessage = err.response?.data?.error || "Failed to update role";
+      toast.error(errorMessage);
     }
   };
 
@@ -157,6 +171,7 @@ const UserManagement = () => {
           <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className={glassInput}>
             <option value="all">All Roles</option>
             <option value="admin">Admin</option>
+            <option value="super admin">Super Admin</option>
             <option value="trainer">Trainer</option>
             <option value="staff">Staff</option>
             <option value="member">Member</option>
@@ -195,12 +210,22 @@ const UserManagement = () => {
 
                 <td className="px-4 py-3">
                   <select
-                    value={u.role}
-                    onChange={(e) => updateRole(u.id, e.target.value)}
+                    value={(u.role || "member").toLowerCase()}
+                    onChange={async (e) => {
+                      const newRole = e.target.value?.trim();
+                      if (newRole && newRole !== u.role) {
+                        try {
+                          await updateRole(u.id, newRole);
+                        } catch (err) {
+                          // Error already handled in updateRole
+                        }
+                      }
+                    }}
                     className="bg-gray-800 border border-white/20 rounded-lg px-2 py-1 text-white"
                   >
                     <option value="admin">Admin</option>
                     <option value="trainer">Trainer</option>
+                    <option value="super admin">Super Admin</option>
                     <option value="staff">Staff</option>
                     <option value="member">Member</option>
                   </select>
