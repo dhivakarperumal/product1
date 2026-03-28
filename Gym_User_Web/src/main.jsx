@@ -227,7 +227,7 @@ const router = createBrowserRouter([
       
       // Staff routes
       { path: "staff", element: <AdminStaff /> },
-      { path: "addstaff", element: <AddStaff /> },
+      { path: "addstaff/:id", element: <AddStaff /> },
       { path: "staff/:id", element: <ViewStaff /> },
       { path: "assignedtrainers", element: <AssignedTrainers /> },
       

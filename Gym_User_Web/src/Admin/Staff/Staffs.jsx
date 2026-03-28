@@ -326,7 +326,7 @@ const Staffs = () => {
           </td>
           <td className="px-4 py-4 flex gap-2">
             <button
-              onClick={() => navigate(`/admin/viewstaff/${s.id}`)}
+              onClick={() => navigate(`/admin/staff/${s.id}`)}
               className="p-2 rounded-lg bg-yellow-500/80 text-white"
             >
               <FaEye />
