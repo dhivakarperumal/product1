@@ -15,6 +15,7 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DateRangeFilter from "../DateRangeFilter";
 import { filterByDateRange } from "../utils/dateUtils";
+import { createPortal } from 'react-dom';
 
 /* ================= HELPERS ================= */
 
@@ -105,6 +106,105 @@ const StatCard = ({ title, value, icon, gradient }) => (
     </div>
   </div>
 );
+
+const CustomDropdown = ({ label, options, value, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const buttonRef = useRef(null);
+  const [dropdownStyle, setDropdownStyle] = useState({});
+  const wrapperRef = useRef(null);
+  const dropdownRef = useRef(null);
+
+useEffect(() => {
+  const handleClickOutside = (event) => {
+    if (
+      wrapperRef.current &&
+      !wrapperRef.current.contains(event.target) &&
+      dropdownRef.current &&
+      !dropdownRef.current.contains(event.target)
+    ) {
+      setIsOpen(false);
+    }
+  };
+
+  if (isOpen) {
+    document.addEventListener("mousedown", handleClickOutside);
+  }
+
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, [isOpen]);
+
+  const updatePosition = () => {
+    if (!buttonRef.current) return;
+
+    const rect = buttonRef.current.getBoundingClientRect();
+
+    setDropdownStyle({
+      position: "fixed",
+      top: rect.bottom + 8,
+      left: rect.right - 200,
+      width: "200px",
+      zIndex: 9999,
+    });
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      updatePosition();
+      window.addEventListener("scroll", updatePosition);
+      window.addEventListener("resize", updatePosition);
+    }
+
+    return () => {
+      window.removeEventListener("scroll", updatePosition);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [isOpen]);
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <button
+        ref={buttonRef}
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl border border-white/20 text-sm"
+      >
+        {
+          options.find((opt) => opt.value === value)?.label || label
+        }
+      </button>
+
+      {isOpen &&
+        buttonRef.current &&
+        createPortal(
+          <div
+          ref={dropdownRef}
+            style={dropdownStyle}
+            className="bg-[#1e293b] border border-white/10 rounded-xl shadow-xl p-2"
+          >
+            {options.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => {
+                  onChange(opt.value);
+                  setIsOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm ${value === opt.value
+                    ? "bg-orange-500 text-white"
+                    : "text-gray-300 hover:bg-white/5"
+                  }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
+
+     
+    </div>
+  );
+};
 
 /* ================= PAGE ================= */
 const AllOrders = () => {
@@ -589,33 +689,32 @@ ${items
         <div className="flex flex-wrap gap-2 items-center">
           <DateRangeFilter onRangeChange={(type, range) => setDateRange({ type, range })} />
 
-          {/* Status of the Order filter */}
-          <select
+          <CustomDropdown
+            label="Status"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-sm"
-          >
-            <option value="all">All Status</option>
-            <option value="orderplaced">Order Placed</option>
-            <option value="processing">Processing</option>
-            <option value="packing">Packing</option>
-            <option value="shipped">Shipped</option>
-            <option value="outfordelivery">Out for Delivery</option>
-            <option value="delivered">Delivered</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+            onChange={setStatusFilter}
+            options={[
+              { label: "All Status", value: "all" },
+              { label: "Order Placed", value: "orderplaced" },
+              { label: "Processing", value: "processing" },
+              { label: "Packing", value: "packing" },
+              { label: "Shipped", value: "shipped" },
+              { label: "Out for Delivery", value: "outfordelivery" },
+              { label: "Delivered", value: "delivered" },
+              { label: "Cancelled", value: "cancelled" },
+            ]}
+          />
 
-          {/* Paymenet Status Filter */}
-          <select
+          <CustomDropdown
+            label="Payment"
             value={paymentFilter}
-            onChange={(e) => setPaymentFilter(e.target.value)}
-            className="bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-sm"
-          >
-            <option value="all">All Payments</option>
-            <option value="paid">Paid</option>
-            <option value="pending">Pending</option>
-          </select>
-
+            onChange={setPaymentFilter}
+            options={[
+              { label: "All Payments", value: "all" },
+              { label: "Paid", value: "paid" },
+              { label: "Pending", value: "pending" },
+            ]}
+          />
           <button
             onClick={() => setDeliveryOnly((prev) => !prev)}
             className={`px-3 py-2 rounded-xl text-sm border flex items-center gap-2 ${deliveryOnly
@@ -678,8 +777,8 @@ ${items
                     </td>
                     <td onClick={(e) => { e.stopPropagation(); navigate(`/admin/orders/${o.order_id}`) }} className="px-4 py-3">
                       <span className={`px-2 py-1 rounded-full text-xs font-semibold ${normalizeKey(o.paymentStatus) === "paid"
-                          ? "bg-green-500/20 text-green-300"
-                          : "bg-amber-500/20 text-amber-300"
+                        ? "bg-green-500/20 text-green-300"
+                        : "bg-amber-500/20 text-amber-300"
                         }`}>
                         {o.paymentStatus}
                       </span>
@@ -906,8 +1005,8 @@ ${items
                   onClick={() => confirmAndSendStatus(pendingStatus.orderId, pendingStatus.newStatus, modalInput)}
                   disabled={submitting}
                   className={`flex-1 py-3 rounded-2xl font-bold text-sm transition shadow-lg ${modalType === "cancelled"
-                      ? "bg-red-600 hover:bg-red-700 shadow-red-600/20"
-                      : "bg-orange-600 hover:bg-orange-700 shadow-orange-600/20"
+                    ? "bg-red-600 hover:bg-red-700 shadow-red-600/20"
+                    : "bg-orange-600 hover:bg-orange-700 shadow-orange-600/20"
                     } disabled:opacity-50`}
                 >
                   {submitting ? "Updating..." : "Confirm Update"}
