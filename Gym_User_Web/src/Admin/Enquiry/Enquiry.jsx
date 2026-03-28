@@ -203,7 +203,7 @@ const Enquiry = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-bold shadow-lg hover:scale-105 transition-all outline-none"
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-bold shadow-lg hover:scale-105 transition-all outline-none cursor-pointer" 
           >
             <Plus className="w-4 h-4" />
             Add Enquiry
@@ -222,13 +222,13 @@ const Enquiry = () => {
             className="w-full pl-11 pr-4 py-2.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all shadow-sm"
           />
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 cursor-pointer">
           <DateRangeFilter onRangeChange={(type, range) => setDateRange({ type, range })} />
          
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2.5 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all"
+            className="px-4 py-2.5 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all cursor-pointer"
           >
             <option value="all">All Status</option>
             <option value="pending">Pending</option>

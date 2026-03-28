@@ -458,7 +458,7 @@ const Payments = () => {
     {/* Export Excel */}
     <button
       onClick={exportToExcel}
-      className="px-4 py-2.5 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 transition"
+      className="px-4 py-2.5 bg-green-500 text-white cursor-pointer rounded-lg text-sm hover:bg-green-600 transition"
     >
       Export Excel
     </button>
@@ -468,7 +468,7 @@ const Payments = () => {
 
       <button
         onClick={() => setViewType("table")}
-        className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+        className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition ${
           viewType === "table"
             ? "bg-orange-500 text-white"
             : "text-gray-300 hover:bg-white/10"
@@ -479,7 +479,7 @@ const Payments = () => {
 
       <button
         onClick={() => setViewType("card")}
-        className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+        className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition ${
           viewType === "card"
             ? "bg-orange-500 text-white"
             : "text-gray-300 hover:bg-white/10"
@@ -513,14 +513,14 @@ const Payments = () => {
         <div className="flex flex-wrap gap-4 md:justify-end items-center">
           {/* Date Filters */}
           <div className="flex items-center bg-white/5 border border-white/20 rounded-xl p-1 gap-1">
-            <div className="px-3 text-gray-400 border-r border-white/10 hidden lg:block">
+            <div className="px-3 text-gray-400 border-r border-white/10 hidden lg:block cursor-default">
               <Calendar size={16} />
             </div>
             {["all", "today", "yesterday", "this week", "this month", "custom"].map((df) => (
               <button
                 key={df}
                 onClick={() => setDateFilter(df)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${dateFilter === df
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition ${dateFilter === df
                   ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
                   : "text-gray-400 hover:text-white hover:bg-white/5"
                   }`}
@@ -580,7 +580,7 @@ const Payments = () => {
           </div>
         </div>
 
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between cursor-pointer">
           <div>
             <p className="text-sm text-gray-400 mb-1">Active</p>
             <p className="text-2xl font-bold">{counts.active}</p>
