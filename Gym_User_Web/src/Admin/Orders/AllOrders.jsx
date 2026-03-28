@@ -16,6 +16,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import DateRangeFilter from "../DateRangeFilter";
 import { filterByDateRange } from "../utils/dateUtils";
 import { createPortal } from 'react-dom';
+import { FaChevronDown } from "react-icons/fa";
 
 /* ================= HELPERS ================= */
 
@@ -114,26 +115,26 @@ const CustomDropdown = ({ label, options, value, onChange }) => {
   const wrapperRef = useRef(null);
   const dropdownRef = useRef(null);
 
-useEffect(() => {
-  const handleClickOutside = (event) => {
-    if (
-      wrapperRef.current &&
-      !wrapperRef.current.contains(event.target) &&
-      dropdownRef.current &&
-      !dropdownRef.current.contains(event.target)
-    ) {
-      setIsOpen(false);
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target) &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
     }
-  };
 
-  if (isOpen) {
-    document.addEventListener("mousedown", handleClickOutside);
-  }
-
-  return () => {
-    document.removeEventListener("mousedown", handleClickOutside);
-  };
-}, [isOpen]);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
 
   const updatePosition = () => {
     if (!buttonRef.current) return;
@@ -167,18 +168,24 @@ useEffect(() => {
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl border border-white/20 text-sm"
+        className="flex items-center justify-between gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl border border-white/20 text-sm min-w-[160px]"
       >
-        {
-          options.find((opt) => opt.value === value)?.label || label
-        }
+        <span>
+          {options.find((opt) => opt.value === value)?.label || label}
+        </span>
+
+        <FaChevronDown
+          className={`text-xs transition-transform duration-200 ${isOpen ? "rotate-180" : ""
+            }`}
+        />
       </button>
+
 
       {isOpen &&
         buttonRef.current &&
         createPortal(
           <div
-          ref={dropdownRef}
+            ref={dropdownRef}
             style={dropdownStyle}
             className="bg-[#1e293b] border border-white/10 rounded-xl shadow-xl p-2"
           >
@@ -190,8 +197,8 @@ useEffect(() => {
                   setIsOpen(false);
                 }}
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm ${value === opt.value
-                    ? "bg-orange-500 text-white"
-                    : "text-gray-300 hover:bg-white/5"
+                  ? "bg-orange-500 text-white"
+                  : "text-gray-300 hover:bg-white/5"
                   }`}
               >
                 {opt.label}
@@ -201,7 +208,7 @@ useEffect(() => {
           document.body
         )}
 
-     
+
     </div>
   );
 };
@@ -788,7 +795,7 @@ ${items
                     </td>
 
                     <td className="px-4 py-3 flex gap-2">
-                      <select
+                      {/* <select
                         value={normalizeKey(o.status)}
                         onChange={(e) => updateStatus(o.order_id, e.target.value)}
                         className="bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500 outline-none"
@@ -804,13 +811,43 @@ ${items
                               return <option key={step} value={step}>{formatStatusLabel(step)}</option>;
                             })}
 
-                            {/* Only show Cancelled if NOT yet shipped or beyond */}
                             {(STATUS_SEQUENCE.indexOf(normalizeKey(o.status)) < STATUS_SEQUENCE.indexOf("shipped")) && (
                               <option value="cancelled">Cancelled</option>
                             )}
                           </>
                         )}
-                      </select>
+                      </select> */}
+
+                      <CustomDropdown
+                        label="Status"
+                        value={normalizeKey(o.status)}
+                        onChange={(value) => updateStatus(o.order_id, value)}
+                        options={
+                          normalizeKey(o.status) === "cancelled"
+                            ? [{ label: "Cancelled", value: "cancelled" }]
+                            : [
+                              ...STATUS_SEQUENCE
+                                .map((step, idx) => {
+                                  const currentIdx = STATUS_SEQUENCE.indexOf(normalizeKey(o.status));
+
+                                  // same logic as before
+                                  if (idx < currentIdx && currentIdx !== -1) return null;
+
+                                  return {
+                                    label: formatStatusLabel(step),
+                                    value: step,
+                                  };
+                                })
+                                .filter(Boolean),
+
+                              // Cancel option logic (same as before)
+                              ...(STATUS_SEQUENCE.indexOf(normalizeKey(o.status)) <
+                                STATUS_SEQUENCE.indexOf("shipped")
+                                ? [{ label: "Cancelled", value: "cancelled" }]
+                                : []),
+                            ]
+                        }
+                      />
 
 
                     </td>
