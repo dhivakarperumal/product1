@@ -589,6 +589,7 @@ ${items
         <div className="flex flex-wrap gap-2 items-center">
           <DateRangeFilter onRangeChange={(type, range) => setDateRange({ type, range })} />
 
+          {/* Status of the Order filter */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -604,6 +605,7 @@ ${items
             <option value="cancelled">Cancelled</option>
           </select>
 
+          {/* Paymenet Status Filter */}
           <select
             value={paymentFilter}
             onChange={(e) => setPaymentFilter(e.target.value)}
@@ -646,8 +648,8 @@ ${items
 
       {/* ================= TABLE VIEW ================= */}
       {view === "table" && (
-        <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="bg-white/10 z-[1000] backdrop-blur-xl border border-white/20 rounded-2xl ">
+          <div className="overflow-x-auto overflow-y-visible">
             <table className="min-w-full text-sm">
               <thead className="bg-white/20">
                 <tr>

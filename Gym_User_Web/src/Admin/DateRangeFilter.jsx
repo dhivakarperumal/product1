@@ -1,11 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState,useRef,useEffect } from 'react';
 import { FaCalendarAlt, FaChevronDown } from 'react-icons/fa';
 
+import { createPortal } from 'react-dom';
+
 const DateRangeFilter = ({ onRangeChange, initialRange = 'All Time' }) => {
+  const buttonRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedRange, setSelectedRange] = useState(initialRange);
   const [customRange, setCustomRange] = useState({ start: '', end: '' });
   const [showCustom, setShowCustom] = useState(false);
+  const [dropdownStyle, setDropdownStyle] = useState({});
+
+  const updatePosition = () => {
+  if (!buttonRef.current) return;
+
+  const rect = buttonRef.current.getBoundingClientRect();
+
+  setDropdownStyle({
+    position: 'fixed',
+    top: rect.bottom + 8,
+    left: rect.right - 256,
+    width: '256px',
+    zIndex: 9999
+  });
+};
+
+useEffect(() => {
+  if (isOpen) {
+    updatePosition();
+
+    window.addEventListener('scroll', updatePosition);
+    window.addEventListener('resize', updatePosition);
+  }
+
+  return () => {
+    window.removeEventListener('scroll', updatePosition);
+    window.removeEventListener('resize', updatePosition);
+  };
+}, [isOpen]);
 
   const ranges = [
     'All Time',
@@ -36,8 +68,9 @@ const DateRangeFilter = ({ onRangeChange, initialRange = 'All Time' }) => {
   };
 
   return (
-    <div className="relative inline-block text-left">
+    <div className="relative inline-block text-left z-[1000]">
       <button
+        ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl border border-white/20 transition backdrop-blur-md"
       >
@@ -46,19 +79,21 @@ const DateRangeFilter = ({ onRangeChange, initialRange = 'All Time' }) => {
         <FaChevronDown className={`text-xs transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-[#1e293b] border border-white/10 shadow-2xl z-[100] p-2">
+      {isOpen && buttonRef.current && createPortal(
+        <div
+          style={dropdownStyle}
+          className="rounded-2xl bg-[#1e293b] border border-white/10 shadow-2xl p-2"
+        >
           {!showCustom ? (
             <div className="space-y-1">
               {ranges.map((range) => (
                 <button
                   key={range}
                   onClick={() => handleRangeSelect(range)}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-colors ${
-                    selectedRange === range 
-                      ? 'bg-orange-500 text-white' 
+                  className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-colors ${selectedRange === range
+                      ? 'bg-orange-500 text-white'
                       : 'text-gray-300 hover:bg-white/5'
-                  }`}
+                    }`}
                 >
                   {range}
                 </button>
@@ -67,46 +102,52 @@ const DateRangeFilter = ({ onRangeChange, initialRange = 'All Time' }) => {
           ) : (
             <div className="p-2 space-y-4">
               <div className="flex items-center justify-between mb-2">
-                <button 
+                <button
                   onClick={() => setShowCustom(false)}
                   className="text-xs text-orange-500 hover:text-orange-400"
                 >
                   ← Back
                 </button>
-                <span className="text-xs text-gray-400 font-bold uppercase tracking-widest">Custom Range</span>
+                <span className="text-xs text-gray-400 font-bold uppercase tracking-widest">
+                  Custom Range
+                </span>
               </div>
+
               <div className="space-y-1">
-                <label className="text-gray-500 text-[10px] uppercase tracking-wider">From Date</label>
+                <label className="text-gray-500 text-[10px] uppercase">From Date</label>
                 <input
                   type="date"
                   value={customRange.start}
                   onChange={(e) => setCustomRange({ ...customRange, start: e.target.value })}
-                  className="w-full bg-white/5 border border-white/10 rounded-md p-1.5 focus:border-orange-500 outline-none text-white"
+                  className="w-full bg-white/5 border border-white/10 rounded-md p-1.5 text-white"
                 />
               </div>
+
               <div className="space-y-1">
-                <label className="text-gray-500 text-[10px] uppercase tracking-wider">To Date</label>
+                <label className="text-gray-500 text-[10px] uppercase">To Date</label>
                 <input
                   type="date"
                   value={customRange.end}
                   onChange={(e) => setCustomRange({ ...customRange, end: e.target.value })}
-                  className="w-full bg-white/5 border border-white/10 rounded-md p-1.5 focus:border-orange-500 outline-none text-white"
+                  className="w-full bg-white/5 border border-white/10 rounded-md p-1.5 text-white"
                 />
               </div>
+
               <button
                 onClick={handleCustomSubmit}
-                className="w-full bg-orange-500 text-white py-1.5 rounded-md font-bold hover:bg-orange-600 transition"
+                className="w-full bg-orange-500 text-white py-1.5 rounded-md font-bold"
               >
                 Apply Range
               </button>
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
 
       {isOpen && (
-        <div 
-          className="fixed inset-0 z-[99]" 
+        <div
+          className="fixed inset-0 z-[99]"
           onClick={() => setIsOpen(false)}
         />
       )}
