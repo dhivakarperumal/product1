@@ -24,6 +24,8 @@ const Login = () => {
       navigate("/admin");
     } else if (role === "trainer") {
       navigate("/trainer");
+    } else if (role === "super admin") {
+      navigate("/superadmin");
     } else {
       navigate("/");
     }
@@ -219,14 +221,14 @@ const Login = () => {
             </div>
 
             {/* Google Login Custom Button */}
-            <button 
+            <button
               onClick={() => googleLogin()}
               disabled={loading}
               className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 text-black py-3 rounded-lg font-bold transition mb-4 disabled:opacity-50 cursor-pointer"
             >
-              <img 
-                src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" 
-                alt="Google" 
+              <img
+                src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png"
+                alt="Google"
                 className="w-6 h-6"
               />
               Continue with Google

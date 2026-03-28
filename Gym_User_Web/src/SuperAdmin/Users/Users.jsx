@@ -16,7 +16,7 @@ const glassCard =
 const glassInput =
   "bg-gray-800 border border-white/20 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-white/30";
 
-const UserManagement = () => {
+const Users = () => {
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -295,5 +295,5 @@ const UserManagement = () => {
   );
 };
 
-export default UserManagement;
+export default Users;
 

@@ -58,6 +58,13 @@ import UserTrainers from "./UserPanel/Trainers/Trainers.jsx";
 import BuyNow from "./UserPanel/Pricings/BuyNow.jsx";
 import ServiceDetails from "./UserPanel/Services/ServiceDetails.jsx";
 
+// Super Admin Routes
+import SuperAdminPanel from "./SuperAdmin/SuperAdminPanel.jsx";
+import SuperAdminDasboard from "./SuperAdmin/Dashboard/Dasboard.jsx";
+import Payment from "./SuperAdmin/PaymentList/Payment.jsx";
+import Users from "./SuperAdmin/Users/Users.jsx";
+import Profile from "./SuperAdmin/Profile/Profile.jsx";
+
 // ✅ Lazy components
 const Login = lazy(() => import("./Components/Login.jsx"));
 const Register = lazy(() => import("./Components/Register.jsx"));
@@ -162,12 +169,12 @@ const router = createHashRouter([
       { path: "checkout", element: <UserCheckout /> },
       { path: "orders", element: <Orders /> },
       { path: "profile", element: <PersonalDetails /> },
-      { path: "notifications", element: <Notification /> },      
+      { path: "notifications", element: <Notification /> },
       { path: "services", element: <UserServices /> },
       { path: "trainers", element: <UserTrainers /> },
       { path: "buynow", element: <BuyNow /> },
       { path: "services/:slug", element: <ServiceDetails /> },
-      
+
       // ✅ Settings routes
       { path: "settings", element: <UserSettings /> },
       { path: "settings/profile", element: <UserProfileSettings /> },
@@ -189,61 +196,67 @@ const router = createHashRouter([
     errorElement: <RouteError />,
     children: [
       { index: true, element: <Dashboard /> },
-      
+
       // Members routes
       { path: "members", element: <AdminMembers /> },
       { path: "addmembers", element: <AddMembers /> },
-      
+
       // Enquiry route
       { path: "enquiry", element: <AdminEnquiry /> },
-      
+
       // Send Message route
       { path: "send-message", element: <AdminSendMessage /> },
-      
+
       // Orders routes
       { path: "orders", element: <AdminOrders /> },
       { path: "orders/:id", element: <OrderDetails /> },
-      
-      
+
+
       // Products routes
       { path: "products", element: <AdminProducts /> },
       { path: "addproducts", element: <AddProducts /> },
       { path: "products/:id", element: <ProductDetail /> },
-      
+
       // Stock routes
       { path: "stockdetails", element: <StockDetails /> },
       { path: "add-stock", element: <AddStock /> },
-      
+
       // Plans routes
       { path: "plansall", element: <AdminPlans /> },
       { path: "addplan", element: <AddPlan /> },
       { path: "buyplanadmin", element: <BuyPlanAdmin /> },
-      
+
       // Facilities routes
       { path: "fecilities", element: <AdminFacilities /> },
       { path: "addfecilities", element: <AddFacilities /> },
-      
+
       // Staff routes
       { path: "staff", element: <AdminStaff /> },
       { path: "addstaff/:id", element: <AddStaff /> },
       { path: "staff/:id", element: <ViewStaff /> },
       { path: "assignedtrainers", element: <AssignedTrainers /> },
-      
+
       // Attendance routes
       { path: "overall-attendance", element: <OverallAttendance /> },
       { path: "member-attendance", element: <MemberAttendance /> },
-      
+
       // Billing route
       { path: "billing", element: <AdminBilling /> },
-      
+
       // Payments route
       { path: "payments", element: <AdminPayments /> },
-      
+
       // Workout & Diet route
       { path: "commenworkoutdiet", element: <CommenWorkoutDiet /> },
-      
+
       // Reports route
       { path: "reports", element: <AdminReports /> },
+
+      // settings route
+      { path: "settings", element: <Settings /> },
+      { path: "settings/profile", element: <ProfileSettings /> },
+      { path: "settings/usermanagement", element: <UserManagement /> },
+      { path: "settings/reviews", element: <ReviewsSettings /> },
     ],
   },
 
@@ -258,7 +271,7 @@ const router = createHashRouter([
     errorElement: <RouteError />,
     children: [
       { index: true, element: <TrainerDashboard /> },
-       { path: "reports", element: <TrainerReports /> },
+      { path: "reports", element: <TrainerReports /> },
       { path: "overall-attendance", element: <TrainerOverallAttendance /> },
       { path: "addworkouts", element: <AddWorkout /> },
       { path: "addworkouts/:id", element: <AddWorkout /> },
@@ -273,7 +286,23 @@ const router = createHashRouter([
       { path: "settings/usermanagement", element: <UserManagement /> },
       { path: "settings/reviews", element: <ReviewsSettings /> },
       { path: "member-attendance", element: <MemberAttendance /> },
+
+    ],
+  },
+
+  {
+    path: "/superadmin",
+    element: (
       
+        <SuperAdminPanel />
+      
+    ),
+    errorElement: <RouteError />,
+    children: [
+      { index: true, element: <SuperAdminDasboard /> },
+      { path: "paymentlist", element: <Payment /> },
+      { path: "profile", element: <Profile /> },
+      { path: "users", element: <Users /> },
     ],
   },
 ]);
