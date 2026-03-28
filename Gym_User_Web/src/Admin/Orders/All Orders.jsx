@@ -592,7 +592,7 @@ ${items
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-sm"
+            className="bg-white/10 border border-white/20  rounded-xl px-3 py-2 text-sm"
           >
             <option value="all">All Status</option>
             <option value="orderplaced">Order Placed</option>
