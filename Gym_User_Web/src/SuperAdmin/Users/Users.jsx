@@ -8,6 +8,7 @@ import {
   FaArrowLeft,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import { FaEdit, FaTrash } from "react-icons/fa";
 
 /* ================= GLASS CLASSES ================= */
 const glassCard =
@@ -22,6 +23,24 @@ const Users = () => {
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+
+  const deleteUser = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
+
+    try {
+      console.log("Deleting user with ID:", id, "Type:", typeof id);
+      const response = await api.delete(`/users/${id}`);
+      console.log("Delete response:", response.data);
+      toast.success("User deleted successfully 🗑️");
+      loadUsers();
+    } catch (err) {
+      console.error("Delete error:", err);
+      console.error("Error response:", err.response?.data);
+      console.error("Error status:", err.response?.status);
+      const errorMessage = err.response?.data?.error || "Failed to delete user";
+      toast.error(errorMessage);
+    }
+  };
 
   // pagination
   const [page, setPage] = useState(1);
@@ -120,13 +139,23 @@ const Users = () => {
   return (
     <div className="space-y-8 text-white">
 
-      {/* HEADER */}
-      <button
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition"
-      >
-        <FaArrowLeft /> Back
-      </button>
+      <div className="flex justify-between items-center">
+
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition"
+        >
+          <FaArrowLeft /> Back
+        </button>
+
+        <button
+          onClick={() => navigate("/superadmin/adduser")}
+          className="flex items-center gap-2 px-5 py-2 rounded-full bg-orange-500 hover:bg-orange-600 transition text-white font-medium"
+        >
+          <FaUserPlus /> Add User
+        </button>
+
+      </div>
 
       {/* STATS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -177,13 +206,13 @@ const Users = () => {
             <option value="member">Member</option>
           </select>
 
-          <select value={statusFilter}  onChange={(e) => setStatusFilter(e.target.value)} className={glassInput}>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={glassInput}>
             <option value="all">All Status</option>
             <option value="active">Active</option>
             <option value="inactive">Disabled</option>
           </select>
 
-          
+
         </div>
       </div>
 
@@ -197,6 +226,7 @@ const Users = () => {
               <th className="px-4 py-4 text-left">Email</th>
               <th className="px-4 py-4 text-left">Role</th>
               <th className="px-4 py-4 text-left">Status</th>
+              <th className="px-4 py-4 text-left">Mobile</th>
               <th className="px-4 py-4 text-left">Actions</th>
             </tr>
           </thead>
@@ -240,13 +270,26 @@ const Users = () => {
                   </span>
                 </td>
 
-                <td className="px-4 py-3">
+                <td className="px-4 py-3">{u.mobile || "-"}</td>
+
+                <td className="px-4 py-3 flex gap-3">
+
+                  {/* EDIT */}
                   <button
-                    onClick={() => toggleStatus(u.id, u.active)}
-                    className="px-3 py-1 rounded-lg bg-blue-500/30 hover:bg-blue-500/50 transition text-xs"
+                    onClick={() => navigate(`/superadmin/edituser/${u.id}`)}
+                    className="p-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/40 text-blue-300"
                   >
-                    Toggle
+                    <FaEdit />
                   </button>
+
+                  {/* DELETE */}
+                  <button
+                    onClick={() => deleteUser(u.id)}
+                    className="p-2 rounded-lg bg-red-500/20 hover:bg-red-500/40 text-red-300"
+                  >
+                    <FaTrash />
+                  </button>
+
                 </td>
               </tr>
             ))}
@@ -276,7 +319,7 @@ const Users = () => {
             <button
               key={i}
               onClick={() => setPage(i + 1)}
-              className={`px-3 py-1 rounded ${page === i + 1 ? "bg-blue-500" : "bg-white/10 hover:bg-white/20"}`}
+              className={`px-3 py-1 rounded ${page === i + 1 ? "bg-orange-500" : "bg-white/10 hover:bg-white/20"}`}
             >
               {i + 1}
             </button>

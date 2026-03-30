@@ -87,8 +87,38 @@ async function updateUserRole(req, res) {
   }
 }
 
+async function deleteUser(req, res) {
+  try {
+    const { id } = req.params;
+    console.log('deleteUser called with ID:', id, 'Type:', typeof id);
+    const idNum = parseInt(id, 10);
+    console.log('Parsed ID:', idNum, 'isNaN:', isNaN(idNum));
+
+    if (isNaN(idNum)) {
+      console.log('Invalid ID format:', id);
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    console.log('Attempting to delete user ID:', idNum);
+    const [result] = await db.query('DELETE FROM users WHERE id = ?', [idNum]);
+    console.log('Delete result:', result);
+
+    if (result.affectedRows === 0) {
+      console.log('User not found:', idNum);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    console.log('User deleted successfully:', idNum);
+    res.json({ message: 'User deleted successfully' });
+  } catch (err) {
+    console.error('deleteUser error', err);
+    res.status(500).json({ error: 'Delete failed', details: err.message });
+  }
+}
+
 module.exports = {
   getAllUsers,
   getUserById,
   updateUserRole,
+  deleteUser,
 };

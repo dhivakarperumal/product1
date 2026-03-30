@@ -1,9 +1,99 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Plus, Search, Filter, Eye, Edit, Trash2, CheckCircle, XCircle, Clock, Users } from "lucide-react";
 import api from "../../api";
 import DateRangeFilter from "../DateRangeFilter";
 import { filterByDateRange } from "../utils/dateUtils";
 import dayjs from "dayjs";
+import { createPortal } from "react-dom";
+
+const CustomDropdown = ({ label, options, value, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const buttonRef = useRef(null);
+  const [dropdownStyle, setDropdownStyle] = useState({});
+  const wrapperRef = useRef(null);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target) &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
+
+  const updatePosition = () => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+
+    setDropdownStyle({
+      position: "fixed",
+      top: rect.bottom + 8,
+      left: rect.right - 200,
+      width: "200px",
+      zIndex: 9999,
+    });
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      updatePosition();
+      window.addEventListener("scroll", updatePosition);
+      window.addEventListener("resize", updatePosition);
+    }
+    return () => {
+      window.removeEventListener("scroll", updatePosition);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [isOpen]);
+
+  return (
+    <div ref={wrapperRef}>
+      <button
+        ref={buttonRef}
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl border border-white/20 text-sm w-full"
+      >
+        <span>
+          {options.find((opt) => opt.value === value)?.label || label}
+        </span>
+      </button>
+
+      {isOpen &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            style={dropdownStyle}
+            className="bg-[#1e293b] border border-white/10 rounded-xl shadow-xl p-2"
+          >
+            {options.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => {
+                  onChange(opt.value);
+                  setIsOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm ${value === opt.value
+                    ? "bg-orange-500 text-white"
+                    : "text-gray-300 hover:bg-white/5"
+                  }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
+    </div>
+  );
+};
 
 const Enquiry = () => {
   const [enquiries, setEnquiries] = useState([]);
@@ -143,9 +233,9 @@ const Enquiry = () => {
 
   const filteredEnquiries = enquiries.filter(enquiry => {
     const matchesSearch = enquiry.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         enquiry.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         enquiry.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         enquiry.location?.toLowerCase().includes(searchTerm.toLowerCase());
+      enquiry.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      enquiry.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      enquiry.location?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || enquiry.status === statusFilter;
     if (!(matchesSearch && matchesStatus)) return false;
 
@@ -224,17 +314,18 @@ const Enquiry = () => {
         </div>
         <div className="flex flex-wrap items-center gap-3 cursor-pointer">
           <DateRangeFilter onRangeChange={(type, range) => setDateRange({ type, range })} />
-         
-          <select
+
+          <CustomDropdown
+            label="Status"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2.5 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all cursor-pointer"
-          >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+            onChange={setStatusFilter}
+            options={[
+              { label: "All Status", value: "all" },
+              { label: "Pending", value: "pending" },
+              { label: "Completed", value: "completed" },
+              { label: "Cancelled", value: "cancelled" },
+            ]}
+          />
         </div>
       </div>
 
@@ -255,69 +346,69 @@ const Enquiry = () => {
             </thead>
             <tbody className="divide-y divide-white/10">
               {filteredEnquiries && filteredEnquiries.length > 0 ? (
-                filteredEnquiries.map((enquiry,ind) => (
-                <tr key={enquiry.id} className="hover:bg-white/5">
-                   <td className="px-6 py-4">
-                    <div className="text-sm text-white">{ ind+1 }</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div>
-                      <div className="text-sm font-medium text-white">{enquiry.name}</div>
-                      <div className="text-sm text-white/60">{enquiry.email}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-white">{enquiry.subject || 'No subject'}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-white">{enquiry.location || 'Not specified'}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(enquiry.status)}`}>
-                      {getStatusIcon(enquiry.status)}
-                      {enquiry.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-white/60">
-                    {new Date(enquiry.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleEdit(enquiry)}
-                        className="p-1 text-white/60 hover:text-white hover:bg-white/10 rounded"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleMoveToMembers(enquiry)}
-                        className="p-1 text-blue-400 hover:text-blue-300 hover:bg-white/10 rounded"
-                        title="Move to members"
-                      >
-                        <Users className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => updateStatus(enquiry.id, 'completed')}
-                        className="p-1 text-green-400 hover:text-green-300 hover:bg-white/10 rounded"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => updateStatus(enquiry.id, 'cancelled')}
-                        className="p-1 text-red-400 hover:text-red-300 hover:bg-white/10 rounded"
-                      >
-                        <XCircle className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(enquiry.id)}
-                        className="p-1 text-red-400 hover:text-red-300 hover:bg-white/10 rounded"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
+                filteredEnquiries.map((enquiry, ind) => (
+                  <tr key={enquiry.id} className="hover:bg-white/5">
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-white">{ind + 1}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div>
+                        <div className="text-sm font-medium text-white">{enquiry.name}</div>
+                        <div className="text-sm text-white/60">{enquiry.email}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-white">{enquiry.subject || 'No subject'}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-white">{enquiry.location || 'Not specified'}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(enquiry.status)}`}>
+                        {getStatusIcon(enquiry.status)}
+                        {enquiry.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-white/60">
+                      {new Date(enquiry.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleEdit(enquiry)}
+                          className="p-1 text-white/60 hover:text-white hover:bg-white/10 rounded"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleMoveToMembers(enquiry)}
+                          className="p-1 text-blue-400 hover:text-blue-300 hover:bg-white/10 rounded"
+                          title="Move to members"
+                        >
+                          <Users className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => updateStatus(enquiry.id, 'completed')}
+                          className="p-1 text-green-400 hover:text-green-300 hover:bg-white/10 rounded"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => updateStatus(enquiry.id, 'cancelled')}
+                          className="p-1 text-red-400 hover:text-red-300 hover:bg-white/10 rounded"
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(enquiry.id)}
+                          className="p-1 text-red-400 hover:text-red-300 hover:bg-white/10 rounded"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               ) : (
                 <tr>
                   <td colSpan="6" className="px-6 py-4 text-center text-white/60">
@@ -344,7 +435,7 @@ const Enquiry = () => {
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
@@ -354,7 +445,7 @@ const Enquiry = () => {
                   <input
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
@@ -364,7 +455,7 @@ const Enquiry = () => {
                   <input
                     type="tel"
                     value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -373,7 +464,7 @@ const Enquiry = () => {
                   <input
                     type="text"
                     value={formData.subject}
-                    onChange={(e) => setFormData({...formData, subject: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                     className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -382,7 +473,7 @@ const Enquiry = () => {
                   <input
                     type="text"
                     value={formData.location}
-                    onChange={(e) => setFormData({...formData, location: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                     className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="e.g., Gym Branch Name"
                   />
@@ -392,7 +483,7 @@ const Enquiry = () => {
                   <input
                     type="number"
                     value={formData.height}
-                    onChange={(e) => setFormData({...formData, height: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, height: e.target.value })}
                     className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Height in cm"
                   />
@@ -402,7 +493,7 @@ const Enquiry = () => {
                   <input
                     type="number"
                     value={formData.weight}
-                    onChange={(e) => setFormData({...formData, weight: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
                     className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Weight in kg"
                   />
@@ -422,7 +513,7 @@ const Enquiry = () => {
                 <label className="block text-sm font-medium text-white/80 mb-1">Message</label>
                 <textarea
                   value={formData.message}
-                  onChange={(e) => setFormData({...formData, message: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                   rows={4}
                   className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
@@ -433,7 +524,7 @@ const Enquiry = () => {
                   <label className="block text-sm font-medium text-white/80 mb-1">Status</label>
                   <select
                     value={formData.status}
-                    onChange={(e) => setFormData({...formData, status: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                     className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="pending">Pending</option>
