@@ -432,421 +432,438 @@ const Payments = () => {
   }
 
   return (
-    <div className="min-h-screen p-4 md:p-8 text-white">
-      {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-4 py-10 text-white">
+      <div className="mx-auto max-w-7xl space-y-10">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold text-white">Payment Management</h1>
 
-  {/* Title */}
-  <h1 className="text-2xl md:text-3xl font-bold">
-    Payment Details
-  </h1>
-
-  {/* Right Section */}
-  <div className="flex flex-wrap items-center gap-3 mb-5 ml-auto">
-
-    {/* Import Excel */}
-    <label className="px-4 py-2.5 bg-blue-500 text-white rounded-lg text-sm cursor-pointer hover:bg-blue-600 transition">
-      Import Excel
-      <input
-        type="file"
-        accept=".xlsx,.xls"
-        onChange={handleImport}
-        className="hidden"
-      />
-    </label>
-
-    {/* Export Excel */}
-    <button
-      onClick={exportToExcel}
-      className="px-4 py-2.5 bg-green-500 text-white cursor-pointer rounded-lg text-sm hover:bg-green-600 transition"
-    >
-      Export Excel
-    </button>
-
-    {/* Toggle Buttons */}
-    <div className="flex items-center bg-[#2a2540] rounded-xl p-1">
-
-      <button
-        onClick={() => setViewType("table")}
-        className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition ${
-          viewType === "table"
-            ? "bg-orange-500 text-white"
-            : "text-gray-300 hover:bg-white/10"
-        }`}
-      >
-        Table
-      </button>
-
-      <button
-        onClick={() => setViewType("card")}
-        className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition ${
-          viewType === "card"
-            ? "bg-orange-500 text-white"
-            : "text-gray-300 hover:bg-white/10"
-        }`}
-      >
-        Card
-      </button>
-
-    </div>
-
-  </div>
-
-</div>
-
-      {/* SEARCH + FILTERS SAME ROW */}
-      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-
-        {/* LEFT → SEARCH */}
-        <div className="relative w-full md:max-w-md">
-          <Search className="absolute left-4 top-3 text-gray-400" size={20} />
-          <input
-            type="text"
-            placeholder="Search by name, email, or plan..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-12 pr-4 py-2 rounded-lg bg-white/10 border border-white/20"
-          />
-        </div>
-
-        {/* RIGHT → FILTER BUTTONS */}
-        <div className="flex flex-wrap gap-4 md:justify-end items-center">
-          {/* Date Filters */}
-          <div className="flex items-center bg-white/5 border border-white/20 rounded-xl p-1 gap-1">
-            <div className="px-3 text-gray-400 border-r border-white/10 hidden lg:block cursor-default">
-              <Calendar size={16} />
-            </div>
-            {["all", "today", "yesterday", "this week", "this month", "custom"].map((df) => (
-              <button
-                key={df}
-                onClick={() => setDateFilter(df)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition ${dateFilter === df
-                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
-                  }`}
-              >
-                {df.charAt(0).toUpperCase() + df.slice(1)}
-              </button>
-            ))}
-          </div>
-
-          {/* Custom Range Inputs */}
-          {dateFilter === "custom" && (
-            <div className="flex items-center gap-2 bg-white/5 border border-white/20 rounded-xl p-1 animate-in slide-in-from-right-2 duration-300">
+          {/* Right Section */}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Import Excel */}
+            <label className="inline-flex items-center justify-center rounded-xl bg-blue-500/20 text-blue-400 px-4 py-3 text-sm font-medium hover:bg-blue-500/30 transition-colors cursor-pointer">
               <input
-                type="date"
-                value={customStart}
-                onChange={(e) => setCustomStart(e.target.value)}
-                className="bg-transparent border-none text-xs text-white focus:ring-0 px-2 py-1 cursor-pointer"
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleImport}
+                className="hidden"
               />
-              <span className="text-gray-500 text-xs">to</span>
-              <input
-                type="date"
-                value={customEnd}
-                onChange={(e) => setCustomEnd(e.target.value)}
-                className="bg-transparent border-none text-xs text-white focus:ring-0 px-2 py-1 cursor-pointer"
-              />
-            </div>
-          )}
+              Import Excel
+            </label>
 
-          {/* Status Filters */}
-          <div className="flex items-center bg-white/5 border border-white/20 rounded-xl p-1 gap-1">
-            {["all", "active", "inactive", "expiry"].map((type) => (
-              <button
-                key={type}
-                onClick={() => setFilterType(type)}
-                className={`px-4 py-1.5 rounded-lg text-xs font-medium transition ${filterType === type
-                  ? "bg-orange-600 text-white shadow-lg shadow-orange-500/20"
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
-                  }`}
-              >
-                {type.charAt(0).toUpperCase() + type.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-
-      </div>
-
-      {/* ================= SUMMARY CARDS ================= */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-400 mb-1">Total Plans</p>
-            <p className="text-2xl font-bold">{counts.all}</p>
-          </div>
-          <div className="p-3 bg-blue-500/20 text-blue-400 rounded-xl">
-            <Users size={24} />
-          </div>
-        </div>
-
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between cursor-pointer">
-          <div>
-            <p className="text-sm text-gray-400 mb-1">Active</p>
-            <p className="text-2xl font-bold">{counts.active}</p>
-          </div>
-          <div className="p-3 bg-green-500/20 text-green-400 rounded-xl">
-            <CheckCircle size={24} />
-          </div>
-        </div>
-
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-400 mb-1">Inactive</p>
-            <p className="text-2xl font-bold">{counts.inactive}</p>
-          </div>
-          <div className="p-3 bg-red-500/20 text-red-400 rounded-xl">
-            <XCircle size={24} />
-          </div>
-        </div>
-
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-400 mb-1">Expiring Soon</p>
-            <p className="text-2xl font-bold">{counts.expiry}</p>
-          </div>
-          <div className="p-3 bg-yellow-500/20 text-yellow-400 rounded-xl">
-            <AlertTriangle size={24} />
-          </div>
-        </div>
-      </div>
-
-
-      {/* ================= GRID VIEW ================= */}
-      {viewType === "card" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {paginatedPlans.map(({ member, plan }, index) => (
-            <div
-              key={`${member.uid}_${plan.id}`}
-              className="relative bg-white/10 border border-white/20 rounded-xl p-6"
+            {/* Export Excel */}
+            <button
+              onClick={exportToExcel}
+              disabled={selectedRows.length === 0}
+              className="inline-flex items-center justify-center rounded-xl bg-green-500/20 text-green-400 px-4 py-3 text-sm font-medium hover:bg-green-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span
-                className={`absolute top-4 right-4 px-3 py-1 text-xs rounded-full border ${plan.status === "active"
-                  ? "bg-green-500/20 text-green-400 border-green-400/30"
-                  : "bg-gray-500/20 text-gray-300 border-gray-400/30"
-                  }`}
+              Export Excel
+            </button>
+
+            {/* Toggle Buttons */}
+            <div className="flex items-center rounded-xl bg-slate-800/50 border border-white/10 p-1 backdrop-blur-xl">
+              <button
+                onClick={() => setViewType("table")}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  viewType === "table"
+                    ? "bg-orange-500 text-white shadow-lg"
+                    : "text-gray-300 hover:bg-white/10"
+                }`}
               >
-                {plan.status === "active" ? "Active" : "Inactive"}
-              </span>
+                Table
+              </button>
+              <button
+                onClick={() => setViewType("card")}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  viewType === "card"
+                    ? "bg-orange-500 text-white shadow-lg"
+                    : "text-gray-300 hover:bg-white/10"
+                }`}
+              >
+                Card
+              </button>
+            </div>
+          </div>
+        </div>
 
-              {/* <div>
-                {getSerialNumber(index)}
-              </div> */}
-
-              <p className="text-lg font-semibold">
-                {member.username || "No Name"}
-              </p>
-              <p className="text-sm text-gray-300 mb-4">
-                {member.email}
-              </p>
-
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-400">Plan</p>
-                  <p>{plan.planName}</p>
-                </div>
-
-                <div>
-                  <p className="text-gray-400">Amount</p>
-                  <p>₹ {plan.pricePaid}</p>
-                </div>
-
-                <div>
-                  <p className="text-gray-400">Start Date</p>
-                  <p className="whitespace-nowrap">{formatDate(plan.startDate)}</p>
-                </div>
-
-                <div>
-                  <p className="text-gray-400">Remaining Days</p>
-                  <span
-                    className={`px-2 py-1 rounded text-xs ${
-                      getRemainingDays(plan.endDate) === "Expired"
-                        ? "bg-red-500/20 text-red-400"
-                        : isExpiringPlan(plan.endDate)
-                        ? "bg-yellow-500/20 text-yellow-400"
-                        : "bg-green-500/20 text-green-400"
-                    }`}
-                  >
-
-                    {getRemainingDays(plan.endDate)}
-
-                  </span>
-                </div>
-
-                <div>
-                  <p className="text-gray-400">End Date</p>
-                  <p className="whitespace-nowrap">{formatDate(plan.endDate)}</p>
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap justify-end gap-2">
-                <button
-                  onClick={() => handlePrintReceipt(member, plan)}
-                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-sm transition"
-                >
-                  <FaPrint/>
-                </button>
-                {plan.status === "active" ? (
-                  <button
-                    onClick={() => handleStatusChange(member.uid, plan.id, "inactive")}
-                    className="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg text-sm transition"
-                  >
-                    Refund & Inactive
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handleStatusChange(member.uid, plan.id, "active")}
-                    className="px-4 py-2 bg-green-500 hover:bg-green-600 rounded-lg text-sm transition"
-                  >
-                    Mark Active
-                  </button>
-                )}
+        {/* Search and Filters Section */}
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* LEFT → SEARCH */}
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search by name, email, or plan..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                />
               </div>
             </div>
-          ))}
-        </div>
-      )}
 
-
-
-      {/* ================= TABLE VIEW ================= */}
-      {viewType === "table" && (
-        <div className="overflow-x-auto rounded-xl border border-white/10">
-          <table className="min-w-full text-sm text-left">
-            <thead className="bg-white/10 text-gray-300">
-              <tr>
-                <th className="px-4 py-4">
-                  <input
-                    type="checkbox"
-                    checked={selectAll}
-                    onChange={toggleSelectAll}
-                  />
-                </th>
-                <th className="px-4 py-4">S.No</th>
-                <th className="px-4 py-4">Name</th>
-                <th className="px-4 py-4">Plan</th>
-                <th className="px-4 py-4">Amount</th>
-                <th className="px-4 py-4">Start Date</th>
-                <th className="px-4 py-4">End Date</th>
-                <th className="px-4 py-3">Days Left</th>
-                <th className="px-4 py-4">Status</th>
-                <th className="px-4 py-4">Action</th>
-                <th className="px-4 py-4">Printer</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedPlans.map(({ member, plan }, index) => (
-                <tr
-                  key={`${member.uid}_${plan.id}`}
-                  className="border-b border-white/10 hover:bg-white/5"
-                >
-                  <td className="px-4 py-4">
-                    <input
-                      type="checkbox"
-                      checked={selectedRows.includes(member.uid)}
-                      onChange={() => toggleRow(member.uid)}
-                    />
-                  </td>
-                  <td className="px-4 py-4">{getSerialNumber(index)}</td>
-                  <td className="px-4 py-4">{member.username}</td>
-                 
-                  <td className="px-4 py-4">{plan.planName}</td>
-                  <td className="px-4 py-4">₹ {plan.pricePaid}</td>
-                  <td className="px-4 py-4 whitespace-nowrap">{formatDate(plan.startDate)}</td>
-                  <td className="px-4 py-4 whitespace-nowrap">{formatDate(plan.endDate)}</td>
-                   <td className="px-4 py-3">
-
-                  <span
-                    className={`px-2 py-1 rounded text-xs ${
-                      getRemainingDays(plan.endDate) === "Expired"
-                        ? "bg-red-500/20 text-red-400"
-                        : isExpiringPlan(plan.endDate)
-                        ? "bg-yellow-500/20 text-yellow-400"
-                        : "bg-green-500/20 text-green-400"
+            {/* RIGHT → FILTER BUTTONS */}
+            <div className="flex flex-wrap gap-4 lg:justify-end items-center">
+              {/* Date Filters */}
+              <div className="flex items-center rounded-xl bg-slate-800/50 border border-white/10 p-1 gap-1 backdrop-blur-xl">
+                <div className="px-3 text-gray-400 border-r border-white/10 hidden lg:flex items-center">
+                  <Calendar size={16} />
+                </div>
+                {["all", "today", "yesterday", "this week", "this month", "custom"].map((df) => (
+                  <button
+                    key={df}
+                    onClick={() => setDateFilter(df)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      dateFilter === df
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                        : "text-gray-400 hover:text-white hover:bg-white/10"
                     }`}
                   >
+                    {df.charAt(0).toUpperCase() + df.slice(1)}
+                  </button>
+                ))}
+              </div>
 
-                    {getRemainingDays(plan.endDate)}
+              {/* Custom Range Inputs */}
+              {dateFilter === "custom" && (
+                <div className="flex items-center gap-2 rounded-xl bg-slate-800/50 border border-white/10 p-3 backdrop-blur-xl animate-in slide-in-from-right-2 duration-300">
+                  <input
+                    type="date"
+                    value={customStart}
+                    onChange={(e) => setCustomStart(e.target.value)}
+                    className="bg-transparent border-none text-xs text-white focus:ring-0 cursor-pointer"
+                  />
+                  <span className="text-gray-500 text-xs">to</span>
+                  <input
+                    type="date"
+                    value={customEnd}
+                    onChange={(e) => setCustomEnd(e.target.value)}
+                    className="bg-transparent border-none text-xs text-white focus:ring-0 cursor-pointer"
+                  />
+                </div>
+              )}
 
-                  </span>
-
-                </td>
-                  <td className="px-4 py-4">
-                    {plan.status === "active"
-                      ? "Active"
-                      : "Inactive"}
-                  </td>
-                  <td className="px-4 py-4  items-center gap-2">
-			
-                    {plan.status === "active" ? (
-                      <button
-                        onClick={() => handleStatusChange(member.uid, plan.id, "inactive")}
-                        className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm transition whitespace-nowrap"
-                      >
-                       Togle Inactive
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleStatusChange(member.uid, plan.id, "active")}
-                        className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-sm transition whitespace-nowrap"
-                      >
-                        Mark Active
-                      </button>
-                    )}
-                  </td>
-
-                  <td className="px-4 py-4  gap-2">
-                    <button
-                      onClick={() => handlePrintReceipt(member, plan)}
-                      className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition whitespace-nowrap"
-                    >
-                      <FaPrint/>
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              {/* Status Filters */}
+              <div className="flex items-center rounded-xl bg-slate-800/50 border border-white/10 p-1 gap-1 backdrop-blur-xl">
+                {["all", "active", "inactive", "expiry"].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setFilterType(type)}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      filterType === type
+                        ? "bg-orange-600 text-white shadow-lg shadow-orange-500/20"
+                        : "text-gray-400 hover:text-white hover:bg-white/10"
+                    }`}
+                  >
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-      )}
 
-      {/* ================= PAGINATION ================= */}
-      {totalPages > 1 && (
-        <div className="flex justify-end items-center gap-2 mt-8 flex-wrap">
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            className="px-3 py-1 rounded bg-white/10 border border-white/20"
-            disabled={currentPage === 1}
-          >
-            Prev
-          </button>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400 mb-2">Total Plans</p>
+                <p className="text-3xl font-bold text-white">{counts.all}</p>
+              </div>
+              <div className="p-4 bg-blue-500/20 text-blue-400 rounded-2xl">
+                <Users size={28} />
+              </div>
+            </div>
+          </div>
 
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-            (page) => (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`px-3 py-1 rounded border ${currentPage === page
-                  ? "bg-orange-500 text-white border-orange-500"
-                  : "bg-white/10 border-white/20"
-                  }`}
+          <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl cursor-pointer hover:bg-slate-950/90 transition-colors">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400 mb-2">Active</p>
+                <p className="text-3xl font-bold text-white">{counts.active}</p>
+              </div>
+              <div className="p-4 bg-green-500/20 text-green-400 rounded-2xl">
+                <CheckCircle size={28} />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400 mb-2">Inactive</p>
+                <p className="text-3xl font-bold text-white">{counts.inactive}</p>
+              </div>
+              <div className="p-4 bg-red-500/20 text-red-400 rounded-2xl">
+                <XCircle size={28} />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400 mb-2">Expiring Soon</p>
+                <p className="text-3xl font-bold text-white">{counts.expiry}</p>
+              </div>
+              <div className="p-4 bg-yellow-500/20 text-yellow-400 rounded-2xl">
+                <AlertTriangle size={28} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        {/* Card View */}
+        {viewType === "card" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {paginatedPlans.map(({ member, plan }) => (
+              <div
+                key={`${member.uid}_${plan.id}`}
+                className="relative rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl hover:bg-slate-950/90 transition-colors"
               >
-                {page}
-              </button>
-            )
-          )}
+                <div className="absolute top-4 right-4">
+                  <span
+                    className={`px-3 py-1 text-xs rounded-full border font-medium ${
+                      plan.status === "active"
+                        ? "bg-green-500/20 text-green-400 border-green-400/30"
+                        : "bg-gray-500/20 text-gray-300 border-gray-400/30"
+                    }`}
+                  >
+                    {plan.status === "active" ? "Active" : "Inactive"}
+                  </span>
+                </div>
 
-          <button
-            onClick={() =>
-              setCurrentPage((p) => Math.min(p + 1, totalPages))
-            }
-            className="px-3 py-1 rounded bg-white/10 border border-white/20"
-            disabled={currentPage === totalPages}
-          >
-            Next
-          </button>
-        </div>
-      )}
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-white mb-1">
+                    {member.username || "No Name"}
+                  </h3>
+                  <p className="text-sm text-gray-400">{member.email}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-sm mb-6">
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-gray-400 text-xs uppercase tracking-wide mb-1">Plan</p>
+                      <p className="text-white font-medium">{plan.planName}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-xs uppercase tracking-wide mb-1">Amount</p>
+                      <p className="text-white font-medium">₹ {plan.pricePaid}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-xs uppercase tracking-wide mb-1">Start Date</p>
+                      <p className="text-white whitespace-nowrap">{formatDate(plan.startDate)}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-gray-400 text-xs uppercase tracking-wide mb-1">End Date</p>
+                      <p className="text-white whitespace-nowrap">{formatDate(plan.endDate)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-xs uppercase tracking-wide mb-1">Days Left</p>
+                      <span
+                        className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                          getRemainingDays(plan.endDate) === "Expired"
+                            ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                            : isExpiringPlan(plan.endDate)
+                            ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
+                            : "bg-green-500/20 text-green-400 border border-green-500/30"
+                        }`}
+                      >
+                        {getRemainingDays(plan.endDate)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap justify-end gap-3">
+                  <button
+                    onClick={() => handlePrintReceipt(member, plan)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-xl text-sm font-medium transition-colors border border-blue-500/30"
+                  >
+                    <FaPrint size={14} />
+                    Print
+                  </button>
+                  {plan.status === "active" ? (
+                    <button
+                      onClick={() => handleStatusChange(member.uid, plan.id, "inactive")}
+                      className="px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-xl text-sm font-medium transition-colors border border-red-500/30"
+                    >
+                      Deactivate
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleStatusChange(member.uid, plan.id, "active")}
+                      className="px-4 py-2 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded-xl text-sm font-medium transition-colors border border-green-500/30"
+                    >
+                      Activate
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+
+
+        {/* Table View */}
+        {viewType === "table" && (
+          <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm text-left">
+                <thead className="bg-slate-800/50">
+                  <tr>
+                    <th className="px-6 py-4 text-gray-300 font-medium">
+                      <input
+                        type="checkbox"
+                        checked={selectAll}
+                        onChange={toggleSelectAll}
+                        className="rounded border-gray-300"
+                      />
+                    </th>
+                    <th className="px-6 py-4 text-gray-300 font-medium">S.No</th>
+                    <th className="px-6 py-4 text-gray-300 font-medium">Name</th>
+                    <th className="px-6 py-4 text-gray-300 font-medium">Plan</th>
+                    <th className="px-6 py-4 text-gray-300 font-medium">Amount</th>
+                    <th className="px-6 py-4 text-gray-300 font-medium">Start Date</th>
+                    <th className="px-6 py-4 text-gray-300 font-medium">End Date</th>
+                    <th className="px-6 py-4 text-gray-300 font-medium">Days Left</th>
+                    <th className="px-6 py-4 text-gray-300 font-medium">Status</th>
+                    <th className="px-6 py-4 text-gray-300 font-medium">Action</th>
+                    <th className="px-6 py-4 text-gray-300 font-medium">Print</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedPlans.map(({ member, plan }, index) => (
+                    <tr
+                      key={`${member.uid}_${plan.id}`}
+                      className="border-b border-white/5 hover:bg-slate-800/30 transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedRows.includes(member.uid)}
+                          onChange={() => toggleRow(member.uid)}
+                          className="rounded border-gray-300"
+                        />
+                      </td>
+                      <td className="px-6 py-4 text-white font-medium">{getSerialNumber(index)}</td>
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="text-white font-medium">{member.username}</p>
+                          <p className="text-gray-400 text-xs">{member.email}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-white">{plan.planName}</td>
+                      <td className="px-6 py-4 text-white font-medium">₹ {plan.pricePaid}</td>
+                      <td className="px-6 py-4 text-white whitespace-nowrap">{formatDate(plan.startDate)}</td>
+                      <td className="px-6 py-4 text-white whitespace-nowrap">{formatDate(plan.endDate)}</td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            getRemainingDays(plan.endDate) === "Expired"
+                              ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                              : isExpiringPlan(plan.endDate)
+                              ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
+                              : "bg-green-500/20 text-green-400 border border-green-500/30"
+                          }`}
+                        >
+                          {getRemainingDays(plan.endDate)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            plan.status === "active"
+                              ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                              : "bg-gray-500/20 text-gray-400 border border-gray-500/30"
+                          }`}
+                        >
+                          {plan.status === "active" ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {plan.status === "active" ? (
+                          <button
+                            onClick={() => handleStatusChange(member.uid, plan.id, "inactive")}
+                            className="px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-xl text-sm font-medium transition-colors border border-red-500/30"
+                          >
+                            Deactivate
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleStatusChange(member.uid, plan.id, "active")}
+                            className="px-4 py-2 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded-xl text-sm font-medium transition-colors border border-green-500/30"
+                          >
+                            Activate
+                          </button>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => handlePrintReceipt(member, plan)}
+                          className="p-2 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-xl transition-colors border border-blue-500/30"
+                        >
+                          <FaPrint size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-8">
+            <div className="text-sm text-gray-400">
+              Showing {Math.min((currentPage - 1) * itemsPerPage + 1, allPlans.length)} to {Math.min(currentPage * itemsPerPage, allPlans.length)} of {allPlans.length} entries
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 rounded-xl bg-slate-800/50 border border-white/10 text-gray-300 hover:bg-slate-800/70 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-800/50"
+              >
+                Previous
+              </button>
+
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                if (pageNum > totalPages) return null;
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`px-4 py-2 rounded-xl border transition-colors ${
+                      currentPage === pageNum
+                        ? "bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/20"
+                        : "bg-slate-800/50 border-white/10 text-gray-300 hover:bg-slate-800/70 hover:text-white"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 rounded-xl bg-slate-800/50 border border-white/10 text-gray-300 hover:bg-slate-800/70 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-800/50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

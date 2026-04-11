@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { getActorUuid } = require('../utils/auditTrail');
 
 function normalizeAssignment(row) {
   return {
@@ -73,7 +74,7 @@ async function getAllAssignments(req, res) {
              s.role as trainer_source
       FROM trainer_assignments a
       LEFT JOIN users u ON u.id = a.user_id
-      LEFT JOIN gym_members m ON (m.email = u.email AND m.email IS NOT NULL AND m.email != '') 
+      LEFT JOIN members m ON (m.email = u.email AND m.email IS NOT NULL AND m.email != '') 
                               OR (m.phone = u.mobile AND m.phone IS NOT NULL AND m.phone != '')
       LEFT JOIN staff s ON s.id = a.trainer_id
     `;
@@ -126,10 +127,13 @@ async function upsertAssignments(req, res) {
           a.status || 'active',
         ];
 
+        const createdBy = getActorUuid(req.user) || null;
+        const params_with_audit = [...params, createdBy, createdBy, createdBy];
+
         const sql = `
           INSERT INTO trainer_assignments
-          (user_id, username, user_email, plan_id, plan_name, plan_duration, plan_start_date, plan_end_date, plan_price, trainer_id, trainer_name, trainer_source, session_time, status)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          (user_id, username, user_email, plan_id, plan_name, plan_duration, plan_start_date, plan_end_date, plan_price, trainer_id, trainer_name, trainer_source, session_time, status, created_by, updated_by)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
           ON DUPLICATE KEY UPDATE
             username=VALUES(username),
             user_email=VALUES(user_email),
@@ -143,10 +147,11 @@ async function upsertAssignments(req, res) {
             trainer_source=VALUES(trainer_source),
             session_time=VALUES(session_time),
             status=VALUES(status),
+            updated_by=VALUES(updated_by),
             updated_at=CURRENT_TIMESTAMP
         `;
 
-        await connection.query(sql, params);
+        await connection.query(sql, params_with_audit);
       }
 
       await connection.commit();

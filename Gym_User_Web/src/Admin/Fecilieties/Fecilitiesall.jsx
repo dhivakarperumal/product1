@@ -7,16 +7,10 @@ import {
   FaTrash,
   FaSearch,
   FaCheckCircle,
+  FaDumbbell,
 } from "react-icons/fa";
-import api from "../../api"; 
+import api from "../../api";
 import cache from "../../cache";
-
-/* ---------------- UI ---------------- */
-const glassCard =
-  "bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl";
-
-const glassInput =
-  "w-full px-4 py-3 rounded-xl bg-white/10 text-white border border-white/20 focus:ring-2 focus:ring-orange-500 outline-none";
 
 /* ================= COMPONENT ================= */
 const FacilitiesAll = () => {
@@ -79,113 +73,153 @@ const FacilitiesAll = () => {
 
   /* ================= UI ================= */
   return (
-    <div className="min-h-screen p-0 space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
 
-      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-
-        <h2 className="text-xl sm:text-2xl font-semibold text-white text-center sm:text-left">
-          Gym Facilities
-        </h2>
-
-        <button
-          onClick={() => navigate("/admin/addfecilities")}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 
-          px-6 py-3 rounded-xl text-white font-semibold
-          bg-gradient-to-r from-orange-500 to-orange-600 
-          hover:scale-105 transition shadow-md"
-        >
-          <FaPlus />
-          Add Facility
-        </button>
-
-      </div>
-
-      {/* SEARCH */}
-      <div className={`${glassCard} p-4 flex justify-between items-center`}>
-        <div className="relative w-full max-w-sm">
-          <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" />
-          <input
-            placeholder="Search facilities..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className={`${glassInput} pl-11`}
-          />
-        </div>
-      </div>
-
-      {/* LIST */}
-      <div
-
-        className=" p-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-
-
-        {loading && !cache.adminFacilities ? (
-          <div className="col-span-full flex flex-col items-center justify-center py-32 gap-6 bg-white/5 rounded-3xl border border-white/10 mt-6">
-            <div className="relative">
-              <div className="w-16 h-16 border-4 border-red-500/20 border-t-red-500 rounded-full animate-spin" />
-              <div className="absolute inset-0 bg-red-500/10 blur-xl rounded-full animate-pulse" />
-            </div>
-            <p className="text-white/40 text-xs uppercase tracking-[0.4em] animate-pulse">Syncing Infrastructure</p>
-          </div>
-        ) : filtered.length === 0 ? (
-          <p className="col-span-full text-center text-white/50 py-20 font-medium uppercase tracking-widest text-xs">No facilities found</p>
-        ) : (
-          filtered.map((f) => (
-          <div
-            key={f.id}
-            className={`${glassCard} p-6 flex flex-col md:flex-row gap-6 justify-between`}
-          >
-            {/* LEFT */}
-            <div className="flex-1 space-y-2">
-              <h3 className="text-lg font-semibold text-white">
-                {f.title}
-              </h3>
-
-              <p className="text-white/60 text-sm">
-                {f.shortDesc}
-              </p>
-
-              <div className="flex flex-wrap gap-2 mt-2">
-                {f.equipments?.slice(0, 3).map((e, i) => (
-                  <span
-                    key={i}
-                    className="px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs"
-                  >
-                    {e}
-                  </span>
-                ))}
+        {/* HEADER */}
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl p-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-orange-500/20 rounded-xl border border-orange-500/30">
+                <FaDumbbell className="text-orange-400 text-2xl" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-white">Gym Facilities</h1>
+                <p className="text-gray-400 mt-1">Manage and organize your gym's equipment and facilities</p>
               </div>
             </div>
 
-            {/* ACTIONS */}
-            <div className="flex items-center gap-3">
-              <FaCheckCircle
-                onClick={() => toggleStatus(f.id, f.active)}
-                className={`cursor-pointer text-2xl ${f.active
-                    ? "text-emerald-400"
-                    : "text-gray-500"
-                  }`}
-                title={f.active ? "Active" : "Inactive"}
+            <button
+              onClick={() => navigate("/admin/addfecilities")}
+              className="flex items-center justify-center gap-3 px-6 py-3 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 rounded-xl font-medium transition-all border border-orange-500/30 hover:shadow-lg hover:shadow-orange-500/20"
+            >
+              <FaPlus className="text-lg" />
+              Add New Facility
+            </button>
+          </div>
+        </div>
+
+        {/* SEARCH */}
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl p-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <div className="relative w-full max-w-md">
+              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                placeholder="Search facilities..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
               />
-
-              <button
-                onClick={() => navigate(`/admin/addfecilities/${f.id}`)}
-                className="p-3 rounded-xl bg-yellow-500/80 hover:bg-yellow-500 text-white"
-              >
-                <FaEdit />
-              </button>
-
-              <button
-                onClick={() => handleDelete(f.id)}
-                className="p-3 rounded-xl bg-red-500/80 hover:bg-red-500 text-white"
-              >
-                <FaTrash />
-              </button>
+            </div>
+            <div className="text-sm text-gray-400">
+              {filtered.length} facilit{filtered.length !== 1 ? 'ies' : 'y'} found
             </div>
           </div>
-        ))
-      )}
+        </div>
+
+        {/* FACILITIES GRID */}
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl p-8">
+          {loading && !cache.adminFacilities ? (
+            <div className="flex flex-col items-center justify-center py-32 gap-6">
+              <div className="relative">
+                <div className="w-16 h-16 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
+                <div className="absolute inset-0 bg-orange-500/10 blur-xl rounded-full animate-pulse" />
+              </div>
+              <p className="text-gray-400 text-sm uppercase tracking-[0.4em] animate-pulse">Loading Facilities</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-32 gap-4">
+              <div className="p-4 bg-slate-800/50 rounded-full">
+                <FaDumbbell className="text-gray-400 text-3xl" />
+              </div>
+              <p className="text-gray-400 text-lg font-medium">No facilities found</p>
+              <p className="text-gray-500 text-sm">Try adjusting your search or add a new facility</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filtered.map((f) => (
+                <div
+                  key={f.id}
+                  className="group rounded-[2rem] border border-white/10 bg-slate-900/50 shadow-[0_20px_60px_rgba(0,0,0,0.25)] backdrop-blur-xl p-6 hover:bg-slate-800/30 transition-all duration-300 hover:shadow-[0_30px_90px_rgba(0,0,0,0.4)] hover:border-orange-500/20"
+                >
+                  {/* HEADER */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-orange-400 transition-colors">
+                        {f.title}
+                      </h3>
+                      <p className="text-gray-400 text-sm leading-relaxed">
+                        {f.shortDesc}
+                      </p>
+                    </div>
+                    <div className="ml-4">
+                      <FaCheckCircle
+                        onClick={() => toggleStatus(f.id)}
+                        className={`cursor-pointer text-xl transition-colors ${
+                          f.active
+                            ? "text-emerald-400 hover:text-emerald-300"
+                            : "text-gray-500 hover:text-gray-400"
+                        }`}
+                        title={f.active ? "Active - Click to deactivate" : "Inactive - Click to activate"}
+                      />
+                    </div>
+                  </div>
+
+                  {/* EQUIPMENT TAGS */}
+                  {f.equipments && f.equipments.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-6">
+                      {f.equipments.slice(0, 4).map((e, i) => (
+                        <span
+                          key={i}
+                          className="px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-medium border border-blue-500/30"
+                        >
+                          {e}
+                        </span>
+                      ))}
+                      {f.equipments.length > 4 && (
+                        <span className="px-3 py-1 rounded-full bg-slate-700/50 text-gray-400 text-xs font-medium">
+                          +{f.equipments.length - 4} more
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ACTIONS */}
+                  <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                    <div className="flex items-center gap-2">
+                      <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        f.active
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                          : "bg-gray-500/20 text-gray-400 border border-gray-500/30"
+                      }`}>
+                        {f.active ? "Active" : "Inactive"}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => navigate(`/admin/addfecilities/${f.id}`)}
+                        className="p-2 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-xl border border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/20 transition-all"
+                        title="Edit facility"
+                      >
+                        <FaEdit className="text-sm" />
+                      </button>
+
+                      <button
+                        onClick={() => handleDelete(f.id)}
+                        className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-xl border border-red-500/30 hover:shadow-lg hover:shadow-red-500/20 transition-all"
+                        title="Delete facility"
+                      >
+                        <FaTrash className="text-sm" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   );

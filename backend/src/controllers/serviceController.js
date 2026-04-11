@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { getActorUuid } = require('../utils/auditTrail');
 
 // Helper to safely parse JSON
 const safeParsePoints = (pointsStr) => {
@@ -108,10 +109,11 @@ async function createService(req, res) {
     const body = req.body;
     const pointsJson = JSON.stringify(body.points || []);
 
+    const createdBy = getActorUuid(req.user) || null;
     const [result] = await db.query(
-      `INSERT INTO services (service_id, title, slug, short_desc, description, hero_image, points)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [body.service_id || null, body.title, body.slug, body.short_desc, body.description || null, body.hero_image || null, pointsJson]
+      `INSERT INTO services (service_id, title, slug, short_desc, description, hero_image, points, created_by, updated_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [body.service_id || null, body.title, body.slug, body.short_desc, body.description || null, body.hero_image || null, pointsJson, createdBy, createdBy]
     );
 
     // Fetch the created service
@@ -149,16 +151,18 @@ async function updateService(req, res) {
     const idNum = parseInt(id, 10);
     const isNum = !isNaN(idNum);
 
+    const updatedBy = getActorUuid(req.user) || null;
+
     let query;
     let params;
     if (isNum) {
-      query = `UPDATE services SET title = ?, slug = ?, short_desc = ?, description = ?, hero_image = ?, points = ?, updated_at = CURRENT_TIMESTAMP
+      query = `UPDATE services SET title = ?, slug = ?, short_desc = ?, description = ?, hero_image = ?, points = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`;
-      params = [body.title, body.slug, body.short_desc, body.description || null, body.hero_image || null, pointsJson, idNum];
+      params = [body.title, body.slug, body.short_desc, body.description || null, body.hero_image || null, pointsJson, updatedBy, idNum];
     } else {
-      query = `UPDATE services SET title = ?, slug = ?, short_desc = ?, description = ?, hero_image = ?, points = ?, updated_at = CURRENT_TIMESTAMP
+      query = `UPDATE services SET title = ?, slug = ?, short_desc = ?, description = ?, hero_image = ?, points = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
        WHERE service_id = ?`;
-      params = [body.title, body.slug, body.short_desc, body.description || null, body.hero_image || null, pointsJson, id];
+      params = [body.title, body.slug, body.short_desc, body.description || null, body.hero_image || null, pointsJson, updatedBy, id];
     }
 
     const [result] = await db.query(query, params);

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
+import { useAuth } from "../PrivateRouter/AuthContext";
 import {
   Menu,
   Search,
@@ -25,11 +26,12 @@ const pageTitles = {
 const SuperAdminHeader = ({ onMenuClick }) => {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { userProfile, logout } = useAuth();
 
-  /* ================= DUMMY USER ================= */
-  const userName = "Super Admin";
-  const userEmail = "superadmin@gmail.com";
-  const userRole = "Super Admin";
+  const userName = userProfile?.displayName || userProfile?.username || "Super Admin";
+  const userEmail = userProfile?.email || "superadmin@gmail.com";
+  const userRole = userProfile?.role === "super admin" ? "Super Admin" : userProfile?.role || "Admin";
 
   const toggleDropdown = (name) => {
     setActiveDropdown(prev => (prev === name ? null : name));
@@ -134,7 +136,10 @@ const SuperAdminHeader = ({ onMenuClick }) => {
                   </Link>
 
                   <button
-                    onClick={() => console.log("Logout clicked")}
+                    onClick={() => {
+                      logout();
+                      navigate("/login");
+                    }}
                     className="flex items-center gap-3 px-3 py-2 
                     rounded-xl hover:bg-red-500/20 
                     text-sm text-red-400 w-full transition"

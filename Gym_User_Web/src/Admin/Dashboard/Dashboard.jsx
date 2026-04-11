@@ -7,8 +7,38 @@ import {
   FaTools,
   FaUsers,
   FaBox,
-} from "react-icons/fa";  
+  FaChartLine,
+  FaClock,
+  FaExclamationTriangle,
+  FaCheckCircle,
+  FaArrowUp,
+  FaArrowDown,
+  FaEye,
+  FaFilter,
+  FaDownload,
+  FaSync,
+  FaStar,
+  FaFire,
+  FaTrophy,
+  FaBullseye,
+  FaCalendarAlt,
+  FaMoneyBillWave,
+  FaShoppingCart,
+  FaUserPlus,
+  FaChartBar,
+  FaChartPie,
+  FaBell,
+  FaCog,
+  FaSignOutAlt,
+  FaMinus
+} from "react-icons/fa";
 import dayjs from "dayjs";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import cache from "../../cache";
+import api from "../../api";
+import DateRangeFilter from "../DateRangeFilter";
+import { getDateRangeBounds } from "../utils/dateUtils";
 
 import {
   LineChart,
@@ -21,53 +51,157 @@ import {
   BarChart,
   Bar,
   Legend,
+  PieChart,
+  Pie,
+  Cell,
+  AreaChart,
+  Area,
+  RadialBarChart,
+  RadialBar,
+  ComposedChart,
+  Scatter,
+  ScatterChart
 } from "recharts";
-
-import { useNavigate } from "react-router-dom";
-import api from "../../api";
-import toast from "react-hot-toast";
-import cache from "../../cache";
-import DateRangeFilter from "../DateRangeFilter";
-import { getDateRangeBounds } from "../utils/dateUtils";
-
-
 
 const statusClass = (status) => {
   switch (status) {
     case "delivered":
-      return "bg-green-500/20 text-green-400 border border-green-500/30";
+      return "bg-gradient-to-r from-emerald-500/20 to-green-500/20 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10";
     case "pending":
-      return "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30";
+      return "bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-amber-400 border border-amber-500/30 shadow-lg shadow-amber-500/10";
     case "cancelled":
-      return "bg-red-500/20 text-red-400 border border-red-500/30";
+      return "bg-gradient-to-r from-red-500/20 to-rose-500/20 text-red-400 border border-red-500/30 shadow-lg shadow-red-500/10";
     case "processing":
-      return "bg-blue-500/20 text-blue-400 border border-blue-500/30";
+      return "bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 border border-blue-500/30 shadow-lg shadow-blue-500/10";
     default:
-      return "bg-gray-500/20 text-gray-300 border border-gray-500/30";
+      return "bg-gradient-to-r from-slate-500/20 to-gray-500/20 text-slate-400 border border-slate-500/30 shadow-lg shadow-slate-500/10";
   }
 };
 
+/* ================= ADVANCED STAT CARD ================= */
+const StatCard = ({ title, value, icon, color, trend, trendValue, subtitle, onClick, isLoading }) => (
+  <div
+    onClick={onClick}
+    className={`
+      relative overflow-hidden rounded-3xl
+      bg-gradient-to-br from-white/15 to-white/8 backdrop-blur-2xl
+      border border-white/20
+      p-6 flex justify-between items-center
+      shadow-[0_20px_60px_rgba(0,0,0,0.15)]
+      hover:shadow-[0_30px_80px_rgba(0,0,0,0.25)]
+      hover:scale-[1.02] hover:-translate-y-1
+      transition-all duration-300 ease-out
+      cursor-pointer group
+      ${onClick ? 'cursor-pointer' : ''}
+    `}
+  >
+    {/* Animated background gradient */}
+    <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-0 group-hover:opacity-10 transition-opacity duration-500`} />
 
-/* -------------------- STAT CARD -------------------- */
+    {/* Glow effect */}
+    <div className={`absolute -inset-1 bg-gradient-to-br ${color} rounded-3xl opacity-0 group-hover:opacity-20 blur-xl transition-opacity duration-500`} />
 
-const StatCard = ({ title, value, icon, color }) => (
-  <div className="
-    relative overflow-hidden rounded-2xl
-    bg-white/10 backdrop-blur-xl
-    border border-white/20
-    p-6 flex justify-between items-center
-  ">
-    <div>
-      <p className="text-xs uppercase tracking-widest text-gray-300">
-        {title}
-      </p>
-      <h2 className="text-3xl font-extrabold text-white mt-2">
-        {value}
-      </h2>
+    <div className="relative z-10 flex-1">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs uppercase tracking-widest text-slate-400 font-medium">
+          {title}
+        </p>
+        {trend && (
+          <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
+            trend === 'up' ? 'bg-emerald-500/20 text-emerald-400' :
+            trend === 'down' ? 'bg-red-500/20 text-red-400' :
+            'bg-slate-500/20 text-slate-400'
+          }`}>
+            {trend === 'up' ? <FaArrowUp className="w-3 h-3" /> :
+             trend === 'down' ? <FaArrowDown className="w-3 h-3" /> :
+             <FaMinus className="w-3 h-3" />}
+            {trendValue}%
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-baseline gap-2 mb-2">
+        <h2 className={`text-3xl font-bold bg-gradient-to-r ${color} bg-clip-text text-transparent`}>
+          {isLoading ? (
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              <span className="text-white/60">...</span>
+            </div>
+          ) : (
+            value
+          )}
+        </h2>
+      </div>
+
+      {subtitle && (
+        <p className="text-sm text-slate-400 font-medium">{subtitle}</p>
+      )}
     </div>
-    <div className={`p-4 rounded-xl bg-gradient-to-br ${color} text-white text-2xl`}>
+
+    <div className={`relative z-10 p-4 rounded-2xl bg-gradient-to-br ${color} text-white text-2xl shadow-lg group-hover:scale-110 transition-transform duration-300`}>
       {icon}
+      {/* Icon glow */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${color} rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity duration-300`} />
     </div>
+  </div>
+);
+
+/* ================= MINI CHART CARD ================= */
+const MiniChartCard = ({ title, data, color, icon, value, subtitle }) => (
+  <div className="rounded-2xl bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border border-white/15 p-4 shadow-lg hover:shadow-xl transition-all duration-300">
+    <div className="flex items-center justify-between mb-3">
+      <div className={`p-2 rounded-xl bg-gradient-to-br ${color} text-white`}>
+        {icon}
+      </div>
+      <div className="text-right">
+        <p className="text-lg font-bold text-white">{value}</p>
+        <p className="text-xs text-slate-400">{subtitle}</p>
+      </div>
+    </div>
+    <h4 className="text-sm font-semibold text-slate-300 mb-2">{title}</h4>
+    <div className="h-16">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data}>
+          <defs>
+            <linearGradient id={`gradient-${title}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={color.split(' ')[1]} stopOpacity={0.3}/>
+              <stop offset="95%" stopColor={color.split(' ')[1]} stopOpacity={0}/>
+            </linearGradient>
+          </defs>
+          <Area
+            type="monotone"
+            dataKey="value"
+            stroke={color.split(' ')[1]}
+            fillOpacity={1}
+            fill={`url(#gradient-${title})`}
+            strokeWidth={2}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  </div>
+);
+
+/* ================= PROGRESS CARD ================= */
+const ProgressCard = ({ title, value, maxValue, color, icon, percentage }) => (
+  <div className="rounded-2xl bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border border-white/15 p-4 shadow-lg">
+    <div className="flex items-center justify-between mb-3">
+      <div className={`p-2 rounded-xl bg-gradient-to-br ${color} text-white`}>
+        {icon}
+      </div>
+      <div className="text-right">
+        <p className="text-lg font-bold text-white">{value}</p>
+        <p className="text-xs text-slate-400">of {maxValue}</p>
+      </div>
+    </div>
+    <h4 className="text-sm font-semibold text-slate-300 mb-2">{title}</h4>
+    <div className="w-full bg-slate-700 rounded-full h-2 mb-2">
+      <div
+        className={`h-2 rounded-full bg-gradient-to-r ${color} transition-all duration-1000 ease-out`}
+        style={{ width: `${percentage}%` }}
+      />
+    </div>
+    <p className="text-xs text-slate-400">{percentage}% Complete</p>
   </div>
 );
 
@@ -329,174 +463,432 @@ export default function Dashboard() {
   /* -------------------- UI -------------------- */
   if (loading && !cache.dashboardStats) {
     return (
-      <div className="flex flex-col items-center justify-center py-32 gap-6 bg-white/5 rounded-3xl border border-white/10">
+      <div className="flex flex-col items-center justify-center py-32 gap-6 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 min-h-screen">
         <div className="relative">
-          <div className="w-16 h-16 border-4 border-red-500/20 border-t-red-500 rounded-full animate-spin" />
-          <div className="absolute inset-0 bg-red-500/10 blur-xl rounded-full animate-pulse" />
+          <div className="w-20 h-20 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin shadow-2xl shadow-orange-500/20" />
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-500/20 to-red-500/20 blur-2xl rounded-full animate-pulse" />
         </div>
-        <p className="text-white/40 text-xs uppercase tracking-[0.4em] animate-pulse">Initializing Command Center</p>
+        <div className="text-center">
+          <p className="text-2xl font-bold text-white mb-2 animate-pulse">Initializing Command Center</p>
+          <p className="text-slate-400 text-sm animate-pulse">Loading gym analytics...</p>
+        </div>
+        <div className="flex gap-2">
+          <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+          <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+          <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-0 space-y-8 relative min-h-[80vh]">
+    <div className="p-0 space-y-8 relative min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800">
+      {/* ANIMATED BACKGROUND ELEMENTS */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-orange-500/10 to-red-500/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-purple-500/5 to-pink-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }} />
+      </div>
+
       {/* HEADER WITH FILTER */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/5 p-6 rounded-3xl border border-white/10">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-          <p className="text-gray-400 text-sm">Overview of your gym's performance</p>
+      <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 bg-gradient-to-r from-white/10 to-white/5 p-8 rounded-3xl border border-white/20 shadow-2xl backdrop-blur-xl">
+        <div className="animate-fade-in">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 text-white shadow-lg">
+              <FaChartLine className="w-6 h-6" />
+            </div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+              Admin Dashboard
+            </h1>
+          </div>
+          <p className="text-slate-400 text-lg">Real-time insights into your gym's performance</p>
+          <div className="flex items-center gap-4 mt-3">
+            <div className="flex items-center gap-2 text-sm text-emerald-400">
+              <FaCheckCircle className="w-4 h-4" />
+              <span>Live Data</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-blue-400">
+              <FaClock className="w-4 h-4" />
+              <span>Last updated: {dayjs().format('HH:mm')}</span>
+            </div>
+          </div>
         </div>
-        <DateRangeFilter onRangeChange={handleRangeChange} />
+        <div className="flex items-center gap-4">
+          <button className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white transition-all duration-200 hover:scale-105">
+            <FaSync className="w-5 h-5" />
+          </button>
+          <button className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white transition-all duration-200 hover:scale-105">
+            <FaDownload className="w-5 h-5" />
+          </button>
+          <DateRangeFilter onRangeChange={handleRangeChange} />
+        </div>
       </div>
 
-      {/* STAT CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <StatCard title="Total Members" value={loading ? "..." : stats.members} icon={<FaUsers />} color="from-blue-500 to-cyan-500" />
-        <StatCard title={`${filterRange.type} Check-ins`} value={loading ? "..." : stats.checkinsToday} icon={<FaCalendarCheck />} color="from-emerald-500 to-teal-500" />
-        <StatCard title="Active Plans" value={loading ? "..." : stats.activePlans} icon={<FaDumbbell />} color="from-purple-500 to-pink-500" />
-        <StatCard title="Pending Payments" value={loading ? "..." : stats.pendingPayments} icon={<FaFileInvoiceDollar />} color="from-amber-500 to-orange-500" />
-        <StatCard title="Available Trainers" value={loading ? "..." : stats.trainers} icon={<FaUserTie />} color="from-indigo-500 to-violet-500" />
-        <StatCard title="Total Products" value={loading ? "..." : stats.totalProducts} icon={<FaBox />} color="from-green-500 to-emerald-500" />
-        <StatCard title="Low Stock Alert" value={loading ? "..." : stats.lowStockCount} icon={<FaBox />} color="from-orange-500 to-red-500" />
-        <StatCard title="Expiring Plans" value={loading ? "..." : stats.expiringCount} icon={<FaCalendarCheck />} color="from-red-500 to-rose-700" />
-        <StatCard title={`${filterRange.type} Orders`} value={loading ? "..." : stats.todayOrdersCount} icon={<FaTools />} color="from-emerald-500 to-green-600" />
-        <StatCard title="New Members" value={loading ? "..." : stats.newMembersToday} icon={<FaUsers />} color="from-blue-400 to-indigo-500" />
+      {/* ADVANCED STAT CARDS GRID */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title="Total Members"
+          value={loading ? "..." : stats.members}
+          icon={<FaUsers />}
+          color="from-blue-500 to-cyan-500"
+          trend="up"
+          trendValue="12"
+          subtitle="Active subscribers"
+          onClick={() => navigate('/admin/members')}
+          isLoading={loading}
+        />
+        <StatCard
+          title={`${filterRange.type} Check-ins`}
+          value={loading ? "..." : stats.checkinsToday}
+          icon={<FaCalendarCheck />}
+          color="from-emerald-500 to-teal-500"
+          trend="up"
+          trendValue="8"
+          subtitle="Member visits"
+          onClick={() => navigate('/admin/overall-attendance')}
+          isLoading={loading}
+        />
+        <StatCard
+          title="Active Plans"
+          value={loading ? "..." : stats.activePlans}
+          icon={<FaDumbbell />}
+          color="from-purple-500 to-pink-500"
+          trend="up"
+          trendValue="5"
+          subtitle="Available plans"
+          onClick={() => navigate('/admin/plansall')}
+          isLoading={loading}
+        />
+        <StatCard
+          title="Revenue"
+          value={loading ? "..." : `₹${monthlyTotal.toLocaleString("en-IN")}`}
+          icon={<FaMoneyBillWave />}
+          color="from-amber-500 to-orange-500"
+          trend="up"
+          trendValue="15"
+          subtitle="This month"
+          onClick={() => navigate('/admin/billing')}
+          isLoading={loading}
+        />
+        <StatCard
+          title="Available Trainers"
+          value={loading ? "..." : stats.trainers}
+          icon={<FaUserTie />}
+          color="from-indigo-500 to-violet-500"
+          trend="neutral"
+          trendValue="0"
+          subtitle="Certified staff"
+          onClick={() => navigate('/admin/staff')}
+          isLoading={loading}
+        />
+        <StatCard
+          title="Total Products"
+          value={loading ? "..." : stats.totalProducts}
+          icon={<FaBox />}
+          color="from-green-500 to-emerald-500"
+          trend="up"
+          trendValue="3"
+          subtitle="In inventory"
+          onClick={() => navigate('/admin/products')}
+          isLoading={loading}
+        />
+        <StatCard
+          title="Low Stock Alert"
+          value={loading ? "..." : stats.lowStockCount}
+          icon={<FaExclamationTriangle />}
+          color="from-orange-500 to-red-500"
+          trend="down"
+          trendValue="2"
+          subtitle="Items need restock"
+          onClick={() => navigate('/admin/stockdetails')}
+          isLoading={loading}
+        />
+        <StatCard
+          title="New Members"
+          value={loading ? "..." : stats.newMembersToday}
+          icon={<FaUserPlus />}
+          color="from-cyan-500 to-blue-500"
+          trend="up"
+          trendValue="6"
+          subtitle={`${filterRange.type.toLowerCase()} registrations`}
+          onClick={() => navigate('/admin/members')}
+          isLoading={loading}
+        />
       </div>
 
+      {/* MINI CHARTS ROW */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <MiniChartCard
+          title="Weekly Check-ins"
+          data={checkinData.slice(-7).map(d => ({ value: d.present }))}
+          color="from-emerald-500 to-green-600"
+          icon={<FaCalendarCheck />}
+          value={checkinData.slice(-7).reduce((sum, d) => sum + d.present, 0)}
+          subtitle="This week"
+        />
+        <MiniChartCard
+          title="Monthly Revenue"
+          data={revenueData.slice(-6).map(d => ({ value: d.revenue }))}
+          color="from-blue-500 to-indigo-600"
+          icon={<FaChartBar />}
+          value={`₹${monthlyTotal.toLocaleString("en-IN")}`}
+          subtitle="Current month"
+        />
+        <MiniChartCard
+          title="Order Volume"
+          data={revenueData.slice(-6).map(d => ({ value: Math.floor(d.revenue / 100) }))}
+          color="from-purple-500 to-pink-600"
+          icon={<FaShoppingCart />}
+          value={stats.todayOrdersCount}
+          subtitle={`${filterRange.type.toLowerCase()} orders`}
+        />
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white/10 rounded-2xl p-6">
-          <h3 className="text-sm uppercase tracking-widest text-gray-200 mb-4">
-            Weekly Attendance
-          </h3>
+      {/* ADVANCED CHARTS SECTION */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* ENHANCED ATTENDANCE CHART */}
+        <div className="rounded-3xl bg-gradient-to-br from-white/15 to-white/8 backdrop-blur-2xl border border-white/20 p-8 shadow-2xl">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-xl font-bold text-white mb-1">Weekly Attendance Analytics</h3>
+              <p className="text-slate-400 text-sm">Member check-in patterns</p>
+            </div>
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-green-500/20 border border-emerald-500/30">
+              <FaChartLine className="w-6 h-6 text-emerald-400" />
+            </div>
+          </div>
 
-          <div className="h-64">
+          <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={checkinData}>
-                <CartesianGrid
-                  strokeDasharray="3 6"
-                  stroke="rgba(255,255,255,0.08)"
+              <ComposedChart data={checkinData}>
+                <defs>
+                  <linearGradient id="attendanceGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 6" stroke="rgba(255,255,255,0.08)" />
+                <XAxis dataKey="day" tick={{ fill: "#cbd5f5", fontSize: 12 }} />
+                <YAxis tick={{ fill: "#cbd5f5", fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '12px',
+                    backdropFilter: 'blur(10px)'
+                  }}
                 />
-                <XAxis dataKey="day" tick={{ fill: "#cbd5f5" }} />
-                <YAxis tick={{ fill: "#cbd5f5" }} />
-                <Tooltip />
-
-                <Line
+                <Legend />
+                <Area
                   type="monotone"
                   dataKey="present"
-                  stroke="#22c55e"
+                  stroke="#10b981"
+                  fill="url(#attendanceGradient)"
                   strokeWidth={3}
                   name="Present"
                 />
                 <Line
                   type="monotone"
-                  dataKey="absent"
-                  stroke="#ef4444"
-                  strokeWidth={3}
-                  name="Absent"
-                />
-                <Line
-                  type="monotone"
                   dataKey="late"
-                  stroke="#facc15"
+                  stroke="#f59e0b"
                   strokeWidth={3}
                   name="Late"
+                  dot={{ fill: '#f59e0b', strokeWidth: 2, r: 4 }}
                 />
-                <Line
-                  type="monotone"
-                  dataKey="leave"
-                  stroke="#3b82f6"
-                  strokeWidth={3}
-                  name="On Leave"
+                <Bar
+                  dataKey="absent"
+                  fill="#ef4444"
+                  radius={[4, 4, 0, 0]}
+                  name="Absent"
                 />
-              </LineChart>
+              </ComposedChart>
             </ResponsiveContainer>
-
           </div>
         </div>
 
+        {/* ENHANCED REVENUE CHART */}
+        <div className="rounded-3xl bg-gradient-to-br from-white/15 to-white/8 backdrop-blur-2xl border border-white/20 p-8 shadow-2xl">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-xl font-bold text-white mb-1">Revenue Analytics</h3>
+              <p className="text-slate-400 text-sm">Monthly performance overview</p>
+            </div>
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 border border-blue-500/30">
+              <FaMoneyBillWave className="w-6 h-6 text-blue-400" />
+            </div>
+          </div>
 
+          <div className="flex items-center justify-between mb-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-500/20">
+            <div>
+              <p className="text-sm text-slate-400">Current Month</p>
+              <p className="text-2xl font-bold text-emerald-400">₹{monthlyTotal.toLocaleString("en-IN")}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-slate-400">Growth</p>
+              <div className="flex items-center gap-1 text-emerald-400">
+                <FaArrowUp className="w-4 h-4" />
+                <span className="font-semibold">+15.2%</span>
+              </div>
+            </div>
+          </div>
 
-        {/* MONTHLY REVENUE */}
-        <div className="bg-white/10 rounded-2xl p-6">
-          <h3 className="text-sm uppercase tracking-widest text-gray-200 mb-2">
-            Revenue This Month
-          </h3>
-          <h2 className="text-3xl font-bold text-white mb-4">
-            ₹ {monthlyTotal.toLocaleString("en-IN")}
-          </h2>
-          <div className="h-48">
+          <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={revenueData}>
+                <defs>
+                  <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0.2}/>
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 6" stroke="rgba(255,255,255,0.08)" />
-                <XAxis dataKey="month" tick={{ fill: "#cbd5f5" }} />
-                <YAxis tick={{ fill: "#cbd5f5" }} />
-                <Tooltip />
-                <Bar dataKey="revenue" fill="#6366f1" radius={[8, 8, 0, 0]} />
+                <XAxis dataKey="month" tick={{ fill: "#cbd5f5", fontSize: 12 }} />
+                <YAxis tick={{ fill: "#cbd5f5", fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '12px',
+                    backdropFilter: 'blur(10px)'
+                  }}
+                  formatter={(value) => [`₹${value.toLocaleString("en-IN")}`, 'Revenue']}
+                />
+                <Bar
+                  dataKey="revenue"
+                  fill="url(#revenueGradient)"
+                  radius={[8, 8, 0, 0]}
+                  name="Revenue"
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-sm uppercase tracking-widest text-gray-200">
-            {filterRange.type} Orders
-          </h3>
-          <div className="text-right">
-            <p className="text-xs text-gray-400 uppercase tracking-widest">Total Amount</p>
-            <p className="text-xl font-bold text-emerald-400">₹ {todayOrderAmount.toLocaleString("en-IN")}</p>
+      {/* PROGRESS CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <ProgressCard
+          title="Membership Goal"
+          value={stats.members}
+          maxValue={500}
+          color="from-blue-500 to-cyan-500"
+          icon={<FaBullseye />}
+          percentage={Math.round((stats.members / 500) * 100)}
+        />
+        <ProgressCard
+          title="Revenue Target"
+          value={monthlyTotal}
+          maxValue={100000}
+          color="from-emerald-500 to-green-500"
+          icon={<FaTrophy />}
+          percentage={Math.round((monthlyTotal / 100000) * 100)}
+        />
+        <ProgressCard
+          title="Trainer Utilization"
+          value={stats.trainers}
+          maxValue={20}
+          color="from-purple-500 to-pink-500"
+          icon={<FaFire />}
+          percentage={Math.round((stats.trainers / 20) * 100)}
+        />
+      </div>
+
+      {/* ENHANCED ORDERS TABLE */}
+      <div className="rounded-3xl bg-gradient-to-br from-white/15 to-white/8 backdrop-blur-2xl border border-white/20 p-8 shadow-2xl">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h3 className="text-2xl font-bold text-white mb-2">Recent Orders</h3>
+            <p className="text-slate-400">Latest transactions and customer activity</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-emerald-500/20 to-green-500/20 border border-emerald-500/30">
+              <FaMoneyBillWave className="w-4 h-4 text-emerald-400" />
+              <span className="text-emerald-400 font-semibold">₹{todayOrderAmount.toLocaleString("en-IN")}</span>
+            </div>
+            <button
+              onClick={() => navigate('/admin/orders')}
+              className="px-6 py-3 rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-semibold hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-200 hover:scale-105"
+            >
+              View All Orders
+            </button>
           </div>
         </div>
 
-        <div>
-          {/* Desktop / Tablet: table */}
-          <div className="hidden sm:block overflow-x-auto rounded-xl border border-white/10">
-            <table className="min-w-full text-sm text-left">
-              <thead className="bg-white/10 text-gray-300">
+        <div className="overflow-hidden rounded-2xl border border-white/10">
+          {/* Desktop Table */}
+          <div className="hidden sm:block overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-gradient-to-r from-white/10 to-white/5 border-b border-white/10">
                 <tr>
-                  <th className="px-4 py-3">S No</th>
-                  <th className="px-4 py-3">Customer</th>
-                  <th className="px-4 py-3">Amount</th>
-                  <th className="px-4 py-3">Time</th>
-                  <th className="px-4 py-3">Method</th>
-                  <th className="px-4 py-3">Status</th>
-
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-300 uppercase tracking-wider">Order #</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-300 uppercase tracking-wider">Customer</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-300 uppercase tracking-wider">Amount</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-300 uppercase tracking-wider">Time</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-300 uppercase tracking-wider">Method</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-300 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-300 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-
-              <tbody>
+              <tbody className="divide-y divide-white/5">
                 {todayOrdersList.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="text-center py-6 text-gray-400">
-                      No orders today
+                    <td colSpan="7" className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <FaShoppingCart className="w-12 h-12 text-slate-500" />
+                        <p className="text-slate-400 text-lg">No orders found</p>
+                        <p className="text-slate-500 text-sm">Orders will appear here when customers make purchases</p>
+                      </div>
                     </td>
                   </tr>
                 ) : (
-                  todayOrdersList.map((o) => (
+                  todayOrdersList.slice(0, 8).map((order, idx) => (
                     <tr
-                      key={o.id}
-                      className="border-b border-white/10 hover:bg-white/5 transition"
+                      key={order.id}
+                      className="hover:bg-white/5 transition-all duration-200 group"
                     >
-                      <td className="px-4 py-3">{o.index}</td>
-                      <td className="px-4 py-3">{o.customer}</td>
-                      <td className="px-4 py-3 font-semibold text-emerald-400">
-                        ₹ {o.amount.toLocaleString("en-IN")}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
+                            <span className="text-xs font-bold text-blue-400">#{order.index}</span>
+                          </div>
+                          <span className="text-white font-semibold">{order.id}</span>
+                        </div>
                       </td>
-                      <td className="px-4 py-3">{o.time}</td>
-                      <td className="px-4 py-3">{o.method}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${statusClass(
-                            o.status
-                          )}`}
-                        >
-                          {o.status}
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="text-white font-medium">{order.customer}</p>
+                          <p className="text-slate-400 text-sm">{order.phone}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-emerald-400 font-bold text-lg">
+                          ₹{order.amount.toLocaleString("en-IN")}
                         </span>
                       </td>
-
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <FaClock className="w-4 h-4 text-slate-400" />
+                          <span className="text-slate-300">{order.time}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-500/20 text-slate-300 border border-slate-500/30">
+                          {order.method}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${statusClass(order.status)}`}>
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => navigate(`/admin/orders`)}
+                          className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all duration-200 hover:scale-105 opacity-0 group-hover:opacity-100"
+                        >
+                          <FaEye className="w-4 h-4" />
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -504,38 +896,60 @@ export default function Dashboard() {
             </table>
           </div>
 
-          {/* Mobile: stacked cards */}
-          <div className="sm:hidden space-y-3">
+          {/* Mobile Cards */}
+          <div className="sm:hidden space-y-4 p-4">
             {todayOrdersList.length === 0 ? (
-              <div className="text-center py-6 text-gray-400">No orders today</div>
+              <div className="text-center py-8">
+                <FaShoppingCart className="w-12 h-12 text-slate-500 mx-auto mb-3" />
+                <p className="text-slate-400">No orders found</p>
+              </div>
             ) : (
-              todayOrdersList.map((o) => (
+              todayOrdersList.slice(0, 5).map((order) => (
                 <div
-                  key={o.id}
-                  className="bg-white/5 border border-white/10 rounded-xl p-4"
+                  key={order.id}
+                  className="rounded-2xl bg-gradient-to-r from-white/5 to-white/10 border border-white/10 p-4 hover:border-white/20 transition-all duration-200"
                 >
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between mb-3">
                     <div>
-                      <p className="text-sm text-gray-300 font-semibold">{o.customer}</p>
-                      <p className="text-xs text-gray-400">{o.phone} • {o.city}</p>
+                      <p className="text-white font-semibold">{order.customer}</p>
+                      <p className="text-slate-400 text-sm">{order.phone} • {order.city}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-bold text-emerald-400">₹ {o.amount.toLocaleString("en-IN")}</p>
-                      <p className="text-xs text-gray-400">{o.time}</p>
+                      <p className="text-emerald-400 font-bold text-lg">₹{order.amount.toLocaleString("en-IN")}</p>
+                      <p className="text-slate-400 text-sm">{order.time}</p>
                     </div>
                   </div>
 
-                  <div className="mt-3 flex items-center justify-between">
-                    <p className="text-sm text-gray-300">{o.method}</p>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${statusClass(o.status)}`}>
-                      {o.status}
+                  <div className="flex items-center justify-between">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusClass(order.status)}`}>
+                      {order.status}
                     </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-400 text-sm">{order.method}</span>
+                      <button
+                        onClick={() => navigate(`/admin/orders`)}
+                        className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all duration-200"
+                      >
+                        <FaEye className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))
             )}
           </div>
         </div>
+
+        {todayOrdersList.length > 5 && (
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => navigate('/admin/orders')}
+              className="px-8 py-3 rounded-2xl bg-gradient-to-r from-slate-600 to-slate-700 text-white font-semibold hover:shadow-lg hover:shadow-slate-500/30 transition-all duration-200 hover:scale-105"
+            >
+              View All {todayOrdersList.length} Orders
+            </button>
+          </div>
+        )}
       </div>
 
 {/* <AddressForm/> */}

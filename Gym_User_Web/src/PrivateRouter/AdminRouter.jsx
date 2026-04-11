@@ -5,6 +5,7 @@ import AdminLayout from "../Admin/AdminPanel";
 // Import admin components
 import Dashboard from "../Admin/Dashboard/Dashboard";
 import Users from "../Admin/Users/Users";
+import AddUser from "../Admin/Users/AddUser";
 import Members from "../Admin/Members/Members";
 import Staff from "../Admin/Staff/Staffs";
 import Equipment from "../Admin/Equipment/Equipment";
@@ -24,6 +25,7 @@ const AdminRouter = () => {
         <Route path="/" element={<Dashboard />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="users" element={<Users />} />
+        <Route path="adduser" element={<AddUser />} />
         <Route path="members" element={<Members />} />
         <Route path="staff" element={<Staff />} />
         <Route path="equipment" element={<Equipment />} />

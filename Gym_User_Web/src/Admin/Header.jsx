@@ -12,7 +12,22 @@ import {
   Package,
   Clock,
   AlertCircle,
-  X
+  X,
+  Zap,
+  TrendingUp,
+  Activity,
+  BarChart3,
+  Filter,
+  RefreshCw,
+  Eye,
+  EyeOff,
+  Sun,
+  Moon,
+  Monitor,
+  Volume2,
+  VolumeX,
+  Wifi,
+  WifiOff
 } from "lucide-react";
 import api from "../api";
 import { useAuth } from "../PrivateRouter/AuthContext";
@@ -164,172 +179,251 @@ const Header = ({ onMenuClick }) => {
 
   return (
     <header className="sticky top-0 z-30 
-      bg-white/10 backdrop-blur-xl 
-      border-b border-white/20
-      shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
+      bg-gradient-to-r from-slate-900/95 via-gray-900/95 to-slate-900/95
+      backdrop-blur-2xl border-b border-white/10
+      shadow-[0_8px_32px_rgb(0,0,0,0.3)] 
+      before:absolute before:inset-0 before:bg-gradient-to-r 
+      before:from-blue-500/5 before:via-purple-500/5 before:to-cyan-500/5 
+      before:pointer-events-none before:rounded-b-2xl">
 
-      <div className="flex items-center justify-between px-4 py-3 sm:px-6">
+      <div className="relative flex items-center justify-between px-4 py-4 sm:px-6">
 
-        {/* LEFT */}
-        <div className="flex items-center gap-3 min-w-0">
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-10 -left-10 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute -top-5 -right-5 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl animate-pulse delay-1000"></div>
+        </div>
+
+        {/* LEFT SECTION */}
+        <div className="flex items-center gap-4 min-w-0 relative z-10">
           <button
             onClick={onMenuClick}
-            className="lg:hidden p-2 rounded-xl 
-            bg-white/10 hover:bg-white/20 
-            text-white transition"
+            className="lg:hidden p-3 rounded-2xl 
+            bg-white/10 hover:bg-white/20 hover:scale-105
+            text-white transition-all duration-300 ease-out
+            hover:shadow-lg hover:shadow-blue-500/25
+            border border-white/10 hover:border-white/20"
           >
             <Menu className="w-6 h-6" />
           </button>
 
-          <h1 className="text-lg sm:text-xl lg:text-2xl font-semibold 
-            text-white tracking-wide truncate">
-            {getPageTitle()}
-          </h1>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-orange-500 to-red-500 
+              flex items-center justify-center shadow-lg shadow-orange-500/30">
+              <Zap className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold 
+              bg-gradient-to-r from-white via-blue-100 to-purple-100 
+              bg-clip-text text-transparent tracking-wide truncate
+              drop-shadow-sm">
+              {getPageTitle()}
+            </h1>
+          </div>
         </div>
 
-        {/* RIGHT */}
-        <div className="flex items-center gap-2">
+        {/* RIGHT SECTION */}
+        <div className="flex items-center gap-3 relative z-10">
 
-          {/* TODAY ORDERS ICON */}
-          <div className="relative">
-            <button
-              onClick={() => toggleDropdown('orders')}
-              className={`p-2 rounded-xl transition relative ${activeDropdown === 'orders' ? 'bg-orange-500 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}
-              title="Today's Orders"
-            >
-              <ShoppingBag className="w-5 h-5" />
-              {alerts.orders.length > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-[9px] font-bold text-white ring-2 ring-[#0b0c10]">
-                  {alerts.orders.length}
-                </span>
-              )}
-            </button>
-            {activeDropdown === 'orders' && (
-              <AlertDropdown
+          {/* ENHANCED ALERT ICONS */}
+          <div className="flex items-center gap-2">
+            {/* Today's Orders */}
+            <div className="relative group">
+              <button
+                onClick={() => toggleDropdown('orders')}
+                className={`relative p-3 rounded-2xl transition-all duration-300 ease-out
+                  hover:scale-105 hover:shadow-lg border
+                  ${activeDropdown === 'orders' 
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/30 border-green-400/50' 
+                    : 'bg-white/10 hover:bg-white/20 text-white hover:shadow-blue-500/25 border-white/10 hover:border-white/20'
+                  }`}
                 title="Today's Orders"
-                items={alerts.orders}
-                icon={<ShoppingBag className="w-4 h-4 text-green-500" />}
-                type="orders"
-                onClose={() => setActiveDropdown(null)}
-                badgeColor="bg-green-500/20 text-green-400"
-              />
-            )}
-          </div>
-
-          {/* LOW STOCK ICON */}
-          <div className="relative">
-            <button
-              onClick={() => toggleDropdown('stock')}
-              className={`p-2 rounded-xl transition relative ${activeDropdown === 'stock' ? 'bg-orange-500 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}
-              title="Low Stock Alerts"
-            >
-              <Package className="w-5 h-5" />
-              {alerts.lowStock.length > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[9px] font-bold text-white ring-2 ring-[#0b0c10]">
-                  {alerts.lowStock.length}
-                </span>
+              >
+                <ShoppingBag className="w-5 h-5" />
+                {alerts.orders.length > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center 
+                    rounded-full bg-gradient-to-r from-green-500 to-emerald-500 
+                    text-[10px] font-bold text-white ring-2 ring-slate-900
+                    animate-bounce shadow-lg shadow-green-500/50">
+                    {alerts.orders.length}
+                  </span>
+                )}
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-green-500/20 to-emerald-500/20 
+                  opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              </button>
+              {activeDropdown === 'orders' && (
+                <AlertDropdown
+                  title="Today's Orders"
+                  items={alerts.orders}
+                  icon={<ShoppingBag className="w-4 h-4 text-green-500" />}
+                  type="orders"
+                  onClose={() => setActiveDropdown(null)}
+                  badgeColor="bg-green-500/20 text-green-400"
+                />
               )}
-            </button>
-            {activeDropdown === 'stock' && (
-              <AlertDropdown
-                title="Stock Alerts"
-                items={alerts.lowStock}
-                icon={<Package className="w-4 h-4 text-orange-500" />}
-                type="stock"
-                onClose={() => setActiveDropdown(null)}
-                badgeColor="bg-orange-500/20 text-orange-400"
-              />
-            )}
-          </div>
+            </div>
 
-          {/* EXPIRING PLANS ICON */}
-          <div className="relative">
-            <button
-              onClick={() => toggleDropdown('expiry')}
-              className={`p-2 rounded-xl transition relative ${activeDropdown === 'expiry' ? 'bg-orange-500 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}
-              title="Expiring Memberships"
-            >
-              <Clock className="w-5 h-5" />
-              {alerts.expiring.length > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ring-2 ring-[#0b0c10]">
-                  {alerts.expiring.length}
-                </span>
+            {/* Low Stock */}
+            <div className="relative group">
+              <button
+                onClick={() => toggleDropdown('stock')}
+                className={`relative p-3 rounded-2xl transition-all duration-300 ease-out
+                  hover:scale-105 hover:shadow-lg border
+                  ${activeDropdown === 'stock' 
+                    ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/30 border-orange-400/50' 
+                    : 'bg-white/10 hover:bg-white/20 text-white hover:shadow-orange-500/25 border-white/10 hover:border-white/20'
+                  }`}
+                title="Low Stock Alerts"
+              >
+                <Package className="w-5 h-5" />
+                {alerts.lowStock.length > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center 
+                    rounded-full bg-gradient-to-r from-orange-500 to-red-500 
+                    text-[10px] font-bold text-white ring-2 ring-slate-900
+                    animate-pulse shadow-lg shadow-orange-500/50">
+                    {alerts.lowStock.length}
+                  </span>
+                )}
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-orange-500/20 to-red-500/20 
+                  opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              </button>
+              {activeDropdown === 'stock' && (
+                <AlertDropdown
+                  title="Stock Alerts"
+                  items={alerts.lowStock}
+                  icon={<Package className="w-4 h-4 text-orange-500" />}
+                  type="stock"
+                  onClose={() => setActiveDropdown(null)}
+                  badgeColor="bg-orange-500/20 text-orange-400"
+                />
               )}
-            </button>
-            {activeDropdown === 'expiry' && (
-              <AlertDropdown
-                title="Expirations"
-                items={alerts.expiring}
-                icon={<Clock className="w-4 h-4 text-red-500" />}
-                type="expiry"
-                onClose={() => setActiveDropdown(null)}
-                badgeColor="bg-red-500/20 text-red-400"
-              />
-            )}
-          </div>
+            </div>
 
-          <div className="w-[1px] h-6 bg-white/10 mx-1 hidden sm:block" />
-
-          {/* ADD TODAY MEMBERS ICON */}
-          <div className="relative">
-            <button
-              onClick={() => toggleDropdown('members')}
-              className={`p-2 rounded-xl transition relative ${activeDropdown === 'members' ? 'bg-orange-500 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}
-              title="New Members Today"
-            >
-              <User className="w-5 h-5" />
-              {alerts.registrations.length > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[9px] font-bold text-white ring-2 ring-[#0b0c10]">
-                  {alerts.registrations.length}
-                </span>
+            {/* Expiring Plans */}
+            <div className="relative group">
+              <button
+                onClick={() => toggleDropdown('expiry')}
+                className={`relative p-3 rounded-2xl transition-all duration-300 ease-out
+                  hover:scale-105 hover:shadow-lg border
+                  ${activeDropdown === 'expiry' 
+                    ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-lg shadow-red-500/30 border-red-400/50' 
+                    : 'bg-white/10 hover:bg-white/20 text-white hover:shadow-red-500/25 border-white/10 hover:border-white/20'
+                  }`}
+                title="Expiring Memberships"
+              >
+                <Clock className="w-5 h-5" />
+                {alerts.expiring.length > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center 
+                    rounded-full bg-gradient-to-r from-red-500 to-pink-500 
+                    text-[10px] font-bold text-white ring-2 ring-slate-900
+                    animate-ping shadow-lg shadow-red-500/50">
+                    {alerts.expiring.length}
+                  </span>
+                )}
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-red-500/20 to-pink-500/20 
+                  opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              </button>
+              {activeDropdown === 'expiry' && (
+                <AlertDropdown
+                  title="Expirations"
+                  items={alerts.expiring}
+                  icon={<Clock className="w-4 h-4 text-red-500" />}
+                  type="expiry"
+                  onClose={() => setActiveDropdown(null)}
+                  badgeColor="bg-red-500/20 text-red-400"
+                />
               )}
-            </button>
-            {activeDropdown === 'members' && (
-              <AlertDropdown
-                title="New Members"
-                items={alerts.registrations}
-                icon={<User className="w-4 h-4 text-blue-500" />}
-                type="members"
-                onClose={() => setActiveDropdown(null)}
-                badgeColor="bg-blue-500/20 text-blue-400"
-              />
-            )}
+            </div>
+
+            {/* New Members */}
+            <div className="relative group">
+              <button
+                onClick={() => toggleDropdown('members')}
+                className={`relative p-3 rounded-2xl transition-all duration-300 ease-out
+                  hover:scale-105 hover:shadow-lg border
+                  ${activeDropdown === 'members' 
+                    ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/30 border-blue-400/50' 
+                    : 'bg-white/10 hover:bg-white/20 text-white hover:shadow-blue-500/25 border-white/10 hover:border-white/20'
+                  }`}
+                title="New Members Today"
+              >
+                <User className="w-5 h-5" />
+                {alerts.registrations.length > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center 
+                    rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 
+                    text-[10px] font-bold text-white ring-2 ring-slate-900
+                    animate-bounce shadow-lg shadow-blue-500/50">
+                    {alerts.registrations.length}
+                  </span>
+                )}
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/20 to-cyan-500/20 
+                  opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              </button>
+              {activeDropdown === 'members' && (
+                <AlertDropdown
+                  title="New Members"
+                  items={alerts.registrations}
+                  icon={<User className="w-4 h-4 text-blue-500" />}
+                  type="members"
+                  onClose={() => setActiveDropdown(null)}
+                  badgeColor="bg-blue-500/20 text-blue-400"
+                />
+              )}
+            </div>
           </div>
 
-          {/* SEARCH TRIGGER */}
+          {/* DIVIDER */}
+          <div className="w-[1px] h-8 bg-gradient-to-b from-transparent via-white/20 to-transparent mx-2 hidden sm:block" />
+
+          {/* ENHANCED SEARCH */}
           <button
             onClick={() => setShowSearch(p => !p)}
-            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition"
+            className="relative p-3 rounded-2xl 
+            bg-white/10 hover:bg-white/20 hover:scale-105
+            text-white transition-all duration-300 ease-out
+            hover:shadow-lg hover:shadow-purple-500/25
+            border border-white/10 hover:border-white/20
+            group"
           >
             <Search className="w-5 h-5" />
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 
+              opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           </button>
 
-          {/* PROFILE */}
+          {/* ENHANCED PROFILE */}
           <div className="relative">
             <button
               onClick={() => toggleDropdown('profile')}
-              className="flex items-center gap-3 px-3 py-1.5 
-              rounded-2xl bg-white/10 hover:bg-white/20 
-              transition"
+              className="flex items-center gap-3 px-4 py-2.5 
+              rounded-2xl bg-white/10 hover:bg-white/20 hover:scale-105
+              transition-all duration-300 ease-out
+              hover:shadow-lg hover:shadow-cyan-500/25
+              border border-white/10 hover:border-white/20
+              group"
             >
-              <div className="w-9 h-9 rounded-full 
-                bg-gradient-to-br from-cyan-500 to-sky-600
-                flex items-center justify-center text-white font-semibold">
-                {userName.charAt(0).toUpperCase()}
+              <div className="relative">
+                <div className="w-10 h-10 rounded-2xl 
+                  bg-gradient-to-br from-cyan-500 via-blue-500 to-purple-600
+                  flex items-center justify-center text-white font-bold text-lg
+                  shadow-lg shadow-cyan-500/30 ring-2 ring-white/20">
+                  {userName.charAt(0).toUpperCase()}
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 
+                  bg-gradient-to-r from-green-400 to-emerald-500 
+                  rounded-full border-2 border-slate-900"></div>
               </div>
 
               <div className="hidden sm:block text-left">
-                <p className="text-sm font-semibold text-white">
+                <p className="text-sm font-bold text-white group-hover:text-cyan-100 transition-colors">
                   {userName}
                 </p>
-                <p className="text-xs text-white/60">
+                <p className="text-xs text-white/60 group-hover:text-cyan-200/80 transition-colors">
                   {userRole}
                 </p>
               </div>
 
               <ChevronDown
-                className={`hidden sm:block w-4 h-4 text-white/70 transition 
-                ${activeDropdown === 'profile' ? "rotate-180" : ""}`}
+                className={`hidden sm:block w-4 h-4 text-white/70 transition-all duration-300 
+                ${activeDropdown === 'profile' ? "rotate-180 text-cyan-400" : "group-hover:text-cyan-300"}`}
               />
             </button>
 
@@ -340,71 +434,111 @@ const Header = ({ onMenuClick }) => {
                   className="fixed inset-0 z-40"
                 />
 
-                <div className="absolute right-0 mt-4 w-52
-                  bg-gray-900 backdrop-blur-xl
-                  border border-white/20
-                  rounded-2xl shadow-2xl z-50 p-1">
+                <div className="absolute right-0 mt-6 w-64
+                  bg-gradient-to-br from-slate-900/95 via-gray-900/95 to-slate-800/95
+                  backdrop-blur-2xl border border-white/20
+                  rounded-3xl shadow-2xl z-50 p-2
+                  animate-in fade-in zoom-in-95 duration-300">
 
-                  <div className="px-3 py-2 border-b border-white/10">
-                    <p className="text-sm font-semibold text-white">
-                      {userName}
-                    </p>
-                    <p className="text-xs text-white/60">
-                      {email}
-                    </p>
+                  <div className="px-4 py-3 border-b border-white/10 mb-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl 
+                        bg-gradient-to-br from-cyan-500 via-blue-500 to-purple-600
+                        flex items-center justify-center text-white font-bold text-lg
+                        shadow-lg shadow-cyan-500/30">
+                        {userName.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-white">
+                          {userName}
+                        </p>
+                        <p className="text-xs text-white/60">
+                          {email}
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
-                  <Link
-                    to="/admin/settings/profile"
-                    onClick={() => setActiveDropdown(null)}
-                    className="flex items-center gap-3 px-3 py-2 
-                    rounded-xl hover:bg-white/20 
-                    text-sm text-white transition"
-                  >
-                    <User className="w-4 h-4" /> Profile
-                  </Link>
+                  <div className="space-y-1">
+                    <Link
+                      to="/admin/settings/profile"
+                      onClick={() => setActiveDropdown(null)}
+                      className="flex items-center gap-3 px-4 py-3 
+                      rounded-2xl hover:bg-white/10 hover:scale-105
+                      text-sm text-white transition-all duration-300 group"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                        <User className="w-4 h-4 text-blue-400" />
+                      </div>
+                      <span className="group-hover:text-blue-300">Profile Settings</span>
+                    </Link>
 
-                  <Link
-                    to="/admin/settings"
-                    onClick={() => setActiveDropdown(null)}
-                    className="flex items-center gap-3 px-3 py-2 
-                    rounded-xl hover:bg-white/20 
-                    text-sm text-white transition"
-                  >
-                    <Settings className="w-4 h-4" /> Settings
-                  </Link>
+                    <Link
+                      to="/admin/settings"
+                      onClick={() => setActiveDropdown(null)}
+                      className="flex items-center gap-3 px-4 py-3 
+                      rounded-2xl hover:bg-white/10 hover:scale-105
+                      text-sm text-white transition-all duration-300 group"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                        <Settings className="w-4 h-4 text-purple-400" />
+                      </div>
+                      <span className="group-hover:text-purple-300">System Settings</span>
+                    </Link>
 
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-3 px-3 py-2 
-                    rounded-xl hover:bg-red-500/20 
-                    text-sm text-red-400 w-full transition"
-                  >
-                    <LogOut className="w-4 h-4" /> Logout
-                  </button>
+                    <div className="border-t border-white/10 my-2"></div>
+
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center gap-3 px-4 py-3 
+                      rounded-2xl hover:bg-red-500/20 hover:scale-105
+                      text-sm text-red-400 w-full transition-all duration-300 group"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-red-500/20 flex items-center justify-center">
+                        <LogOut className="w-4 h-4 text-red-400" />
+                      </div>
+                      <span className="group-hover:text-red-300">Logout</span>
+                    </button>
+                  </div>
                 </div>
               </>
             )}
           </div>
         </div>
       </div>
-      {/* SEARCH OVERLAY */}
+      {/* ENHANCED SEARCH OVERLAY */}
       {showSearch && (
-        <div className="absolute inset-0 z-50 bg-gray-950 flex items-center px-4 sm:px-6 animate-in slide-in-from-top duration-300">
-          <form onSubmit={handleSearch} className="flex-1 flex items-center gap-4 max-w-4xl mx-auto">
-            <Search className="w-6 h-6 text-orange-500" />
+        <div className="absolute inset-0 z-50 
+          bg-gradient-to-br from-slate-900/98 via-gray-900/98 to-slate-900/98
+          backdrop-blur-2xl flex items-center px-4 sm:px-6 
+          animate-in slide-in-from-top duration-500 border-t border-white/10">
+          
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
+              w-96 h-96 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-cyan-500/10 
+              rounded-full blur-3xl animate-pulse"></div>
+          </div>
+
+          <form onSubmit={handleSearch} className="relative flex-1 flex items-center gap-4 max-w-4xl mx-auto z-10">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-r from-orange-500 to-red-500 
+              flex items-center justify-center shadow-lg shadow-orange-500/30">
+              <Search className="w-6 h-6 text-white" />
+            </div>
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search products, orders, members..."
-              className="flex-1 bg-transparent border-none text-white focus:ring-0 text-xl font-medium outline-none"
+              placeholder="Search products, orders, members, staff..."
+              className="flex-1 bg-transparent border-none text-white focus:ring-0 
+              text-xl font-medium outline-none placeholder-white/50"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             <button
               type="button"
               onClick={() => setShowSearch(false)}
-              className="p-2 rounded-full hover:bg-white/10 text-gray-400 transition"
+              className="p-3 rounded-2xl hover:bg-white/10 text-white/70 
+              hover:text-white transition-all duration-300 hover:scale-105
+              border border-transparent hover:border-white/20"
             >
               <X className="w-6 h-6" />
             </button>

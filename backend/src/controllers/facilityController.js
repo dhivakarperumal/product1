@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { getActorUuid } = require('../utils/auditTrail');
 
 // Helper function to parse JSON fields
 const parseFacility = (facility) => {
@@ -99,11 +100,13 @@ async function createFacility(req, res) {
       galleryJsonLength: galleryJson.length
     });
 
+    const createdBy = getActorUuid(req.user) || null;
+
     const [result] = await db.query(
       `INSERT INTO gym_facilities
       (title, slug, short_description, description, hero_image, 
-       equipments, workouts, facilities, gallery, active)
-      VALUES (?,?,?,?,?,?,?,?,?,?)`,
+       equipments, workouts, facilities, gallery, active, created_by, updated_by)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         title, 
         facilitySlug, 
@@ -114,7 +117,9 @@ async function createFacility(req, res) {
         workoutsJson,
         facilitiesJson,
         galleryJson,
-        active === false ? 0 : 1
+        active === false ? 0 : 1,
+        createdBy,
+        createdBy
       ]
     );
 
@@ -168,20 +173,22 @@ async function updateFacility(req, res) {
       active === false ? 0 : 1
     ];
 
+    const updatedBy = getActorUuid(req.user) || null;
+
     if (isNum) {
       query = `UPDATE gym_facilities SET
         title=?, slug=?, short_description=?, description=?,
         hero_image=?, equipments=?, workouts=?, facilities=?,
-        gallery=?, active=?, updated_at=CURRENT_TIMESTAMP
+        gallery=?, active=?, updated_by=?, updated_at=CURRENT_TIMESTAMP
        WHERE id=?`;
-      params = [...baseParams, idNum];
+      params = [...baseParams, updatedBy, idNum];
     } else {
       query = `UPDATE gym_facilities SET
         title=?, slug=?, short_description=?, description=?,
         hero_image=?, equipments=?, workouts=?, facilities=?,
-        gallery=?, active=?, updated_at=CURRENT_TIMESTAMP
+        gallery=?, active=?, updated_by=?, updated_at=CURRENT_TIMESTAMP
        WHERE slug=?`;
-      params = [...baseParams, id];
+      params = [...baseParams, updatedBy, id];
     }
 
     const [result] = await db.query(query, params);

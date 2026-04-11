@@ -1,6 +1,7 @@
 // nodemailer removed as per user request to only store in database
 // const nodemailer = require('nodemailer');
 const db = require('../config/db');
+const { getActorUuid } = require('../utils/auditTrail');
 
 /* ==========================================
    RECORD MESSAGES TO HISTORY
@@ -23,15 +24,19 @@ async function sendMessages(req, res) {
       phone: r.phone 
     }));
 
+    const createdBy = getActorUuid(req.user) || null;
+
     // Insert into message_history
     const [insertRes] = await db.query(
-      "INSERT INTO message_history (subject, message, sent_to, failed, recipients_json) VALUES (?, ?, ?, ?, ?)",
+      "INSERT INTO message_history (subject, message, sent_to, failed, recipients_json, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?)",
       [
         subject || 'Message from Gym', 
         message, 
         recipients.length, 
         0, 
-        JSON.stringify(recipientsToStore)
+        JSON.stringify(recipientsToStore),
+        createdBy,
+        createdBy
       ]
     );
 

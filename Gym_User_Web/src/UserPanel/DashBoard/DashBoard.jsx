@@ -24,6 +24,11 @@ const normalizeStatus = (status) => {
   return "OrderPlaced";
 };
 
+const isTodayOrder = (order) => {
+  const orderDate = dayjs(order.created_at || order.createdAt || order.date || order.orderDate);
+  return orderDate.isValid() && orderDate.isSame(dayjs(), "day");
+};
+
 /* ---------- MAIN ---------- */
 const Dashboard = () => {
   const { user } = useAuth();
@@ -115,7 +120,8 @@ const Dashboard = () => {
         const activeOrders = (orderRes.data || []).filter(
           (o) => normalizeStatus(o.status) !== "Delivered"
         );
-        orderList = activeOrders;
+
+        orderList = activeOrders.filter(isTodayOrder);
 
         if (isMountedRef.current) {
           setDashboardData({
@@ -179,9 +185,9 @@ const Dashboard = () => {
         />
 
         <StatCard
-          title="ORDERS"
+          title="TODAY ORDERS"
           value={dashboardData.orders.length}
-          sub="Active"
+          sub="Active Today"
           icon={<ShoppingCart />}
           color="bg-orange-500"
         />
@@ -266,33 +272,59 @@ const Dashboard = () => {
       </div>
 
       {/* ================= ORDERS ================= */}
-      <div className="bg-white/5 p-6 rounded-2xl">
-        <h2 className="text-lg font-semibold mb-4">Active Orders</h2>
+      <div className="bg-slate-950/80 border border-white/10 p-6 rounded-3xl shadow-2xl shadow-black/40 backdrop-blur-xl animate-fade-in-up">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight text-white">
+              Today's Orders
+            </h2>
+            <p className="text-sm text-gray-400 mt-1">
+              Only active orders placed today are shown here.
+            </p>
+          </div>
+          <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-gray-300">
+            <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            {dashboardData.orders.length} order(s) updated today
+          </div>
+        </div>
 
         {dashboardData.orders.length ? (
-          <div className="space-y-4">
+          <div className="mt-6 grid gap-4">
             {dashboardData.orders.map((order) => (
               <div
-                key={order.id}
-                className="p-4 rounded-xl bg-black/40 flex justify-between items-center"
+                key={order.id || order.order_id}
+                className="group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/90 via-slate-800/80 to-slate-950/80 p-5 shadow-2xl shadow-orange-500/10 transition duration-500 hover:-translate-y-1 hover:border-orange-400/30"
               >
-                <div>
-                  <p className="font-semibold text-purple-300">
-                    {order.order_id}
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    ₹{order.total}
-                  </p>
-                </div>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-500/20 to-transparent opacity-0 transition duration-700 group-hover:opacity-100" />
+                <div className="relative flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.35em] text-orange-300/80">
+                      #{order.order_id || order.orderId}
+                    </p>
+                    <h3 className="text-lg font-bold text-white">
+                      ₹{order.total ?? order.amount ?? 0}
+                    </h3>
+                    <p className="text-sm text-gray-400 mt-1">
+                      {order.product_name || order.note || "Order details"}
+                    </p>
+                  </div>
 
-                <span className="text-xs px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-400">
-                  {normalizeStatus(order.status)}
-                </span>
+                  <div className="flex flex-col items-start gap-2 sm:items-end">
+                    <span className="rounded-full border border-orange-400/15 bg-orange-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-orange-200 shadow-sm shadow-orange-500/10">
+                      {normalizeStatus(order.status)}
+                    </span>
+                    <p className="text-xs text-gray-500">
+                      {dayjs(order.created_at || order.createdAt).format("ddd, MMM D • HH:mm")}
+                    </p>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-gray-400">No Active Orders</p>
+          <div className="mt-6 rounded-3xl border border-dashed border-white/10 bg-white/5 p-8 text-center text-gray-400">
+            No active orders for today.
+          </div>
         )}
       </div>
 
@@ -305,14 +337,16 @@ export default Dashboard;
 /* ---------- UI ---------- */
 
 const StatCard = ({ title, value, sub, icon, color }) => (
-  <div className="bg-white/5 p-6 rounded-2xl flex justify-between items-center">
-    <div>
-      <p className="text-sm text-gray-400">{title}</p>
-      <h2 className="text-xl font-bold">{value}</h2>
+  <div className="group relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/85 p-6 shadow-2xl shadow-black/30 transition duration-500 hover:-translate-y-1 hover:border-orange-400/30 animate-fade-in-up">
+    <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-orange-400 via-pink-500 to-violet-500 opacity-50 blur-xl" />
+    <div className="relative space-y-3">
+      <p className="text-sm text-gray-400 uppercase tracking-[0.2em]">
+        {title}
+      </p>
+      <h2 className="text-3xl font-bold text-white">{value}</h2>
       <p className="text-xs text-gray-500">{sub}</p>
     </div>
-
-    <div className={`p-3 rounded-xl ${color}`}>
+    <div className={`ml-auto grid h-14 w-14 place-items-center rounded-3xl ${color} shadow-lg shadow-black/25`}>
       {icon}
     </div>
   </div>

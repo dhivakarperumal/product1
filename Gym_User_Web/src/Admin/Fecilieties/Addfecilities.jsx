@@ -179,200 +179,217 @@ const AddEditFacility = () => {
 
   /* ================= UI ================= */
   return (
-    <div className="">
-      <div>
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition"
-        >
-          <FaArrowLeft /> Back
-        </button>
-      </div>
-      <div className="min-h-screen p-0 flex justify-center">
-        <div className={`w-full max-w-6xl p-8 ${glass}`}>
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
+      <div className="max-w-7xl mx-auto">
 
-          {/* HEADER */}
-          <div className="flex items-center gap-4 mb-6">
+        {/* BACK BUTTON */}
+        <div className="mb-6">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-3 px-4 py-2 bg-slate-800/50 hover:bg-slate-800/70 rounded-xl border border-white/10 transition-colors text-gray-300 hover:text-white"
+          >
+            <FaArrowLeft className="text-sm" />
+            Back to Facilities
+          </button>
+        </div>
 
-            <h2 className="text-2xl font-semibold text-white">
-              {isEdit ? "Edit Facility" : "Add Gym Facility"}
-            </h2>
+        {/* MAIN FORM CONTAINER */}
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl p-8">
+          <div className="mb-8">
+            <div className="flex items-center gap-4 mb-2">
+              <div className="p-3 bg-orange-500/20 rounded-xl border border-orange-500/30">
+                <FaPlus className="text-orange-400 text-xl" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-white">
+                  {isEdit ? "Edit Facility" : "Add New Facility"}
+                </h1>
+                <p className="text-gray-400 mt-1">
+                  {isEdit ? "Update facility details and equipment" : "Create a new gym facility with equipment and features"}
+                </p>
+              </div>
+            </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-5">
+          <form onSubmit={handleSubmit} className="space-y-8">
 
-            <input
-              name="title"
-              value={form.title}
-              onChange={handleChange}
-              placeholder="Title"
-              className={input}
-            />
+            {/* BASIC INFO SECTION */}
+            <div className="rounded-[2rem] border border-white/10 bg-slate-900/50 p-6">
+              <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-3">
+                <div className="w-1 h-6 bg-orange-500 rounded-full"></div>
+                Basic Information
+              </h3>
 
-            {/* active status */}
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={form.active}
-                onChange={(e) => setForm((p) => ({ ...p, active: e.target.checked }))}
-                id="activeFlag"
-              />
-              <label htmlFor="activeFlag" className="text-white">
-                Active?
-              </label>
-            </div>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Facility Title *</label>
+                  <input
+                    name="title"
+                    value={form.title}
+                    onChange={handleChange}
+                    placeholder="e.g., Cardio Zone, Weight Room"
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                    required
+                  />
+                </div>
 
-            <input
-              name="slug"
-              value={form.slug}
-              onChange={handleChange}
-              placeholder="Slug (optional)"
-              className={input}
-            />
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Slug (URL)</label>
+                  <input
+                    name="slug"
+                    value={form.slug}
+                    onChange={handleChange}
+                    placeholder="auto-generated-from-title"
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                  />
+                </div>
 
-            <input
-              name="shortDesc"
-              value={form.shortDesc}
-              onChange={handleChange}
-              placeholder="Short Description"
-              className={input}
-            />
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Short Description *</label>
+                  <input
+                    name="shortDesc"
+                    value={form.shortDesc}
+                    onChange={handleChange}
+                    placeholder="Brief description of the facility"
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                    required
+                  />
+                </div>
 
-            {/* HERO IMAGE */}
-            <div>
-              <p className="text-white/70 mb-2">Hero Image</p>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) =>
-                  uploadSingleImage(e.target.files[0], (img) =>
-                    setForm((p) => ({ ...p, heroImage: img }))
-                  )
-                }
-                className={input}
-              />
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Full Description</label>
+                  <textarea
+                    name="description"
+                    value={form.description}
+                    onChange={handleChange}
+                    placeholder="Detailed description of the facility, equipment, and features"
+                    rows={4}
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all resize-none"
+                  />
+                </div>
 
-              {form.heroImage && (
-                <img
-                  src={form.heroImage}
-                  alt=""
-                  className="mt-3 h-40 w-full object-cover rounded-xl"
-                />
-              )}
-            </div>
-
-            <textarea
-              name="description"
-              value={form.description}
-              onChange={handleChange}
-              placeholder="Full Description"
-              rows={4}
-              className={`${input} md:col-span-2`}
-            />
-
-            {/* DYNAMIC FIELDS */}
-            {["equipments", "workouts", "facilities"].map((field) => (
-              <DynamicField
-                key={field}
-                label={field}
-                value={temp[field]}
-                onChange={(v) => setTemp({ ...temp, [field]: v })}
-                onAdd={() => addItem(field)}
-                items={form[field]}
-                onRemove={(i) => removeItem(field, i)}
-              />
-            ))}
-
-            {/* GALLERY */}
-            <div className="md:col-span-2">
-              <p className="text-white/70 mb-2">Gallery Images</p>
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={(e) => uploadMultipleImages(e.target.files)}
-                className={input}
-              />
-
-              <div className="flex flex-wrap gap-3 mt-4">
-                {form.gallery.map((img, i) => (
-                  <div key={i} className="relative">
-                    <img
-                      src={img}
-                      alt=""
-                      className="h-24 w-24 object-cover rounded-lg"
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setForm((p) => ({
-                          ...p,
-                          gallery: p.gallery.filter((_, idx) => idx !== i),
-                        }))
-                      }
-                      className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full px-2 text-xs"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={form.active}
+                    onChange={(e) => setForm((p) => ({ ...p, active: e.target.checked }))}
+                    id="activeFlag"
+                    className="w-4 h-4 text-orange-500 bg-slate-800/50 border-white/10 rounded focus:ring-orange-500/50"
+                  />
+                  <label htmlFor="activeFlag" className="text-gray-300 font-medium">
+                    Facility is active and available
+                  </label>
+                </div>
               </div>
             </div>
 
-            {/* SUBMIT */}
-            <div className="md:col-span-2 flex justify-center pt-4">
-              <button className="px-10 py-3 rounded-xl font-semibold text-white
-              bg-gradient-to-r from-orange-500 to-orange-600 hover:scale-105 transition">
-                {isEdit ? "Update Facility" : "Save Facility"}
+            {/* EQUIPMENT & FEATURES SECTION */}
+            <div className="space-y-6">
+              {["equipments", "workouts", "facilities"].map((field) => (
+                <div key={field} className="rounded-[2rem] border border-white/10 bg-slate-900/50 p-6">
+                  <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-3 capitalize">
+                    <div className="w-1 h-6 bg-orange-500 rounded-full"></div>
+                    {field}
+                  </h3>
+
+                  <div className="space-y-4">
+                    <div className="flex gap-3">
+                      <input
+                        value={temp[field]}
+                        onChange={(e) => setTemp({ ...temp, [field]: e.target.value })}
+                        placeholder={`Add ${field.slice(0, -1)}...`}
+                        className="flex-1 px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addItem(field))}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => addItem(field)}
+                        className="px-6 py-3 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded-xl font-medium transition-colors border border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/20"
+                      >
+                        Add
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {form[field].map((item, i) => (
+                        <span
+                          key={i}
+                          onClick={() => removeItem(field, i)}
+                          className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-orange-500/20 text-orange-300 text-sm font-medium cursor-pointer hover:bg-orange-500/30 transition-colors border border-orange-500/30"
+                        >
+                          {item}
+                          <span className="text-orange-400 hover:text-orange-300">×</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* GALLERY SECTION */}
+            <div className="rounded-[2rem] border border-white/10 bg-slate-900/50 p-6">
+              <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-3">
+                <div className="w-1 h-6 bg-orange-500 rounded-full"></div>
+                Gallery Images
+              </h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Upload Gallery Images</label>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={(e) => uploadMultipleImages(e.target.files)}
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-orange-500/20 file:text-orange-400 hover:file:bg-orange-500/30 file:cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                  />
+                </div>
+
+                {form.gallery.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {form.gallery.map((img, i) => (
+                      <div key={i} className="relative group">
+                        <img
+                          src={img}
+                          alt={`Gallery ${i + 1}`}
+                          className="w-full h-24 object-cover rounded-xl border border-white/10 group-hover:border-orange-500/30 transition-colors"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((p) => ({
+                              ...p,
+                              gallery: p.gallery.filter((_, idx) => idx !== i),
+                            }))
+                          }
+                          className="absolute -top-2 -right-2 p-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-full border border-red-500/30 transition-all opacity-0 group-hover:opacity-100"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* SUBMIT BUTTON */}
+            <div className="flex justify-center pt-6 border-t border-white/10">
+              <button
+                type="submit"
+                className="px-8 py-4 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 rounded-xl font-semibold text-lg transition-all border border-orange-500/30 hover:shadow-lg hover:shadow-orange-500/20 hover:scale-105"
+              >
+                {isEdit ? "Update Facility" : "Create Facility"}
               </button>
             </div>
+
           </form>
         </div>
+
       </div>
     </div>
   );
 };
 
 export default AddEditFacility;
-
-/* ================= DYNAMIC FIELD ================= */
-const DynamicField = ({
-  label,
-  value,
-  onChange,
-  onAdd,
-  items,
-  onRemove,
-}) => (
-  <div className="md:col-span-2">
-    <p className="text-white/70 mb-2 capitalize">{label}</p>
-
-    <div className="flex gap-3 mb-3">
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="flex-1 px-4 py-2 rounded-lg bg-white/10 text-white border border-white/20"
-      />
-      <button
-        type="button"
-        onClick={onAdd}
-        className="px-4 rounded-lg bg-emerald-600 text-white"
-      >
-        <FaPlus />
-      </button>
-    </div>
-
-    <div className="flex flex-wrap gap-2">
-      {items.map((item, i) => (
-        <span
-          key={i}
-          onClick={() => onRemove(i)}
-          className="px-3 py-1 rounded-full bg-orange-500/20 text-orange-300 text-sm cursor-pointer"
-        >
-          {item} ✕
-        </span>
-      ))}
-    </div>
-  </div>
-
-);

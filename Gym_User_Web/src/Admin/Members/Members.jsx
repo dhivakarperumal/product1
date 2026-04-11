@@ -63,11 +63,8 @@ const Members = () => {
       const s = search.toLowerCase();
       matchesText = (
         String(m.name || "").toLowerCase().includes(s) ||
-        String(m.username || "").toLowerCase().includes(s) ||
         String(m.phone || "").includes(s) ||
-        String(m.mobile || "").includes(s) ||
         String(m.email || "").toLowerCase().includes(s) ||
-        String(m.user_email || "").toLowerCase().includes(s) ||
         String(m.plan || "").toLowerCase().includes(s)
       );
     }
@@ -91,10 +88,6 @@ const Members = () => {
   // 🗑 DELETE MEMBER
   const handleDelete = async (m) => {
     const idToDelete = m.id || m.member_id;
-    if (!idToDelete && m.source === "users") {
-      toast.error("Cannot delete a registered user from here. Use user management.");
-      return;
-    }
 
     if (!window.confirm(`Delete ${m.name || "this member"}?`)) return;
 
@@ -119,12 +112,12 @@ const Members = () => {
       "S.No": index + 1,
       Name: m.name || "N/A",
       Phone: m.phone || "N/A",
-      Email: m.email || m.user_email || "-",
-      Role: m.role || m.plan || "Member",
-      Source: m.source === "users" ? "User" : "Gym Member",
+      Email: m.email || "-",
+      Role: m.plan || "Member",
+      Source: "Gym Member",
       "Join Date": m.join_date || "-",
       "Expiry Date": m.expiry_date || "-",
-      Status: m.status || "active"
+      Status: m.status || "active",
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -160,7 +153,6 @@ const Members = () => {
           const email = row.Email || row.email;
           if (!email) continue;
 
-          const username = email.split('@')[0];
           const joinDate = excelDateToJSDate(row["Join Date"] || row.joinDate || row["JoinDate"]);
           const duration = Number(row.Duration || row.duration || 0);
 
@@ -186,7 +178,6 @@ const Members = () => {
 
           const payload = {
             name: row.Name || row.name,
-            username: username,
             phone: String(row.Phone || row.phone || row.Mobile || ""),
             email: email,
             gender: row.Gender || row.gender || "",
@@ -200,7 +191,6 @@ const Members = () => {
             status: row.Status || row.status || "active",
             address: row.Address || row.address || "",
             notes: row.Notes || row.notes || "",
-            password: String(row.Phone || row.phone || row.Mobile || "123456")
           };
 
           await api.post("/members", payload);
@@ -230,32 +220,47 @@ const Members = () => {
     );
   }
 
+  const activeCount = members.filter((m) => String(m.status || "").toLowerCase() === "active").length;
+  const expiredCount = members.filter((m) => {
+    if (!m.expiry_date) return false;
+    return new Date(m.expiry_date) < new Date();
+  }).length;
+  const noPlanCount = members.filter((m) => !m.plan).length;
+
   return (
-    <div className="min-h-screen px-0 py-8">
+    <div className="min-h-screen px-4 py-10">
+      <div className="mx-auto max-w-7xl space-y-8">
+        <div className="grid gap-4 xl:grid-cols-3">
+          <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Total Members</p>
+            <h2 className="mt-4 text-4xl font-semibold text-white">{members.length}</h2>
+            <p className="mt-2 text-sm text-slate-400">All gym member records in the members table.</p>
+          </div>
+          <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Active Members</p>
+            <h2 className="mt-4 text-4xl font-semibold text-white">{activeCount}</h2>
+            <p className="mt-2 text-sm text-slate-400">Members currently marked active.</p>
+          </div>
+          <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Expired / No Plan</p>
+            <h2 className="mt-4 text-4xl font-semibold text-white">{expiredCount + noPlanCount}</h2>
+            <p className="mt-2 text-sm text-slate-400">Members with expired membership or no plan assigned.</p>
+          </div>
+        </div>
 
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 px-4 sm:px-0">
-        {/* 🔍 SEARCH */}
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input
-            type="text"
-            placeholder="Search name or phone"
-            value={search}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg bg-white/10 text-white placeholder-gray-400 border border-white/20 focus:outline-none focus:ring-2 focus:ring-orange-500"
-          />
+        <div>
+          <p className="text-sm uppercase tracking-[0.24em] text-orange-300/70">Members Directory</p>
+          <h1 className="mt-2 text-3xl font-semibold text-white">Manage Gym Members</h1>
         </div>
 
-        {/* ➕ ADD MEMBER + IMPORT/EXPORT */}
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-          {/* Import */}
           <label className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-semibold cursor-pointer hover:bg-blue-600 transition shadow-lg whitespace-nowrap flex-1 sm:flex-none">
             Import Excel
             <input type="file" accept=".xlsx,.xls" onChange={handleImport} className="hidden" />
           </label>
 
-          {/* Export */}
           <button
             onClick={exportToExcel}
             className="flex items-center justify-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition shadow-lg whitespace-nowrap flex-1 sm:flex-none"
@@ -265,9 +270,7 @@ const Members = () => {
 
           <button
             onClick={() => navigate("/admin/addmembers")}
-            className="flex items-center justify-center gap-2 px-5 py-2 rounded-lg font-semibold text-white
-            bg-gradient-to-r from-orange-500 to-orange-600
-            hover:scale-105 active:scale-95 transition-all shadow-lg whitespace-nowrap flex-1 sm:flex-none"
+            className="flex items-center justify-center gap-2 px-5 py-2 rounded-lg font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:scale-105 active:scale-95 transition-all shadow-lg whitespace-nowrap flex-1 sm:flex-none"
           >
             <Plus size={16} />
             Add Member
@@ -275,7 +278,6 @@ const Members = () => {
 
           <DateRangeFilter onRangeChange={(type, range) => setDateRange({ type, range })} />
 
-          {/* 🖥 View Toggle */}
           <div className="flex bg-white/10 p-1 rounded-xl border border-white/20 ml-0 sm:ml-2">
             <button
               onClick={() => setViewMode("card")}
@@ -325,11 +327,11 @@ const Members = () => {
                 </tr>
               ) : (
                 paginatedData.map((m, index) => (
-                  <tr key={m.id || `u-${m.u_id}`} className="border-b border-white/5 hover:bg-white/5 transition">
+                  <tr key={m.id || `member-${index}`} className="border-b border-white/5 hover:bg-white/5 transition">
                     <td className="p-4 font-medium text-white">{startIndex + index + 1}</td>
                     <td className="p-4 font-medium text-white">{m.name || "N/A"}</td>
                     <td className="p-4">{m.phone || "N/A"}</td>
-                    <td className="p-4">{m.email || m.user_email || "-"}</td>
+                    <td className="p-4">{m.email || "-"}</td>
                     <td className="p-4 text-gray-400">{m.height ? `${m.height} cm` : "-"}</td>
                     <td className="p-4 text-gray-400">{m.weight ? `${m.weight} kg` : "-"}</td>
                     <td className="p-4">
@@ -340,28 +342,19 @@ const Members = () => {
                    
                     <td className="p-4">
                       <span className="px-3 py-1 rounded-lg text-xs font-semibold bg-orange-500/20 text-orange-400">
-                        {m.plan || m.role || "Member"}
+                        {m.plan || "Member"}
                       </span>
                     </td>
                     <td className="p-4">
-                      <span className={`px-3 py-1 rounded-lg text-xs font-semibold ${m.source === "users"
-                        ? "bg-blue-500/20 text-blue-400"
-                        : "bg-purple-500/20 text-purple-400"
-                        }`}>
-                        {m.source === "users" ? "User" : "Gym Member"}
+                      <span className="px-3 py-1 rounded-lg text-xs font-semibold bg-purple-500/20 text-purple-400">
+                        Gym Member
                       </span>
                     </td>
                     <td className="p-4 flex gap-2">
                       <button
-                        onClick={() => {
-                          if (m.source === "users") {
-                            navigate(`/admin/addmembers?user_id=${m.u_id}`);
-                          } else {
-                            navigate(`/admin/addmembers/${m.id}`);
-                          }
-                        }}
+                        onClick={() => navigate(`/admin/addmembers/${m.id}`)}
                         className="p-2 rounded-lg bg-yellow-500/80 hover:bg-yellow-500 text-white transition"
-                        title={m.source === "users" ? "Convert to Gym Member" : "Edit Member"}
+                        title="Edit Member"
                       >
                         <Pencil size={16} />
                       </button>
@@ -388,7 +381,7 @@ const Members = () => {
           ) : (
             paginatedData.map((m, index) => (
               <div
-                key={m.id || `u-card-${m.u_id}`}
+                key={m.id || `member-card-${index}`}
                 className="bg-gradient-to-br from-white/10 to-white/5 border border-white/20 rounded-2xl p-6 hover:border-white/40 transition backdrop-blur-lg flex flex-col justify-between"
               >
                 <div>
@@ -404,13 +397,7 @@ const Members = () => {
                     </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => {
-                          if (m.source === "users") {
-                            navigate(`/admin/addmembers?user_id=${m.u_id}`);
-                          } else {
-                            navigate(`/admin/addmembers/${m.id}`);
-                          }
-                        }}
+                        onClick={() => navigate(`/admin/addmembers/${m.id}`)}
                         className="p-2 rounded-lg bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500 hover:text-white transition"
                       >
                         <Pencil size={14} />
@@ -431,17 +418,14 @@ const Members = () => {
                     </div>
                     <div className="flex items-center gap-3 text-sm text-gray-300">
                       <Mail size={14} className="text-orange-500" />
-                      <span className="truncate">{m.email || m.user_email || "No email"}</span>
+                      <span className="truncate">{m.email || "No email"}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="px-2.5 py-1 rounded-lg text-[10px] uppercase font-bold bg-orange-500/20 text-orange-400 ring-1 ring-orange-500/30">
-                        {m.plan || m.role || "Member"}
+                        {m.plan || "Member"}
                       </span>
-                      <span className={`px-2.5 py-1 rounded-lg text-[10px] uppercase font-bold ring-1 ${m.source === "users"
-                        ? "bg-blue-500/20 text-blue-400 ring-blue-500/30"
-                        : "bg-purple-500/20 text-purple-400 ring-purple-500/30"
-                        }`}>
-                        {m.source === "users" ? "User" : "Gym Member"}
+                      <span className="px-2.5 py-1 rounded-lg text-[10px] uppercase font-bold ring-1 bg-purple-500/20 text-purple-400 ring-purple-500/30">
+                        Gym Member
                       </span>
                     </div>
                   </div>
@@ -537,7 +521,7 @@ const Members = () => {
           </div>
         </div>
       )}
-
+      </div>
     </div>
   );
 };

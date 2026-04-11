@@ -1,9 +1,61 @@
 @import "tailwindcss";
 
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0px rgba(249, 115, 22, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(249, 115, 22, 0.18);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.8s ease-out both;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2.8s ease-in-out infinite;
+}
+
+.glass-container {
+  min-height: calc(100vh - 180px);
+  padding: 2rem;
+  background: rgba(15, 23, 42, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 2rem;
+  backdrop-filter: blur(24px);
+  box-shadow: 0 32px 120px rgba(15, 23, 42, 0.35);
+}
+
+.glass-footer {
+  margin: 0 auto;
+  width: calc(100% - 2rem);
+  max-width: 1200px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.5rem;
+}
+
 .scrollbar-hide,
 .hide-scrollbar {
   -ms-overflow-style: none;  /* IE & Edge */
   scrollbar-width: none;     /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar,
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 .scrollbar-hide::-webkit-scrollbar,

@@ -129,10 +129,10 @@ const UserSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
       <aside
         className={`
           fixed top-0 left-0 z-50 h-full
-          bg-white/10 backdrop-blur-xl
-          border-r border-white/20 
-          shadow-[0_20px_50px_rgba(0,0,0,0.35)]
-          flex flex-col transition-all duration-300 
+          bg-slate-950/90 backdrop-blur-2xl
+          border-r border-white/10
+          shadow-[0_25px_80px_rgba(15,23,42,0.45)]
+          flex flex-col transition-all duration-300 ease-out
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
           lg:translate-x-0
           ${collapsed ? "w-20" : "w-64"}
@@ -142,7 +142,7 @@ const UserSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
         <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-orange-600 to-red-500 flex items-center justify-center shadow-lg shrink-0">
             <img
-              src="/images/logo-dark.png"
+              src="/images/logo-light.png"
               alt="Logo"
               className="w-10 h-10 object-contain"
             />

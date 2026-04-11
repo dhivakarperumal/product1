@@ -145,7 +145,7 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
         <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center shadow-lg shrink-0">
             <img
-              src="/images/logo-dark.png"
+              src="/images/logo-light.png"
               alt="Logo"
               className="w-10 h-10 object-contain"
             />

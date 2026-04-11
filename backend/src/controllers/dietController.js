@@ -11,11 +11,22 @@ function parseDiet(row) {
 
 async function getAllDiets(req, res) {
   try {
-    let sql = 'SELECT * FROM diet_plans';
+    let sql = 'SELECT * FROM diet_plans WHERE 1=1';
     const params = [];
 
+    // If requester is admin, filter by admin_id
+    if (req.user?.role === 'admin') {
+      sql += ' AND admin_id = ?';
+      params.push(req.user.userId);
+    }
+    // If requester is a member, show only diets assigned to them
+    else if (req.user?.role === 'user' || req.user?.role === 'member') {
+      sql += ' AND member_id = (SELECT id FROM members WHERE email = ? OR phone = ?)';
+      params.push(req.user.email || '', req.user.phone || '');
+    }
+
     if (req.query.trainerId) {
-      sql += ' WHERE trainer_id = ?';
+      sql += ' AND trainer_id = ?';
       params.push(req.query.trainerId);
     }
 
@@ -61,12 +72,15 @@ async function createDiet(req, res) {
       status,
     } = req.body;
 
+    const adminId = req.user?.role === 'admin' ? req.user.userId : null;
+    const createdBy = req.user?.userId || null;
+
     const [result] = await db.query(
       `INSERT INTO diet_plans
       (trainer_id, trainer_name, trainer_source,
        member_id, member_name, member_email, member_mobile, member_weight,
-       title, total_calories, duration, days, status, user_id)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       title, total_calories, duration, days, status, user_id, admin_id, created_by, updated_by)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         trainerId,
         trainerName || null,
@@ -82,6 +96,9 @@ async function createDiet(req, res) {
         JSON.stringify(days || {}),
         status || 'active',
         memberId || null,
+        adminId,
+        createdBy,
+        createdBy,
       ]
     );
 

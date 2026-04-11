@@ -23,8 +23,9 @@ const UserPanel = () => {
   }, []);
 
   return (
-    <div className="user-root flex min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white">
-      
+    <div className="user-root relative overflow-hidden flex min-h-screen bg-slate-950 text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(249,115,22,0.16),_transparent_25%),radial-gradient(circle_at_right,_rgba(59,130,246,0.18),_transparent_20%)]" />
+
       {/* Sidebar */}
       <UserSidebar
         isOpen={sidebarOpen}
@@ -36,22 +37,19 @@ const UserPanel = () => {
       {/* Main Content */}
       <div
         className={`
-          flex flex-col flex-1 min-w-0 min-h-screen
+          relative flex flex-col flex-1 min-w-0 min-h-screen
           transition-all duration-300 ease-in-out
           ${isLargeScreen ? (sidebarCollapsed ? "lg:ml-20" : "lg:ml-64") : ""}
         `}
       >
-        {/* Header */}
         <UserHeader onMenuClick={() => setSidebarOpen(true)} />
 
-        {/* Page Content */}
         <main className="flex-1 p-4 sm:p-5 lg:p-6 overflow-y-auto">
-          <div className="glass-container">
+          <div className="glass-container animate-fade-in-up">
             <Outlet />
           </div>
         </main>
 
-        {/* Footer */}
         <footer className="glass-footer text-center py-4 mt-10 text-sm text-white/70">
           © {new Date().getFullYear()} Q-Techx Solutions. All rights reserved.
         </footer>

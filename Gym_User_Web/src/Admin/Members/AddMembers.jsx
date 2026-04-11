@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import imageCompression from "browser-image-compression";
 import dayjs from "dayjs";
 import toast from "react-hot-toast";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
 import api from "../../api";
 const API = `/members`;
@@ -13,10 +13,8 @@ const AddMember = () => {
 
   const [form, setForm] = useState({
     name: "",
-    username: "",
     phone: "",
     email: "",
-    password: "",
     gender: "",
     height: "",
     weight: "",
@@ -33,60 +31,35 @@ const AddMember = () => {
 
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const isEdit = Boolean(id);
 
-  // ✏️ FETCH MEMBER (EDIT) OR USER (NEW)
+  // ✏️ FETCH MEMBER FOR EDIT
   useEffect(() => {
-    const queryParams = new URLSearchParams(location.search);
-    const userId = queryParams.get("user_id");
+    if (!isEdit) return;
 
-    if (isEdit) {
-      const fetchMember = async () => {
-        try {
-          const res = await api.get(`${API}/${id}`);
-          const data = res.data;
+    const fetchMember = async () => {
+      try {
+        const res = await api.get(`${API}/${id}`);
+        const data = res.data;
 
-          setForm({
-            ...data,
-            username: data.email ? data.email.split('@')[0] : '',
-            password: '', // don't prefill
-            height: data.height || "",
-            weight: data.weight || "",
-            bmi: data.bmi || "",
-            notes: data.notes || "",
-            address: data.address || "",
-            joinDate: dayjs(data.join_date).format("YYYY-MM-DD"),
-            expiryDate: data.expiry_date
-              ? dayjs(data.expiry_date).format("YYYY-MM-DD")
-              : "",
-          });
-        } catch {
-          toast.error("Failed to load member");
-        }
-      };
-      fetchMember();
-    } else if (userId) {
-      // Fetch user info to prefill
-      const fetchUser = async () => {
-        try {
-          const res = await api.get(`/users/${userId}`);
-          const data = res.data;
-          setForm(prev => ({
-            ...prev,
-            name: data.username || "",
-            username: data.username || "",
-            phone: data.mobile || "",
-            email: data.email || "",
-            password: data.mobile || "", // Default password to mobile
-          }));
-        } catch {
-          console.error("Failed to load user info");
-        }
-      };
-      fetchUser();
-    }
-  }, [id, isEdit, location.search]);
+        setForm({
+          ...data,
+          height: data.height || "",
+          weight: data.weight || "",
+          bmi: data.bmi || "",
+          notes: data.notes || "",
+          address: data.address || "",
+          joinDate: data.join_date ? dayjs(data.join_date).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD"),
+          expiryDate: data.expiry_date
+            ? dayjs(data.expiry_date).format("YYYY-MM-DD")
+            : "",
+        });
+      } catch {
+        toast.error("Failed to load member");
+      }
+    };
+    fetchMember();
+  }, [id, isEdit]);
 
   // 📏 BMI
   useEffect(() => {
@@ -113,14 +86,7 @@ const AddMember = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    if (name === 'email') {
-      const uname = value.split('@')[0];
-      setForm(prev => ({ ...prev, email: value, username: uname }));
-    } else if (name === 'phone') {
-      setForm(prev => ({ ...prev, phone: value, password: value }));
-    } else {
-      setForm(prev => ({ ...prev, [name]: value }));
-    }
+    setForm(prev => ({ ...prev, [name]: value }));
   };
 
   // 🖼 IMAGE COMPRESS
@@ -157,8 +123,6 @@ const AddMember = () => {
         weight: form.weight ? Number(form.weight) : null,
         bmi: form.bmi ? Number(form.bmi) : null,
         duration: form.duration ? Number(form.duration) : null,
-        // send password only when creating
-        password: !isEdit ? form.password : undefined,
       };
 
       console.log('Submitting payload:', payload);
@@ -187,94 +151,209 @@ const AddMember = () => {
   };
 
   return (
-    <div>
-      <button
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition"
-      >
-        <FaArrowLeft /> Back
-      </button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-4 py-10 text-white">
+      <div className="mx-auto max-w-6xl space-y-8">
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-8 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm uppercase tracking-[0.24em] text-orange-300/70">Member Management</p>
+              <h1 className="mt-3 text-3xl font-semibold text-white">{isEdit ? "Edit Member" : "Add New Member"}</h1>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
+                Create or update Gym Member records directly in the members table. This form writes only to the members table and does not create user accounts.
+              </p>
+            </div>
 
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-full max-w-6xl backdrop-blur-xl bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] rounded-2xl shadow-2xl p-8">
+            <button
+              type="button"
+              onClick={() => navigate("/admin/members")}
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+            >
+              <FaArrowLeft className="text-sm" /> Back to Members
+            </button>
+          </div>
+        </div>
 
-          <h2 className="text-2xl font-semibold text-white mb-6">
-            {isEdit ? "Update Member" : "Add Member"}
-          </h2>
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-8 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-2">
+            <div className="space-y-4">
+              <label className="block text-sm text-slate-200">
+                <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">Name</span>
+                <input
+                  name="name"
+                  value={form.name}
+                  onChange={handleChange}
+                  placeholder="John Doe"
+                  className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                  required
+                />
+              </label>
 
-          <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-5">
+              <label className="block text-sm text-slate-200">
+                <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">Phone</span>
+                <input
+                  name="phone"
+                  value={form.phone}
+                  onChange={handleChange}
+                  placeholder="8523694170"
+                  className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                  required
+                />
+              </label>
 
-            <input name="name" value={form.name} onChange={handleChange} placeholder="Name" className="mt-1 w-full rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" required />
-            {/* username auto from email */}
-            <input name="username" value={form.username} placeholder="Username" readOnly disabled className="mt-1 w-full rounded-lg bg-white/10 border border-white/20 px-4 py-3 text-white placeholder-gray-400" />
-            <input name="phone" value={form.phone} onChange={handleChange} placeholder="Phone" className="mt-1 w-full rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-            <input name="email" value={form.email} onChange={handleChange} placeholder="Email" className="mt-1 w-full rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" required />
-            {/* password auto from phone, displayed only when adding */}
-            {!isEdit && (
-              <input
-                type="password"
-                name="password"
-                value={form.password}
-                readOnly
-                disabled
-                placeholder="Password (same as phone)"
-                className="mt-1 w-full rounded-lg bg-white/10 border border-white/20 px-4 py-3 text-white placeholder-gray-400" 
-              />
-            )}
+              <label className="block text-sm text-slate-200">
+                <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">Email</span>
+                <input
+                  name="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  placeholder="member@example.com"
+                  className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                />
+              </label>
 
-            <select name="gender" value={form.gender} onChange={handleChange} className="mt-1 w-full rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500">
-              <option value="">Gender</option>
-              <option className="text-black">Male</option>
-              <option className="text-black">Female</option>
-            </select>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm text-slate-200">
+                  <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">Gender</span>
+                  <select
+                    name="gender"
+                    value={form.gender}
+                    onChange={handleChange}
+                    className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                  >
+                    <option value="">Select gender</option>
+                    <option className="text-black">Male</option>
+                    <option className="text-black">Female</option>
+                  </select>
+                </label>
+                <label className="block text-sm text-slate-200">
+                  <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">Status</span>
+                  <select
+                    name="status"
+                    value={form.status}
+                    onChange={handleChange}
+                    className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </label>
+              </div>
+            </div>
 
-            <input name="height" value={form.height} onChange={handleChange} placeholder="Height (cm)" className="mt-1 w-full rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-            <input name="weight" value={form.weight} onChange={handleChange} placeholder="Weight (kg)" className="mt-1 w-full rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-            <input name="bmi" value={form.bmi} readOnly placeholder="BMI" className="mt-1 w-full rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <label className="block text-sm text-slate-200">
+                  <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">Height (cm)</span>
+                  <input
+                    name="height"
+                    value={form.height}
+                    onChange={handleChange}
+                    placeholder="165"
+                    className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                  />
+                </label>
+                <label className="block text-sm text-slate-200">
+                  <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">Weight (kg)</span>
+                  <input
+                    name="weight"
+                    value={form.weight}
+                    onChange={handleChange}
+                    placeholder="70"
+                    className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                  />
+                </label>
+                <label className="block text-sm text-slate-200">
+                  <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">BMI</span>
+                  <input
+                    name="bmi"
+                    value={form.bmi}
+                    readOnly
+                    placeholder="Auto"
+                    className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                  />
+                </label>
+              </div>
 
-            <input type="date" name="joinDate" value={form.joinDate} onChange={handleChange} className="mt-1 w-full rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm text-slate-200">
+                  <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">Join Date</span>
+                  <input
+                    type="date"
+                    name="joinDate"
+                    value={form.joinDate}
+                    onChange={handleChange}
+                    className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                  />
+                </label>
+                <label className="block text-sm text-slate-200">
+                  <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">Expiry Date</span>
+                  <input
+                    type="date"
+                    name="expiryDate"
+                    value={form.expiryDate}
+                    onChange={handleChange}
+                    className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                  />
+                </label>
+              </div>
+            </div>
 
-          
-
-            <select name="status" value={form.status} onChange={handleChange} className="mt-1 w-full rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500">
-              <option value="active" className="text-black">Active</option>
-              <option value="inactive" className="text-black">Inactive</option>
-            </select>
-
-            <textarea
-              name="address"
-              value={form.address}
-              onChange={handleChange}
-              placeholder="Address"
-              rows={1}
-              className="mt-1 w-full rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
-            />
-
-            <textarea
-              name="notes"
-              value={form.notes}
-              onChange={handleChange}
-              placeholder="Notes"
-              rows={1}
-              className="mt-1 w-full rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
-            />
-
-            <input type="file" accept="image/*" onChange={handleImage} className="mt-1 w-full rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            <div className="sm:col-span-2 grid gap-4">
+              <label className="block text-sm text-slate-200">
+                <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">Address</span>
+                <textarea
+                  name="address"
+                  value={form.address}
+                  onChange={handleChange}
+                  rows={3}
+                  placeholder="Member address"
+                  className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                />
+              </label>
+              <label className="block text-sm text-slate-200">
+                <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">Notes</span>
+                <textarea
+                  name="notes"
+                  value={form.notes}
+                  onChange={handleChange}
+                  rows={3}
+                  placeholder="Notes for this member"
+                  className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                />
+              </label>
+              <label className="block text-sm text-slate-200">
+                <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">Profile Photo</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImage}
+                  className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                />
+              </label>
+            </div>
 
             {form.photo && (
-              <img src={form.photo} alt="preview" className="w-24 h-24 rounded-full object-cover md:col-span-2" />
+              <div className="sm:col-span-2 flex items-center justify-center">
+                <img src={form.photo} alt="preview" className="w-32 h-32 rounded-full border border-white/10 object-cover shadow-xl" />
+              </div>
             )}
 
-            <div className="md:col-span-2 flex justify-end mt-4">
+            <div className="sm:col-span-2 flex flex-col gap-4 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => navigate("/admin/members")}
+                className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+              >
+                Cancel
+              </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-6 py-3 min-w-[180px] bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition disabled:opacity-60"
+                className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:scale-[1.02] disabled:opacity-60"
               >
                 {loading ? "Saving..." : isEdit ? "Update Member" : "Add Member"}
               </button>
             </div>
-
           </form>
         </div>
       </div>

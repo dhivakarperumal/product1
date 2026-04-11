@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { getActorUuid } = require('../utils/auditTrail');
 
 async function getAllReviews(req, res) {
   try {
@@ -41,10 +42,11 @@ async function createReview(req, res) {
       return res.status(400).json({ error: 'Name and rating are required' });
     }
 
+    const createdBy = getActorUuid(req.user) || null;
     const [result] = await db.query(
-      `INSERT INTO reviews (name, rating, message, image, status)
-       VALUES (?, ?, ?, ?, ?)`,
-      [name, Number(rating), message || '', image || '', status ? 1 : 0]
+      `INSERT INTO reviews (name, rating, message, image, status, created_by, updated_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [name, Number(rating), message || '', image || '', status ? 1 : 0, createdBy, createdBy]
     );
 
     const [rows] = await db.query('SELECT * FROM reviews WHERE id = ?', [result.insertId]);
@@ -61,12 +63,13 @@ async function updateReview(req, res) {
     const idNum = parseInt(id, 10);
     const { name, rating, message, image, status } = req.body;
 
+    const updatedBy = getActorUuid(req.user) || null;
     const [result] = await db.query(
       `UPDATE reviews 
        SET name = ?, rating = ?, message = ?, image = ?, status = ?, 
-           updated_at = CURRENT_TIMESTAMP
+           updated_by = ?, updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
-      [name || null, rating ? Number(rating) : null, message || '', image || '', status ? 1 : 0, idNum]
+      [name || null, rating ? Number(rating) : null, message || '', image || '', status ? 1 : 0, updatedBy, idNum]
     );
 
     if (result.affectedRows === 0) {

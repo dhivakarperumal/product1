@@ -7,6 +7,7 @@ const {
   deleteMember,
   getMemberPlans,
 } = require("../controllers/memberController.js");
+const { optionalAuthenticateToken, authenticateToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -26,13 +27,13 @@ router.get("/:id", getMemberById);
  * @route   POST /api/members
  * @desc    Create new member
  */
-router.post("/", createMember);
+router.post("/", authenticateToken, requireAdmin, createMember);
 
 /**
  * @route   PUT /api/members/:id
  * @desc    Update member
  */
-router.put("/:id", updateMember);
+router.put("/:id", authenticateToken, requireAdmin, updateMember);
 
 /**
  * @route   GET /api/members/:id/plans
@@ -44,6 +45,6 @@ router.get("/:id/plans", getMemberPlans);
  * @route   DELETE /api/members/:id
  * @desc    Delete member
  */
-router.delete("/:id", deleteMember);
+router.delete("/:id", authenticateToken, requireAdmin, deleteMember);
 
 module.exports = router;

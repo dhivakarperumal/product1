@@ -95,13 +95,13 @@ const getCustomerDetails = (o) => {
 
 /* ================= STAT CARD ================= */
 const StatCard = ({ title, value, icon, gradient }) => (
-  <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6">
-    <div className="flex justify-between items-center">
+  <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+    <div className="flex items-center justify-between">
       <div>
-        <p className="text-xs text-gray-300">{title}</p>
-        <h2 className="text-2xl font-bold text-white">{value}</h2>
+        <p className="text-sm font-medium text-slate-400">{title}</p>
+        <h2 className="text-3xl font-bold text-white">{value}</h2>
       </div>
-      <div className={`p-3 rounded-xl bg-gradient-to-br ${gradient}`}>
+      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center`}>
         {icon}
       </div>
     </div>
@@ -168,7 +168,7 @@ const CustomDropdown = ({ label, options, value, onChange }) => {
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl border border-white/20 text-sm min-w-[160px]"
+        className="inline-flex items-center justify-between gap-2 bg-slate-950/90 border border-white/10 rounded-3xl px-4 py-3 text-sm text-white shadow-[0_24px_60px_rgba(15,23,42,0.25)] outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 min-w-[160px]"
       >
         <span>
           {options.find((opt) => opt.value === value)?.label || label}
@@ -187,7 +187,7 @@ const CustomDropdown = ({ label, options, value, onChange }) => {
           <div
             ref={dropdownRef}
             style={dropdownStyle}
-            className="bg-[#1e293b] border border-white/10 rounded-xl shadow-xl p-2"
+            className="bg-slate-950/95 border border-white/10 rounded-xl shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl p-2"
           >
             {options.map((opt) => (
               <button
@@ -196,9 +196,10 @@ const CustomDropdown = ({ label, options, value, onChange }) => {
                   onChange(opt.value);
                   setIsOpen(false);
                 }}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm ${value === opt.value
-                  ? "bg-orange-500 text-white"
-                  : "text-gray-300 hover:bg-white/5"
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                  value === opt.value
+                    ? "bg-orange-500 text-white"
+                    : "text-slate-300 hover:bg-white/5"
                   }`}
               >
                 {opt.label}
@@ -667,37 +668,95 @@ ${items
   }
 
   return (
-    <div className="space-y-8 text-white">
-
-      {/* ================= STATS ================= */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <StatCard title="Total" value={stats.total} icon={<FaClipboardList />} gradient="from-blue-500 to-cyan-500" />
-        <StatCard title="Delivered" value={stats.delivered} icon={<FaTruck />} gradient="from-emerald-500 to-teal-500" />
-        <StatCard title="Cancelled" value={stats.cancelled} icon={<FaTimesCircle />} gradient="from-red-500 to-rose-500" />
-        <StatCard title="Paid" value={stats.paid} icon={<FaCheckCircle />} gradient="from-green-500 to-emerald-500" />
-        <StatCard title="Revenue" value={`₹ ${stats.revenue.toLocaleString("en-IN")}`} icon={<FaMoneyBillWave />} gradient="from-indigo-500 to-violet-500" />
-      </div>
-
-      {/* ================= FILTER BAR ================= */}
-      <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-4 flex flex-col lg:flex-row gap-3 justify-between">
-
-        {/* SEARCH */}
-        <div className="relative w-full lg:w-1/3">
-          <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
-          <input
-            placeholder="Search Order ID or Member"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-          />
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-4 py-10 text-white">
+      <div className="mx-auto max-w-7xl space-y-10">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold text-white">Order Management</h1>
         </div>
 
-        {/* FILTERS */}
-        <div className="flex flex-wrap gap-2 items-center">
-          <DateRangeFilter onRangeChange={(type, range) => setDateRange({ type, range })} />
+        {/* SUMMARY CARDS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-400">Total Orders</p>
+                <p className="text-3xl font-bold text-white">{stats.total}</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                <FaClipboardList className="text-blue-400 text-xl" />
+              </div>
+            </div>
+          </div>
 
-          <CustomDropdown
-            label="Status"
+          <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-400">Delivered</p>
+                <p className="text-3xl font-bold text-white">{stats.delivered}</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                <FaTruck className="text-emerald-400 text-xl" />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-400">Cancelled</p>
+                <p className="text-3xl font-bold text-white">{stats.cancelled}</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center">
+                <FaTimesCircle className="text-red-400 text-xl" />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-400">Paid Orders</p>
+                <p className="text-3xl font-bold text-white">{stats.paid}</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
+                <FaCheckCircle className="text-green-400 text-xl" />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-400">Revenue</p>
+                <p className="text-3xl font-bold text-white">₹{stats.revenue.toLocaleString("en-IN")}</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-indigo-500/20 flex items-center justify-center">
+                <FaMoneyBillWave className="text-indigo-400 text-xl" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* SEARCH & FILTERS */}
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  placeholder="Search Order ID or Member"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full bg-slate-950/90 border border-white/10 rounded-3xl pl-10 pr-4 py-3 text-sm text-white placeholder-slate-400 shadow-[0_24px_60px_rgba(15,23,42,0.25)] outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-3 items-center">
+              <DateRangeFilter onRangeChange={(type, range) => setDateRange({ type, range })} />
+
+              <CustomDropdown
+                label="Status"
             value={statusFilter}
             onChange={setStatusFilter}
             options={[
@@ -724,102 +783,209 @@ ${items
           />
           <button
             onClick={() => setDeliveryOnly((prev) => !prev)}
-            className={`px-3 py-2 rounded-xl text-sm border flex items-center gap-2 ${deliveryOnly
-              ? "bg-orange-500 border-orange-500"
-              : "bg-white/10 border-white/20"
-              }`}
+            className={`inline-flex items-center justify-center rounded-3xl px-4 py-3 text-sm font-medium transition ${
+              deliveryOnly
+                ? "bg-orange-500 text-white border border-orange-500"
+                : "bg-slate-950/90 border border-white/10 text-slate-300 hover:bg-white/5"
+            }`}
           >
-            <FaTruck /> Delivery Only
+            <FaTruck className="mr-2 h-4 w-4" />
+            Delivery Only
           </button>
 
           {/* VIEW TOGGLE */}
-          <div className="flex border border-white/20 rounded-xl overflow-hidden">
+          <div className="flex border border-white/15 rounded-3xl overflow-hidden bg-slate-950/50">
             <button
               onClick={() => setView("table")}
-              className={`px-3 py-2 ${view === "table" ? "bg-white/20" : "bg-transparent"
-                }`}
+              className={`inline-flex items-center justify-center px-4 py-2 text-sm font-medium transition ${
+                view === "table"
+                  ? "bg-orange-500 text-white"
+                  : "text-slate-300 hover:bg-white/5"
+              }`}
             >
-              <FaList />
+              <FaList className="mr-2 h-4 w-4" />
+              Table
             </button>
             <button
               onClick={() => setView("grid")}
-              className={`px-3 py-2 ${view === "grid" ? "bg-white/20" : "bg-transparent"
-                }`}
+              className={`inline-flex items-center justify-center px-4 py-2 text-sm font-medium transition ${
+                view === "grid"
+                  ? "bg-orange-500 text-white"
+                  : "text-slate-300 hover:bg-white/5"
+              }`}
             >
-              <FaThLarge />
+              <FaThLarge className="mr-2 h-4 w-4" />
+              Grid
             </button>
           </div>
         </div>
       </div>
 
-      {/* ================= TABLE VIEW ================= */}
-      {view === "table" && (
-        <div className="bg-white/10 z-[1000] backdrop-blur-xl border border-white/20 rounded-2xl ">
-          <div className="overflow-x-auto overflow-y-visible">
-            <table className="min-w-full text-sm">
-              <thead className="bg-white/20">
+        {/* ORDERS TABLE */}
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl overflow-hidden">
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-white/10">
                 <tr>
-
-                  <th className="px-4 py-4 text-left">Order ID</th>
-                  <th className="px-4 py-4 text-left">Member</th>
-                  <th className="px-4 py-4 text-left">Amount</th>
-                  <th className="px-4 py-4 text-left">Payment</th>
-                  <th className="px-4 py-4 text-left">Status</th>
-
-                  <th className="px-4 py-4 text-left">Actions</th>
-                  <th className="px-4 py-4 text-left">Printer</th>
-
+                  <th className="px-6 py-4 text-left font-semibold text-slate-300">Order ID</th>
+                  <th className="px-6 py-4 text-left font-semibold text-slate-300">Member</th>
+                  <th className="px-6 py-4 text-left font-semibold text-slate-300">Amount</th>
+                  <th className="px-6 py-4 text-left font-semibold text-slate-300">Payment</th>
+                  <th className="px-6 py-4 text-left font-semibold text-slate-300">Status</th>
+                  <th className="px-6 py-4 text-left font-semibold text-slate-300">Actions</th>
+                  <th className="px-6 py-4 text-left font-semibold text-slate-300">Print</th>
                 </tr>
               </thead>
-              <tbody>
-                {paginatedOrders.map((o) => (
-                  <tr key={o.order_id} className="border-b border-white/10 hover:bg-white/5">
 
-                    <td onClick={(e) => { e.stopPropagation(); navigate(`/admin/orders/${o.order_id}`) }} className="px-4 py-3 cursor-pointer hover:text-orange-400">{formatOrderId(o.order_id)}</td>
-                    <td onClick={(e) => { e.stopPropagation(); navigate(`/admin/orders/${o.order_id}`) }} className="px-4 py-3">
-                      {o.shipping?.name || o.pickup?.name || "-"}
+              <tbody>
+                {paginatedOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="text-center py-12 text-slate-400">
+                      No orders found
                     </td>
-                    <td className="px-4 py-3">
-                      ₹{Number(o.total).toLocaleString("en-IN")}
-                    </td>
-                    <td onClick={(e) => { e.stopPropagation(); navigate(`/admin/orders/${o.order_id}`) }} className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${normalizeKey(o.paymentStatus) === "paid"
-                        ? "bg-green-500/20 text-green-300"
-                        : "bg-amber-500/20 text-amber-300"
+                  </tr>
+                ) : (
+                  paginatedOrders.map((o) => (
+                    <tr key={o.order_id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                      <td
+                        onClick={(e) => { e.stopPropagation(); navigate(`/admin/orders/${o.order_id}`) }}
+                        className="px-6 py-4 text-white cursor-pointer hover:text-orange-400"
+                      >
+                        {formatOrderId(o.order_id)}
+                      </td>
+                      <td
+                        onClick={(e) => { e.stopPropagation(); navigate(`/admin/orders/${o.order_id}`) }}
+                        className="px-6 py-4 text-slate-300 cursor-pointer hover:text-orange-400"
+                      >
+                        {o.shipping?.name || o.pickup?.name || "-"}
+                      </td>
+                      <td className="px-6 py-4 font-medium text-white">
+                        ₹{Number(o.total).toLocaleString("en-IN")}
+                      </td>
+                      <td
+                        onClick={(e) => { e.stopPropagation(); navigate(`/admin/orders/${o.order_id}`) }}
+                        className="px-6 py-4 cursor-pointer"
+                      >
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          normalizeKey(o.paymentStatus) === "paid"
+                            ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                            : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                          }`}>
+                          {o.paymentStatus}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {statusBadge(o.status)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <CustomDropdown
+                          label="Status"
+                          value={normalizeKey(o.status)}
+                          onChange={(value) => updateStatus(o.order_id, value)}
+                          options={
+                            normalizeKey(o.status) === "cancelled"
+                              ? [{ label: "Cancelled", value: "cancelled" }]
+                              : [
+                                ...STATUS_SEQUENCE
+                                  .map((step, idx) => {
+                                    const currentIdx = STATUS_SEQUENCE.indexOf(normalizeKey(o.status));
+                                    if (idx < currentIdx && currentIdx !== -1) return null;
+                                    return {
+                                      label: formatStatusLabel(step),
+                                      value: step,
+                                    };
+                                  })
+                                  .filter(Boolean),
+                                ...(STATUS_SEQUENCE.indexOf(normalizeKey(o.status)) <
+                                  STATUS_SEQUENCE.indexOf("shipped")
+                                  ? [{ label: "Cancelled", value: "cancelled" }]
+                                  : []),
+                              ]
+                          }
+                        />
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => printOrder(o)}
+                          className="p-2 rounded-xl bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
+                          title="Print Invoice"
+                        >
+                          <FaPrint className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-4 p-6">
+            {paginatedOrders.length === 0 ? (
+              <div className="text-center py-12 text-slate-400">
+                No orders found
+              </div>
+            ) : (
+              paginatedOrders.map((o) => (
+                <div
+                  key={o.order_id}
+                  className="rounded-[2rem] border border-white/10 bg-slate-950/60 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] backdrop-blur-xl"
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div
+                      onClick={(e) => { e.stopPropagation(); navigate(`/admin/orders/${o.order_id}`) }}
+                      className="cursor-pointer hover:text-orange-400"
+                    >
+                      <h3 className="font-semibold text-lg text-white">{formatOrderId(o.order_id)}</h3>
+                      <p className="text-sm text-slate-400">{o.shipping?.name || o.pickup?.name || "-"}</p>
+                    </div>
+                    <div className="flex flex-col gap-2 items-end">
+                      {statusBadge(o.status)}
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        normalizeKey(o.paymentStatus) === "paid"
+                          ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                          : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
                         }`}>
                         {o.paymentStatus}
                       </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {statusBadge(o.status)}
-                    </td>
+                    </div>
+                  </div>
 
-                    <td className="px-4 py-3 flex gap-2">
-                      {/* <select
-                        value={normalizeKey(o.status)}
-                        onChange={(e) => updateStatus(o.order_id, e.target.value)}
-                        className="bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-xs focus:ring-1 focus:ring-orange-500 outline-none"
-                      >
-                        {normalizeKey(o.status) === "cancelled" ? (
-                          <option value="cancelled">Cancelled</option>
-                        ) : (
-                          <>
-                            {STATUS_SEQUENCE.map((step, idx) => {
-                              const currentIdx = STATUS_SEQUENCE.indexOf(normalizeKey(o.status));
-                              // Only show current and future statuses
-                              if (idx < currentIdx && currentIdx !== -1) return null;
-                              return <option key={step} value={step}>{formatStatusLabel(step)}</option>;
-                            })}
-
-                            {(STATUS_SEQUENCE.indexOf(normalizeKey(o.status)) < STATUS_SEQUENCE.indexOf("shipped")) && (
-                              <option value="cancelled">Cancelled</option>
-                            )}
-                          </>
+                  <div className="space-y-3 mb-4">
+                    {(o.items || []).slice(0, 2).map((item, idx) => (
+                      <div key={idx} className="flex items-center gap-3 bg-slate-950/40 p-3 rounded-xl border border-white/5">
+                        {item.image && (
+                          <img
+                            src={makeImageUrl(item.image)}
+                            className="w-12 h-12 object-cover rounded-lg border border-white/10"
+                            alt=""
+                          />
                         )}
-                      </select> */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white truncate">{item.product_name}</p>
+                          <p className="text-xs text-slate-400">Qty: {item.qty} | ₹{item.price}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {(o.items || []).length > 2 && (
+                      <p className="text-xs text-slate-400 text-center">
+                        +{(o.items || []).length - 2} more items
+                      </p>
+                    )}
+                  </div>
 
+                  <div className="flex justify-between items-center mb-4">
+                    <p className="text-lg font-bold text-white">
+                      ₹{Number(o.total).toLocaleString("en-IN")}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <div className="flex-1">
                       <CustomDropdown
-                        label="Status"
+                        label="Update Status"
                         value={normalizeKey(o.status)}
                         onChange={(value) => updateStatus(o.order_id, value)}
                         options={
@@ -829,18 +995,13 @@ ${items
                               ...STATUS_SEQUENCE
                                 .map((step, idx) => {
                                   const currentIdx = STATUS_SEQUENCE.indexOf(normalizeKey(o.status));
-
-                                  // same logic as before
                                   if (idx < currentIdx && currentIdx !== -1) return null;
-
                                   return {
                                     label: formatStatusLabel(step),
                                     value: step,
                                   };
                                 })
                                 .filter(Boolean),
-
-                              // Cancel option logic (same as before)
                               ...(STATUS_SEQUENCE.indexOf(normalizeKey(o.status)) <
                                 STATUS_SEQUENCE.indexOf("shipped")
                                 ? [{ label: "Cancelled", value: "cancelled" }]
@@ -848,132 +1009,61 @@ ${items
                             ]
                         }
                       />
-
-
-                    </td>
-                    <td>
-                      <button
-                        onClick={() => printOrder(o)}
-                        className="px-2 py-1 bg-gray-700 rounded-lg text-xs flex items-center gap-1"
-                      >
-                        <FaPrint /> Print
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                    <button
+                      onClick={() => printOrder(o)}
+                      className="p-3 rounded-xl bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
+                      title="Print Invoice"
+                    >
+                      <FaPrint className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
-      )}
 
-      {/* ================= GRID VIEW ================= */}
-      {view === "grid" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {paginatedOrders.map((o) => (
-            <div
-              key={o.order_id}
-              className="bg-white/10 border border-white/20 rounded-2xl p-4 space-y-2"
-            >
-              <div onClick={(e) => { e.stopPropagation(); navigate(`/admin/orders/${o.order_id}`) }} className="flex justify-between items-center">
-                <h3 className="font-bold">{formatOrderId(o.order_id || o.orderId)}</h3>
-                {statusBadge(o.status)}
-              </div>
+        {/* PAGINATION */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-white/10">
+            <p className="text-sm text-slate-400">
+              Showing {Math.min((currentPage - 1) * ordersPerPage + 1, filteredOrders.length)} to {Math.min(currentPage * ordersPerPage, filteredOrders.length)} of {filteredOrders.length} orders
+            </p>
 
-              <p onClick={(e) => { e.stopPropagation(); navigate(`/admin/orders/${o.order_id}`) }} className="text-sm text-gray-300">
-                {o.shipping?.name || o.pickup?.name || "-"}
-              </p>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => p - 1)}
+                className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
 
-              <div className="flex flex-wrap gap-2 py-2">
-                {(o.items || []).map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-2 bg-black/20 p-1.5 rounded-xl border border-white/5">
-                    {item.image && (
-                      <img
-                        src={makeImageUrl(item.image)}
-                        className="w-8 h-8 object-cover rounded-lg"
-                        alt=""
-                      />
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-medium truncate w-[100px]">{item.product_name}</p>
-                      <p className="text-[9px] text-gray-400">Qty: {item.qty} | ₹{item.price}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <p onClick={(e) => { e.stopPropagation(); navigate(`/admin/orders/${o.order_id}`) }} className="font-semibold">
-                ₹ {Number(o.total).toLocaleString("en-IN")}
-              </p>
-
-              <p className="text-xs">{o.paymentStatus}</p>
-
-              <div className="flex gap-2">
-                <select
-                  value={normalizeKey(o.status)}
-                  onChange={(e) => updateStatus(o.order_id, e.target.value)}
-                  className="bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-xs w-full focus:ring-1 focus:ring-orange-500 outline-none"
-                >
-                  {normalizeKey(o.status) === "cancelled" ? (
-                    <option value="cancelled">Cancelled</option>
-                  ) : (
-                    <>
-                      {STATUS_SEQUENCE.map((step, idx) => {
-                        const currentIdx = STATUS_SEQUENCE.indexOf(normalizeKey(o.status));
-                        if (idx < currentIdx && currentIdx !== -1) return null;
-                        return <option key={step} value={step}>{formatStatusLabel(step)}</option>;
-                      })}
-
-                      {/* Hide Cancelled if Shipped/Delivered */}
-                      {(STATUS_SEQUENCE.indexOf(normalizeKey(o.status)) < STATUS_SEQUENCE.indexOf("shipped")) && (
-                        <option value="cancelled">Cancelled</option>
-                      )}
-                    </>
-                  )}
-                </select>
-
+              {[...Array(totalPages)].map((_, i) => (
                 <button
-                  onClick={() => printOrder(o)}
-                  className="px-2 py-1 bg-gray-700 rounded-lg text-xs flex items-center gap-1"
+                  key={i}
+                  onClick={() => setCurrentPage(i + 1)}
+                  className={`inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition ${
+                    currentPage === i + 1
+                      ? "bg-orange-500 text-white"
+                      : "border border-white/15 bg-white/5 text-white hover:bg-white/10"
+                  }`}
                 >
-                  <FaPrint />
+                  {i + 1}
                 </button>
-              </div>
+              ))}
+
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(p => p + 1)}
+                className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* ================= PAGINATION ================= */}
-      <div className="flex justify-end gap-2">
-        <button
-          disabled={currentPage === 1}
-          onClick={() => setCurrentPage((p) => p - 1)}
-          className="px-3 py-1 bg-white/10 border border-white/20 rounded-lg disabled:opacity-50"
-        >
-          Prev
-        </button>
-
-        {[...Array(totalPages)].map((_, i) => (
-          <button
-            key={i}
-            onClick={() => setCurrentPage(i + 1)}
-            className={`px-3 py-1 rounded-lg border ${currentPage === i + 1
-              ? "bg-orange-500 text-white border-orange-500"
-              : "bg-white/10 border-white/20"
-              }`}
-          >
-            {i + 1}
-          </button>
-        ))}
-
-        <button
-          disabled={currentPage === totalPages}
-          onClick={() => setCurrentPage((p) => p + 1)}
-          className="px-3 py-1 bg-white/10 border border-white/20 rounded-lg disabled:opacity-50"
-        >
-          Next
-        </button>
+          </div>
+        )}
       </div>
 
       {/* ================= STATUS UPDATE MODAL ================= */}
@@ -1054,6 +1144,7 @@ ${items
         </div>
       )}
     </div>
+  </div>
 
   );
 };

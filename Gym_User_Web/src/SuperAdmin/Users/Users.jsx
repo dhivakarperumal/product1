@@ -6,16 +6,15 @@ import {
   FaUserPlus,
   FaSearch,
   FaArrowLeft,
+  FaEdit,
+  FaTrash,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { FaEdit, FaTrash } from "react-icons/fa";
 
-/* ================= GLASS CLASSES ================= */
 const glassCard =
-  "bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.25)]";
-
+  "bg-white/10 backdrop-blur-xl border border-white/20 rounded-[28px] shadow-[0_30px_80px_rgba(0,0,0,0.25)]";
 const glassInput =
-  "bg-gray-800 border border-white/20 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-white/30";
+  "bg-slate-950/90 border border-white/10 rounded-3xl px-4 py-3 text-sm text-white placeholder-slate-400 shadow-[0_24px_60px_rgba(15,23,42,0.25)] outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20";
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -24,27 +23,8 @@ const Users = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
 
-  const deleteUser = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this user?")) return;
-
-    try {
-      console.log("Deleting user with ID:", id, "Type:", typeof id);
-      const response = await api.delete(`/users/${id}`);
-      console.log("Delete response:", response.data);
-      toast.success("User deleted successfully 🗑️");
-      loadUsers();
-    } catch (err) {
-      console.error("Delete error:", err);
-      console.error("Error response:", err.response?.data);
-      console.error("Error status:", err.response?.status);
-      const errorMessage = err.response?.data?.error || "Failed to delete user";
-      toast.error(errorMessage);
-    }
-  };
-
-  // pagination
   const [page, setPage] = useState(1);
-  const pageSize = 10; // items per page
+  const pageSize = 12;
 
   const navigate = useNavigate();
 
@@ -62,278 +42,255 @@ const Users = () => {
           id: u.id,
           username: u.username || u.email || "Unknown",
           email: u.email,
-          mobile: u.mobile,
+          mobile: u.mobile || "-",
+          role: (u.role || "member").toLowerCase(),
           active: true,
-          role: (u.role || "member").toLowerCase(), // Normalize role to lowercase
+          createdAt: u.created_at || "-",
+          createdBy: u.created_by || "-",
+          updatedAt: u.updated_at || "-",
+          updatedBy: u.updated_by || "-",
         }))
       );
     } catch (err) {
       console.error("Failed to load users:", err);
-      toast.error("Failed to load users");
+      toast.error("Unable to load users");
     } finally {
       setLoading(false);
     }
   };
 
+  const deleteUser = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
+
+    try {
+      await api.delete(`/users/${id}`);
+      toast.success("User deleted successfully");
+      loadUsers();
+    } catch (err) {
+      console.error("Delete error:", err);
+      const errorMessage = err.response?.data?.error || "Failed to delete user";
+      toast.error(errorMessage);
+    }
+  };
+
   const updateRole = async (id, role) => {
     try {
-      // Ensure role is a valid string
-      if (!role || typeof role !== 'string' || role.trim() === '') {
-        toast.error('Invalid role selected');
+      if (!role || typeof role !== "string" || role.trim() === "") {
+        toast.error("Invalid role selected");
         return;
       }
-
       const trimmedRole = role.trim().toLowerCase();
-      const validRoles = ['admin', 'super admin', 'trainer', 'staff', 'member'];
+      const validRoles = ["admin", "super admin", "trainer", "staff", "member"];
       if (!validRoles.includes(trimmedRole)) {
-        toast.error('Invalid role selected');
+        toast.error("Invalid role selected");
         return;
       }
-
       await api.put(`/users/${id}`, { role: trimmedRole });
       toast.success("Role updated successfully");
       loadUsers();
     } catch (err) {
-      console.error("Failed to update role:", err);
+      console.error("Update role error:", err);
       const errorMessage = err.response?.data?.error || "Failed to update role";
       toast.error(errorMessage);
     }
   };
 
-  const toggleStatus = async (id, active) => {
-    // Users table does not have active/status field
-    // Status is implicitly 'active' for all users
-    toast.info("User status cannot be toggled (all users are active)");
-  };
-
-  const totalUsers = users.length;
-  const activeUsers = users.filter((u) => u.active).length;
-
   const filteredUsers = users.filter((u) => {
-    const matchSearch =
-      u.username?.toLowerCase().includes(search.toLowerCase()) ||
-      u.email?.toLowerCase().includes(search.toLowerCase());
-
-    const matchRole = roleFilter === "all" || u.role === roleFilter;
-    const matchStatus =
+    const searchMatch =
+      u.username.toLowerCase().includes(search.toLowerCase()) ||
+      u.email.toLowerCase().includes(search.toLowerCase());
+    const roleMatch = roleFilter === "all" || u.role === roleFilter;
+    const statusMatch =
       statusFilter === "all" ||
       (statusFilter === "active" && u.active) ||
       (statusFilter === "inactive" && !u.active);
-
-    return matchSearch && matchRole && matchStatus;
+    return searchMatch && roleMatch && statusMatch;
   });
 
-  // reset page when filters/search change
   useEffect(() => {
     setPage(1);
   }, [search, roleFilter, statusFilter]);
 
-  const totalPages = Math.ceil(filteredUsers.length / pageSize);
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
   const pagedUsers = filteredUsers.slice((page - 1) * pageSize, page * pageSize);
-
+  const totalUsers = users.length;
+  const activeUsers = users.filter((u) => u.active).length;
+  const adminCount = users.filter((u) => u.role === "admin").length;
 
   if (loading) {
-    return <p className="text-center mt-10 text-gray-300">Loading users…</p>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+        <p className="text-xl">Loading users…</p>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-8 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-4 py-10 text-white">
+      <div className="mx-auto max-w-7xl space-y-10">
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-8 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-end">
+           
 
-      <div className="flex justify-between items-center">
-
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition"
-        >
-          <FaArrowLeft /> Back
-        </button>
-
-        <button
-          onClick={() => navigate("/superadmin/adduser")}
-          className="flex items-center gap-2 px-5 py-2 rounded-full bg-orange-500 hover:bg-orange-600 transition text-white font-medium"
-        >
-          <FaUserPlus /> Add User
-        </button>
-
-      </div>
-
-      {/* STATS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <div className={`${glassCard} p-6 flex justify-between items-center`}>
-          <div>
-            <p className="text-xs uppercase tracking-widest text-gray-300">
-              Total Users
-            </p>
-            <h2 className="text-3xl font-bold">{totalUsers}</h2>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                onClick={() => navigate("/superadmin/adduser")}
+                className="inline-flex items-center justify-center rounded-full bg-orange-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
+              >
+                <FaUserPlus className="mr-2" /> Add Admin
+              </button>
+              <button
+                onClick={() => navigate(-1)}
+                className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+              >
+                <FaArrowLeft className="mr-2" /> Back
+              </button>
+            </div>
           </div>
-          <div className="p-4 rounded-xl bg-blue-500/30 text-blue-200 text-xl">
-            <FaUsers />
-          </div>
-        </div>
 
-        <div className={`${glassCard} p-6 flex justify-between items-center`}>
-          <div>
-            <p className="text-xs uppercase tracking-widest text-gray-300">
-              Active Users
-            </p>
-            <h2 className="text-3xl font-bold">{activeUsers}</h2>
-          </div>
-          <div className="p-4 rounded-xl bg-emerald-500/30 text-emerald-200 text-xl">
-            <FaUserPlus />
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            <div className={`${glassCard} p-6`}>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Total users</p>
+              <p className="mt-4 text-4xl font-bold text-white">{totalUsers}</p>
+              <p className="mt-2 text-sm text-slate-400">All admin-managed users.</p>
+            </div>
+            <div className={`${glassCard} p-6`}>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Active users</p>
+              <p className="mt-4 text-4xl font-bold text-white">{activeUsers}</p>
+              <p className="mt-2 text-sm text-slate-400">Currently active accounts.</p>
+            </div>
+            <div className={`${glassCard} p-6`}>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Admins</p>
+              <p className="mt-4 text-4xl font-bold text-white">{adminCount}</p>
+              <p className="mt-2 text-sm text-slate-400">Users with admin privileges.</p>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* FILTER BAR */}
-      <div className={`${glassCard} p-5 flex flex-col lg:flex-row gap-4 justify-between`}>
-        <div className="relative w-full lg:w-1/3">
-          <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 text-sm" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search name or email"
-            className={`pl-10 w-full ${glassInput}`}
-          />
-        </div>
-
-        <div className="flex gap-3 flex-wrap">
-          <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className={glassInput}>
-            <option value="all">All Roles</option>
-            <option value="admin">Admin</option>
-            <option value="super admin">Super Admin</option>
-            <option value="trainer">Trainer</option>
-            <option value="staff">Staff</option>
-            <option value="member">Member</option>
-          </select>
-
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={glassInput}>
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Disabled</option>
-          </select>
-
-
-        </div>
-      </div>
-
-      {/* TABLE */}
-      <div className={`${glassCard} overflow-hidden`}>
-        <table className="min-w-full text-sm text-gray-200">
-          <thead className="bg-white/20">
-            <tr>
-              <th className="px-4 py-4 text-left">#</th>
-              <th className="px-4 py-4 text-left">Name</th>
-              <th className="px-4 py-4 text-left">Email</th>
-              <th className="px-4 py-4 text-left">Role</th>
-              <th className="px-4 py-4 text-left">Status</th>
-              <th className="px-4 py-4 text-left">Mobile</th>
-              <th className="px-4 py-4 text-left">Actions</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {pagedUsers.map((u, index) => (
-              <tr key={u.id} className="border-b border-white/10 hover:bg-white/5 transition">
-                <td className="px-4 py-3">{(page - 1) * pageSize + index + 1}</td>
-                <td className="px-4 py-3 font-medium">{u.username}</td>
-                <td className="px-4 py-3">{u.email}</td>
-
-                <td className="px-4 py-3">
-                  <select
-                    value={(u.role || "member").toLowerCase()}
-                    onChange={async (e) => {
-                      const newRole = e.target.value?.trim();
-                      if (newRole && newRole !== u.role) {
-                        try {
-                          await updateRole(u.id, newRole);
-                        } catch (err) {
-                          // Error already handled in updateRole
-                        }
-                      }
-                    }}
-                    className="bg-gray-800 border border-white/20 rounded-lg px-2 py-1 text-white"
-                  >
+        <div className="space-y-8">
+          <section className={`${glassCard} overflow-hidden`}>
+            <div className="border-b border-white/10 bg-slate-950/80 px-6 py-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.24em] text-orange-300/80">Admin list</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-white">Manage users</h2>
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <div className="relative w-full sm:w-72">
+                    <FaSearch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search name or email"
+                      className={`pl-11 ${glassInput}`}
+                    />
+                  </div>
+                  <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className={glassInput}>
+                    <option value="all">All Roles</option>
                     <option value="admin">Admin</option>
-                    <option value="trainer">Trainer</option>
                     <option value="super admin">Super Admin</option>
+                    <option value="trainer">Trainer</option>
                     <option value="staff">Staff</option>
                     <option value="member">Member</option>
                   </select>
-                </td>
+                  <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={glassInput}>
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Disabled</option>
+                  </select>
+                </div>
+              </div>
+            </div>
 
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-1 rounded-full text-xs font-semibold
-                    ${u.active
-                      ? "bg-emerald-500/20 text-emerald-300"
-                      : "bg-red-500/20 text-red-300"}`}>
-                    {u.active ? "Active" : "Disabled"}
-                  </span>
-                </td>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm text-slate-200">
+                <thead className="bg-slate-950/80 text-slate-300">
+                  <tr>
+                    <th className="px-6 py-4">#</th>
+                    <th className="px-6 py-4">Name</th>
+                    <th className="px-6 py-4">Email</th>
+                    <th className="px-6 py-4">Role</th>
+                    <th className="px-6 py-4">Mobile</th>
+                    <th className="px-6 py-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagedUsers.length > 0 ? (
+                    pagedUsers.map((user, index) => (
+                      <tr key={user.id} className="border-t border-white/10 hover:bg-white/5 transition">
+                        <td className="px-6 py-4 font-medium text-slate-200">{(page - 1) * pageSize + index + 1}</td>
+                        <td className="px-6 py-4 text-slate-100">{user.username}</td>
+                        <td className="px-6 py-4 text-slate-300">{user.email}</td>
+                        <td className="px-6 py-4">
+                          <span className="inline-flex rounded-full bg-slate-900/80 px-3 py-1 text-sm font-medium text-slate-100">
+                            {user.role === "super admin" ? "Super Admin" : user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-slate-300">{user.mobile}</td>
+                        <td className="px-6 py-4 flex flex-wrap gap-2">
+                          <button
+                            onClick={() => navigate(`/superadmin/edituser/${user.id}`)}
+                            className="inline-flex items-center justify-center rounded-2xl bg-blue-500/15 px-3 py-2 text-blue-200 hover:bg-blue-500/25"
+                          >
+                            <FaEdit />
+                          </button>
+                          <button
+                            onClick={() => deleteUser(user.id)}
+                            className="inline-flex items-center justify-center rounded-2xl bg-red-500/15 px-3 py-2 text-red-200 hover:bg-red-500/25"
+                          >
+                            <FaTrash />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="6" className="px-6 py-12 text-center text-slate-400">
+                        No users found. Adjust your filters or add a new admin.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-                <td className="px-4 py-3">{u.mobile || "-"}</td>
-
-                <td className="px-4 py-3 flex gap-3">
-
-                  {/* EDIT */}
+            {totalPages > 1 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 bg-slate-950/80 px-6 py-4 text-sm text-slate-300">
+                <div>
+                  Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filteredUsers.length)} of {filteredUsers.length} users
+                </div>
+                <div className="flex gap-2">
                   <button
-                    onClick={() => navigate(`/superadmin/edituser/${u.id}`)}
-                    className="p-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/40 text-blue-300"
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                    disabled={page === 1}
+                    className="rounded-full bg-white/5 px-4 py-2 transition hover:bg-white/10 disabled:opacity-40"
                   >
-                    <FaEdit />
+                    Prev
                   </button>
-
-                  {/* DELETE */}
+                  {[...Array(totalPages)].map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setPage(index + 1)}
+                      className={`rounded-full px-4 py-2 transition ${page === index + 1 ? "bg-orange-500 text-slate-950" : "bg-white/5 hover:bg-white/10"}`}
+                    >
+                      {index + 1}
+                    </button>
+                  ))}
                   <button
-                    onClick={() => deleteUser(u.id)}
-                    className="p-2 rounded-lg bg-red-500/20 hover:bg-red-500/40 text-red-300"
+                    onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                    disabled={page === totalPages}
+                    className="rounded-full bg-white/5 px-4 py-2 transition hover:bg-white/10 disabled:opacity-40"
                   >
-                    <FaTrash />
+                    Next
                   </button>
-
-                </td>
-              </tr>
-            ))}
-
-            {filteredUsers.length === 0 && (
-              <tr>
-                <td colSpan="6" className="text-center py-6 text-gray-400">
-                  No users found
-                </td>
-              </tr>
+                </div>
+              </div>
             )}
-          </tbody>
-        </table>
-      </div>
+          </section>
 
-      {/* PAGINATION CONTROLS */}
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 mt-4 text-white">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="px-3 py-1 rounded bg-white/10 hover:bg-white/20 disabled:opacity-50"
-          >
-            Prev
-          </button>
-          {[...Array(totalPages)].map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setPage(i + 1)}
-              className={`px-3 py-1 rounded ${page === i + 1 ? "bg-orange-500" : "bg-white/10 hover:bg-white/20"}`}
-            >
-              {i + 1}
-            </button>
-          ))}
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="px-3 py-1 rounded bg-white/10 hover:bg-white/20 disabled:opacity-50"
-          >
-            Next
-          </button>
+        
         </div>
-      )}
-
+      </div>
     </div>
   );
 };

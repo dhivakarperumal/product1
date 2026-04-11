@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { getActorUuid } = require('../utils/auditTrail');
 
 // Helper function to parse JSON fields
 const parseOrder = (order) => {
@@ -100,9 +101,11 @@ async function updateOrderStatus(req, res) {
     // Add new status to track
     trackArray.push({ status, time: new Date() });
 
+    const updatedBy = getActorUuid(req.user) || null;
+
     // Build update query dynamically to avoid overwriting existing tracking info if not provided
-    let query = 'UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP, order_track = ?';
-    let params = [status, JSON.stringify(trackArray)];
+    let query = 'UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP, order_track = ?, updated_by = ?';
+    let params = [status, JSON.stringify(trackArray), updatedBy];
 
     if (courierName) {
       query += ', courier_name = ?';
@@ -152,8 +155,10 @@ async function createOrder(req, res) {
 
     // Insert order
     const insertOrderQuery = `INSERT INTO orders 
-      (order_id,user_id,status,payment_status,total,payment_method,payment_id,order_type,shipping,pickup,order_track,notes)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`;
+      (order_id,user_id,status,payment_status,total,payment_method,payment_id,order_type,shipping,pickup,order_track,notes,created_by,updated_by)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+    
+    const createdBy = getActorUuid(req.user) || null;
     
     const orderValues = [
       data.order_id,
@@ -167,7 +172,9 @@ async function createOrder(req, res) {
       data.shipping ? JSON.stringify(data.shipping) : null,
       data.pickup ? JSON.stringify(data.pickup) : null,
       JSON.stringify(data.order_track || []),
-      data.notes || null
+      data.notes || null,
+      createdBy,
+      createdBy
     ];
     
     console.log("Inserting order with values:", orderValues);

@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { getActorUuid } = require('../utils/auditTrail');
 
 /**
  * GET /api/attendance?date=YYYY-MM-DD&trainerId=...
@@ -109,17 +110,19 @@ async function markAttendance(req, res) {
 
     if (existing.length > 0) {
       // Update existing record only if it's currently "checked in"
+      const updatedBy = getActorUuid(req.user) || null;
       await db.query(
-        "UPDATE attendance SET status = ?, trainer_id = ?, lat = ?, lng = ?, location_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        [status, resolvedStaffId || null, lat || null, lng || null, locationName || null, existing[0].id]
+        "UPDATE attendance SET status = ?, trainer_id = ?, lat = ?, lng = ?, location_name = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        [status, resolvedStaffId || null, lat || null, lng || null, locationName || null, updatedBy, existing[0].id]
       );
       return res.json({ success: true, message: 'Attendance updated' });
     }
 
     // Insert new record
+    const createdBy = getActorUuid(req.user) || null;
     await db.query(
-      "INSERT INTO attendance (member_id, trainer_id, status, `date`, lat, lng, location_name, check_in) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
-      [memberId, resolvedStaffId || null, status, date, lat || null, lng || null, locationName || null]
+      "INSERT INTO attendance (member_id, trainer_id, status, `date`, lat, lng, location_name, check_in, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)",
+      [memberId, resolvedStaffId || null, status, date, lat || null, lng || null, locationName || null, createdBy, createdBy]
     );
 
     res.json({ success: true, message: 'Attendance marked' });
@@ -151,9 +154,11 @@ async function checkOut(req, res) {
     if (existing.length === 0) {
       return res.status(404).json({ error: 'No active check-in found. Please check in first.' });
     }
+    
+    const updatedBy = getActorUuid(req.user) || null;
     await db.query(
-      "UPDATE attendance SET check_out = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-      [existing[0].id]
+      "UPDATE attendance SET check_out = CURRENT_TIMESTAMP, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+      [updatedBy, existing[0].id]
     );
 
     res.json({ success: true, message: 'Checked out successfully' });

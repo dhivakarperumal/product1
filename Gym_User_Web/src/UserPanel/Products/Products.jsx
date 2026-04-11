@@ -66,6 +66,22 @@ const Products = () => {
     return null;
   };
 
+  // ✅ Stock helper for cards
+  const getProductStock = (product) => {
+    if (!product) return 0;
+
+    if (product.stock && Object.keys(product.stock).length > 0) {
+      const stockValues = Object.values(product.stock);
+      for (const stock of stockValues) {
+        if (stock?.qty !== undefined && stock?.qty !== null) {
+          return Number(stock.qty);
+        }
+      }
+    }
+
+    return Number(product.qty ?? product.quantity ?? 0);
+  };
+
   // ✅ Load products with pagination and request cancellation
   useEffect(() => {
     const abortController = new AbortController();
@@ -152,23 +168,42 @@ const Products = () => {
   };
 
   return (
-    <div className="space-y-6 p-4">
+    <div className="space-y-8 p-4 md:p-6">
+      <div className="rounded-[32px] border border-white/10 bg-slate-950/70 p-6 shadow-[0_30px_120px_-80px_rgba(249,115,22,0.35)] backdrop-blur-xl">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl space-y-3">
+            <p className="text-sm uppercase tracking-[0.3em] text-orange-400/80">Gym & Nutrition Shop</p>
+            <h1 className="text-4xl md:text-5xl font-semibold text-white">Premium products built for your workout routine</h1>
+            <p className="text-sm text-white/60 leading-7">
+              Browse a curated collection of gym supplements, fitness accessories, and recovery gear with fast delivery and visible offers.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <span className="rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-orange-200">
+              Free shipping over ₹1499
+            </span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/70">
+              20+ curated essentials
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* Loading */}
       {page === 1 && loading ? (
         <div className="flex flex-col items-center justify-center py-32 gap-6">
           <div className="w-16 h-16 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
-          <p className="text-white/40 text-xs uppercase">
-            Loading...
-          </p>
+          <p className="text-white/40 text-xs uppercase">Loading products...</p>
         </div>
       ) : products.length === 0 ? (
         <div className="text-center text-white/50 py-20">
-          No products found 😢
+          <p className="text-2xl font-semibold mb-3">No products found</p>
+          <p>Try refreshing the page or check back later for new stock.</p>
         </div>
       ) : (
         <>
-          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
             {products.map((product, index) => {
               const productId =
                 product.id ??
@@ -177,7 +212,8 @@ const Products = () => {
                 index;
 
               const pricing = getProductPricing(product);
-
+              const stockCount = getProductStock(product);
+              const isAvailable = stockCount > 0;
               const safeName =
                 typeof product.name === "string"
                   ? product.name
@@ -187,6 +223,9 @@ const Products = () => {
                 ? product.images[0]
                 : product.images;
 
+              const descriptionSnippet =
+                product.description?.slice(0, 85) || "Premium gym gear to support your next workout.";
+
               const goToDetails = () => {
                 navigate(`/user/products/${productId}`);
               };
@@ -194,59 +233,66 @@ const Products = () => {
               return (
                 <div
                   key={productId}
-                  className="
-                    relative h-full flex flex-col
-                    bg-gradient-to-br from-[#0e1016] via-black to-[#0e1016]
-                    border-2 border-orange-500/60 rounded-3xl overflow-hidden
-                    hover:-translate-y-1 transition-all duration-300
-                  "
+                  className="group overflow-hidden rounded-[32px] border border-white/10 bg-slate-950/80 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.6)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_30px_90px_-20px_rgba(249,115,22,0.35)]"
                 >
-                  {/* IMAGE */}
-                  <div className="h-52 bg-black">
+                  <div className="relative overflow-hidden bg-slate-900">
                     <img
                       onClick={goToDetails}
-                      src={
-                        makeImageUrl(image) ||
-                        "https://via.placeholder.com/300x300"
-                      }
-                      className="w-full h-full object-cover cursor-pointer"
+                      src={makeImageUrl(image) || "https://via.placeholder.com/300x300"}
+                      className="h-64 w-full object-cover transition duration-500 group-hover:scale-105 cursor-pointer"
                       loading="lazy"
                     />
+                    <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-950/90 to-transparent" />
+                    {pricing?.offer > 0 && (
+                      <div className="absolute top-4 left-4 rounded-full bg-orange-500/15 px-3 py-1 text-xs font-semibold text-orange-200 backdrop-blur-sm">
+                        {pricing.offer}% OFF
+                      </div>
+                    )}
+                    <div className={`absolute top-4 right-4 rounded-full px-3 py-1 text-xs font-semibold ${isAvailable ? 'bg-emerald-500/10 text-emerald-200' : 'bg-red-500/10 text-red-200'}`}>
+                      {isAvailable ? 'In stock' : 'Out of stock'}
+                    </div>
                   </div>
 
-                  {/* CONTENT */}
-                  <div className="p-4 flex flex-col flex-1">
-                    <h3
-                      onClick={goToDetails}
-                      className="text-orange-500 font-semibold cursor-pointer line-clamp-1"
+                  <div className="flex flex-col gap-4 p-5">
+                    <button
+                      onClick={() => addToCart(product)}
+                      className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition ${isAvailable ? 'border-orange-500/40 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20' : 'border-white/10 bg-white/5 text-white/40 cursor-not-allowed'}`}
+                      disabled={!isAvailable}
                     >
-                      {safeName}
-                    </h3>
+                      Quick add
+                    </button>
 
-                    <div className="flex gap-2 mt-2">
-                      {pricing ? (
-                        <>
-                          <span className="text-white font-bold">
-                            ₹{pricing.offerPrice}
-                          </span>
-                          <span className="line-through text-white/50">
-                            ₹{pricing.mrp}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="text-gray-400 text-sm">
-                          No price
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <h3
+                          onClick={goToDetails}
+                          className="text-xl font-semibold text-white line-clamp-2 cursor-pointer hover:text-orange-400"
+                        >
+                          {safeName}
+                        </h3>
+                        <span className="text-xs uppercase tracking-[0.3em] text-white/50">
+                          {product.category || "Supplement"}
                         </span>
-                      )}
-                    </div>
+                      </div>
 
-                    <div className="mt-auto pt-4">
-                      <button
-                        onClick={goToDetails}
-                        className="w-full bg-orange-600 text-white py-2 rounded-lg cursor-pointer"
-                      >
-                        VIEW DETAILS
-                      </button>
+                      <p className="text-sm leading-6 text-white/60 line-clamp-3">
+                        {descriptionSnippet}
+                      </p>
+
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <p className="text-xl font-semibold text-white">₹{pricing?.offerPrice || "0"}</p>
+                          {pricing?.mrp && pricing?.mrp !== pricing?.offerPrice && (
+                            <p className="text-sm text-white/50 line-through">₹{pricing.mrp}</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={goToDetails}
+                          className="ml-auto rounded-2xl bg-orange-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-orange-700"
+                        >
+                          View details
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -260,7 +306,7 @@ const Products = () => {
               <button
                 onClick={handleLoadMore}
                 disabled={loading}
-                className="px-8 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="rounded-full bg-orange-600 px-8 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading ? "Loading..." : "Load More Products"}
               </button>

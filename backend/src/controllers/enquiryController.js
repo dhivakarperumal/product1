@@ -1,5 +1,9 @@
 const pool = require('../config/db');
 
+// Extract admin UUID from request user - prioritize adminUuid
+const getAdminUuid = (user) =>
+  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+
 const enquiryController = {
     // Get all enquiries
     getAllEnquiries: async (req, res) => {
@@ -38,9 +42,12 @@ const enquiryController = {
                 return res.status(400).json({ error: 'Name, email, and message are required' });
             }
 
+            // Store admin UUID for audit trail
+            const adminUuid = getAdminUuid(req.user) || null;
+
             const [result] = await pool.query(
-                'INSERT INTO enquiries (name, email, phone, subject, message, location) VALUES (?, ?, ?, ?, ?, ?)',
-                [name, email, phone, subject || null, message, location || null]
+                'INSERT INTO enquiries (name, email, phone, subject, message, location, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                [name, email, phone, subject || null, message, location || null, adminUuid, adminUuid]
             );
 
             const [rows] = await pool.query('SELECT * FROM enquiries WHERE id = ?', [result.insertId]);
@@ -61,9 +68,12 @@ const enquiryController = {
                 return res.status(400).json({ error: 'Status is required' });
             }
 
+            // Store admin UUID for audit trail
+            const adminUuid = getAdminUuid(req.user) || null;
+
             const [result] = await pool.query(
-                'UPDATE enquiries SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                [status, id]
+                'UPDATE enquiries SET status = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                [status, adminUuid, id]
             );
 
             if (result.affectedRows === 0) {

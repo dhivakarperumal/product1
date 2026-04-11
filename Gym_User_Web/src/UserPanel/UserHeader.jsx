@@ -235,7 +235,7 @@ const UserHeader = ({ onMenuClick }) => {
             {showNotifications && (
               <>
                 <div onClick={() => setShowNotifications(false)} className="fixed inset-0 z-40" />
-                <div className="absolute right-0 mt-4 w-80 max-h-[450px] bg-slate-900 border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+                <div className="absolute right-0 mt-4 w-80 max-h-[450px] bg-slate-900/95 border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col animate-fade-in-up">
                   <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
                     <h3 className="text-sm font-bold text-white flex items-center gap-2">
                       <Bell className="w-4 h-4 text-orange-500" /> Expiring Plans

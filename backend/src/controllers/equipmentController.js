@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { getActorUuid } = require('../utils/auditTrail');
 
 async function getAllEquipment(req, res) {
   try {
@@ -48,11 +49,13 @@ async function createEquipment(req, res) {
       return res.status(400).json({ message: "Name, category, and purchase date are required" });
     }
 
+    const createdBy = getActorUuid(req.user) || null;
+
     const [result] = await db.query(
       `INSERT INTO gym_equipment 
-       (name, category, purchase_date, \`condition\`, status, service_due_month, under_warranty, under_maintenance)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [name, category, purchaseDate, condition || 'Good', status || 'available', serviceDueMonth || null, underWarranty ? 1 : 0, underMaintenance ? 1 : 0]
+       (name, category, purchase_date, \`condition\`, status, service_due_month, under_warranty, under_maintenance, created_by, updated_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name, category, purchaseDate, condition || 'Good', status || 'available', serviceDueMonth || null, underWarranty ? 1 : 0, underMaintenance ? 1 : 0, createdBy, createdBy]
     );
 
     // Fetch the created equipment
@@ -80,13 +83,15 @@ async function updateEquipment(req, res) {
       underMaintenance
     } = req.body;
 
+    const updatedBy = getActorUuid(req.user) || null;
+
     const [result] = await db.query(
       `UPDATE gym_equipment 
        SET name = ?, category = ?, purchase_date = ?, \`condition\` = ?, 
            status = ?, service_due_month = ?, under_warranty = ?, 
-           under_maintenance = ?, updated_at = CURRENT_TIMESTAMP
+           under_maintenance = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
-      [name, category, purchaseDate, condition, status, serviceDueMonth, underWarranty ? 1 : 0, underMaintenance ? 1 : 0, idNum]
+      [name, category, purchaseDate, condition, status, serviceDueMonth, underWarranty ? 1 : 0, underMaintenance ? 1 : 0, updatedBy, idNum]
     );
 
     if (result.affectedRows === 0) {

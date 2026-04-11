@@ -5,6 +5,10 @@ import {
   FaToggleOn,
   FaToggleOff,
   FaSearch,
+  FaCalendar,
+  FaDollarSign,
+  FaUsers,
+  FaCheckCircle,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -15,10 +19,9 @@ const API = `/plans`;
 
 /* ================= STYLES ================= */
 const glassCard =
-  "bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.25)]";
-
+  "bg-white/10 backdrop-blur-xl border border-white/20 rounded-[28px] shadow-[0_30px_80px_rgba(0,0,0,0.25)]";
 const glassInput =
-  "w-full bg-gray-800 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-white/30";
+  "bg-slate-950/90 border border-white/10 rounded-3xl px-4 py-3 text-sm text-white placeholder-slate-400 shadow-[0_24px_60px_rgba(15,23,42,0.25)] outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20";
 
 /* ================= COMPONENT ================= */
 const PlansAll = () => {
@@ -90,88 +93,102 @@ const PlansAll = () => {
 
   const totalPlans = plans.length;
   const activePlans = plans.filter((p) => p.active).length;
+  const inactivePlans = plans.length - activePlans;
+  const avgPrice = plans.length > 0 ? Math.round(plans.reduce((sum, p) => sum + (p.finalPrice || p.final_price || p.price || 0), 0) / plans.length) : 0;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+        <p className="text-xl">Loading plans…</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen  p-0 text-white space-y-6">
-
-      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-
-        <h2 className="text-xl sm:text-2xl font-bold text-center sm:text-left">
-          Gym Membership Plans
-        </h2>
-
-        <button
-          onClick={() => navigate("/admin/addplan")}
-          className="w-full sm:w-auto px-6 sm:px-8 py-3 rounded-xl text-white font-semibold
-    bg-gradient-to-r from-orange-500 to-orange-600 
-    hover:scale-105 transition shadow-lg flex items-center justify-center"
-        >
-          <FaPlus className="mr-2" />
-          Add Plan
-        </button>
-
-      </div>
-
-
-      {/* STATS */}
-      <div className="grid sm:grid-cols-2 gap-6">
-        <div className={`${glassCard} p-5`}>
-          <p className="text-sm text-gray-300">Total Plans</p>
-          <h3 className="text-3xl font-bold">{totalPlans}</h3>
-        </div>
-
-        <div className={`${glassCard} p-5`}>
-          <p className="text-sm text-gray-300">Active Plans</p>
-          <h3 className="text-3xl font-bold text-emerald-400">
-            {activePlans}
-          </h3>
-        </div>
-      </div>
-
-      {/* SEARCH + FILTER */}
-      <div
-        className={`${glassCard} p-4 flex flex-col md:flex-row items-center justify-between gap-4`}
-      >
-        {/* LEFT — SEARCH */}
-        <div className="relative w-full md:w-1/3">
-          <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            placeholder="Search plan..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className={`${glassInput} pl-11`}
-          />
-        </div>
-
-        {/* RIGHT — FILTER */}
-        <div className="w-full md:w-1/4">
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className={glassInput}
-          >
-            <option value="all">All Plans</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </div>
-      </div>
-
-
-      {/* PLANS LIST */}
-      {loading && !cache.plans ? (
-        <div className="flex flex-col items-center justify-center py-32 gap-6 bg-white/5 rounded-3xl border border-white/10 mt-6">
-          <div className="relative">
-            <div className="w-16 h-16 border-4 border-red-500/20 border-t-red-500 rounded-full animate-spin" />
-            <div className="absolute inset-0 bg-red-500/10 blur-xl rounded-full animate-pulse" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-4 py-10 text-white">
+      <div className="mx-auto max-w-7xl space-y-10">
+        <div className={`${glassCard} p-8`}>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-end">
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                onClick={() => navigate("/admin/addplan")}
+                className="inline-flex items-center justify-center rounded-full bg-orange-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
+              >
+                <FaPlus className="mr-2 h-4 w-4" /> Add Plan
+              </button>
+            </div>
           </div>
-          <p className="text-white/40 text-xs uppercase tracking-[0.4em] animate-pulse">Syncing Growth Tiers</p>
+
+          <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+            <div className={`${glassCard} p-6`}>
+              <div className="flex items-center gap-3">
+                <FaCalendar className="h-8 w-8 text-orange-400" />
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Total plans</p>
+                  <p className="mt-2 text-3xl font-bold text-white">{totalPlans}</p>
+                </div>
+              </div>
+              <p className="mt-4 text-sm text-slate-400">All membership tiers.</p>
+            </div>
+            <div className={`${glassCard} p-6`}>
+              <div className="flex items-center gap-3">
+                <FaCheckCircle className="h-8 w-8 text-green-400" />
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Active plans</p>
+                  <p className="mt-2 text-3xl font-bold text-white">{activePlans}</p>
+                </div>
+              </div>
+              <p className="mt-4 text-sm text-slate-400">Currently available.</p>
+            </div>
+            <div className={`${glassCard} p-6`}>
+              <div className="flex items-center gap-3">
+                <FaUsers className="h-8 w-8 text-blue-400" />
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Inactive plans</p>
+                  <p className="mt-2 text-3xl font-bold text-white">{inactivePlans}</p>
+                </div>
+              </div>
+              <p className="mt-4 text-sm text-slate-400">Temporarily disabled.</p>
+            </div>
+            <div className={`${glassCard} p-6`}>
+              <div className="flex items-center gap-3">
+                <FaDollarSign className="h-8 w-8 text-yellow-400" />
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Avg price</p>
+                  <p className="mt-2 text-3xl font-bold text-white">₹{avgPrice}</p>
+                </div>
+              </div>
+              <p className="mt-4 text-sm text-slate-400">Average plan cost.</p>
+            </div>
+          </div>
         </div>
-      ) : filteredPlans.length === 0 ? (
-        <p className="text-center text-gray-400">No plans found</p>
-      ) : (
-        <div className="grid md:grid-cols-2 gap-6">
+
+        <div className="space-y-8">
+          <section className={`${glassCard} overflow-hidden`}>
+            <div className="border-b border-white/10 bg-slate-950/80 px-6 py-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.24em] text-orange-300/80">Membership plans</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-white">Manage plans</h2>
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <div className="relative w-full sm:w-72">
+                    <FaSearch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search plans..."
+                      className={`pl-11 ${glassInput}`}
+                    />
+                  </div>
+                  <select value={filter} onChange={(e) => setFilter(e.target.value)} className={glassInput}>
+                    <option value="all">All Plans</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
+            </div>
           {filteredPlans.map((p) => (
             <div key={p.id} className={`${glassCard} p-6 space-y-3`}>
 
@@ -235,8 +252,9 @@ const PlansAll = () => {
 
             </div>
           ))}
+          </section>
         </div>
-      )}
+      </div>
     </div>
   );
 };

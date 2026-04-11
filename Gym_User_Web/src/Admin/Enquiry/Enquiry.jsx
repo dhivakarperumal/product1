@@ -286,276 +286,318 @@ const Enquiry = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-bold text-white">Enquiries</h1>
-        <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-4 py-10 text-white">
+      <div className="mx-auto max-w-7xl space-y-10">
+        {/* Header Section */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-[2rem] bg-blue-500/20 text-blue-400 border border-blue-500/30">
+              <Users size={28} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-semibold text-white">Enquiry Management</h1>
+              <p className="text-white/60 text-sm">Manage customer enquiries and convert to members</p>
+            </div>
+          </div>
+
+          {/* Add Enquiry Button */}
           <button
             onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-bold shadow-lg hover:scale-105 transition-all outline-none cursor-pointer" 
+            className="flex items-center gap-2 px-6 py-3 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 rounded-xl font-medium transition-colors border border-orange-500/30 hover:shadow-lg hover:shadow-orange-500/20"
           >
-            <Plus className="w-4 h-4" />
+            <Plus size={18} />
             Add Enquiry
           </button>
         </div>
-      </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 w-4 h-4" />
-          <input
-            type="text"
-            placeholder="Search enquiries..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-11 pr-4 py-2.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all shadow-sm"
-          />
+        {/* Search and Filters Section */}
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* Search */}
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search enquiries by name, email, subject, or location..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-4">
+              <DateRangeFilter onRangeChange={(type, range) => setDateRange({ type, range })} />
+
+              <CustomDropdown
+                label="Status"
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={[
+                  { label: "All Status", value: "all" },
+                  { label: "Pending", value: "pending" },
+                  { label: "Completed", value: "completed" },
+                  { label: "Cancelled", value: "cancelled" },
+                ]}
+              />
+            </div>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3 cursor-pointer">
-          <DateRangeFilter onRangeChange={(type, range) => setDateRange({ type, range })} />
 
-          <CustomDropdown
-            label="Status"
-            value={statusFilter}
-            onChange={setStatusFilter}
-            options={[
-              { label: "All Status", value: "all" },
-              { label: "Pending", value: "pending" },
-              { label: "Completed", value: "completed" },
-              { label: "Cancelled", value: "cancelled" },
-            ]}
-          />
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-white/5">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-medium text-white/60 uppercase tracking-wider">S No</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-white/60 uppercase tracking-wider">Customer</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-white/60 uppercase tracking-wider">Subject</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-white/60 uppercase tracking-wider">Location</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-white/60 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-white/60 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-white/60 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/10">
-              {filteredEnquiries && filteredEnquiries.length > 0 ? (
-                filteredEnquiries.map((enquiry, ind) => (
-                  <tr key={enquiry.id} className="hover:bg-white/5">
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-white">{ind + 1}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="text-sm font-medium text-white">{enquiry.name}</div>
-                        <div className="text-sm text-white/60">{enquiry.email}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-white">{enquiry.subject || 'No subject'}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-white">{enquiry.location || 'Not specified'}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(enquiry.status)}`}>
-                        {getStatusIcon(enquiry.status)}
-                        {enquiry.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-white/60">
-                      {new Date(enquiry.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleEdit(enquiry)}
-                          className="p-1 text-white/60 hover:text-white hover:bg-white/10 rounded"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleMoveToMembers(enquiry)}
-                          className="p-1 text-blue-400 hover:text-blue-300 hover:bg-white/10 rounded"
-                          title="Move to members"
-                        >
-                          <Users className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => updateStatus(enquiry.id, 'completed')}
-                          className="p-1 text-green-400 hover:text-green-300 hover:bg-white/10 rounded"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => updateStatus(enquiry.id, 'cancelled')}
-                          className="p-1 text-red-400 hover:text-red-300 hover:bg-white/10 rounded"
-                        >
-                          <XCircle className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(enquiry.id)}
-                          className="p-1 text-red-400 hover:text-red-300 hover:bg-white/10 rounded"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+        {/* Enquiries Table */}
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm text-white">
+              <thead className="bg-slate-800/50">
+                <tr>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">S.No</th>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Customer</th>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Subject</th>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Location</th>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Status</th>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Date</th>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredEnquiries && filteredEnquiries.length > 0 ? (
+                  filteredEnquiries.map((enquiry, ind) => (
+                    <tr key={enquiry.id} className="border-b border-white/5 hover:bg-slate-800/30 transition-colors">
+                      <td className="px-6 py-4 text-white font-medium">{ind + 1}</td>
+                      <td className="px-6 py-4">
+                        <div>
+                          <div className="text-white font-medium">{enquiry.name}</div>
+                          <div className="text-gray-400 text-sm">{enquiry.email}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-white">{enquiry.subject || 'No subject'}</td>
+                      <td className="px-6 py-4 text-white">{enquiry.location || 'Not specified'}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${
+                          enquiry.status === 'completed'
+                            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                            : enquiry.status === 'pending'
+                            ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                            : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                        }`}>
+                          {getStatusIcon(enquiry.status)}
+                          {enquiry.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-gray-300">
+                        {new Date(enquiry.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleEdit(enquiry)}
+                            className="p-2 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-xl transition-colors border border-blue-500/30"
+                            title="View Details"
+                          >
+                            <Eye size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleMoveToMembers(enquiry)}
+                            className="p-2 bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded-xl transition-colors border border-purple-500/30"
+                            title="Convert to Member"
+                          >
+                            <Users size={16} />
+                          </button>
+                          <button
+                            onClick={() => updateStatus(enquiry.id, 'completed')}
+                            className="p-2 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded-xl transition-colors border border-green-500/30"
+                            title="Mark Completed"
+                          >
+                            <CheckCircle size={16} />
+                          </button>
+                          <button
+                            onClick={() => updateStatus(enquiry.id, 'cancelled')}
+                            className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-xl transition-colors border border-red-500/30"
+                            title="Mark Cancelled"
+                          >
+                            <XCircle size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(enquiry.id)}
+                            className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-xl transition-colors border border-red-500/30"
+                            title="Delete Enquiry"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="7" className="px-6 py-12 text-center text-gray-400">
+                      <div className="flex flex-col items-center gap-3">
+                        <Users size={48} className="opacity-30" />
+                        <p className="text-lg font-medium">No enquiries found</p>
+                        <p className="text-sm">Enquiries will appear here once submitted</p>
                       </div>
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="6" className="px-6 py-4 text-center text-white/60">
-                    No enquiries found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
 
-      {/* Form Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 p-6 w-full max-w-3xl mx-4">
-            <h2 className="text-xl font-bold text-white mb-4">
-              {selectedEnquiry ? 'View Enquiry' : 'Add New Enquiry'}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-white/80 mb-1">Name</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-white/80 mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-white/80 mb-1">Phone</label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-white/80 mb-1">Subject</label>
-                  <input
-                    type="text"
-                    value={formData.subject}
-                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-white/80 mb-1">Location</label>
-                  <input
-                    type="text"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., Gym Branch Name"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-white/80 mb-1">Height (cm)</label>
-                  <input
-                    type="number"
-                    value={formData.height}
-                    onChange={(e) => setFormData({ ...formData, height: e.target.value })}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Height in cm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-white/80 mb-1">Weight (kg)</label>
-                  <input
-                    type="number"
-                    value={formData.weight}
-                    onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Weight in kg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-white/80 mb-1">BMI</label>
-                  <input
-                    type="text"
-                    value={formData.bmi}
-                    readOnly
-                    className="w-full px-3 py-2 bg-white/20 border border-white/20 rounded-lg text-orange-400 font-bold focus:outline-none"
-                    placeholder="Auto-calculated"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-white/80 mb-1">Message</label>
-                <textarea
-                  value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  rows={4}
-                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-              {selectedEnquiry && (
-                <div>
-                  <label className="block text-sm font-medium text-white/80 mb-1">Status</label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                </div>
-              )}
-              <div className="flex gap-3 pt-4">
+        {/* Enquiry Form Modal */}
+        {showForm && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-gradient-to-br from-slate-950 to-slate-900 border-2 border-orange-500/50 rounded-[2rem] p-8 w-full max-w-4xl mx-4 shadow-[0_40px_120px_rgba(0,0,0,0.35)] max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-semibold text-white">
+                  {selectedEnquiry ? 'View Enquiry Details' : 'Add New Enquiry'}
+                </h2>
                 <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-orange-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                >
-                  {selectedEnquiry ? 'Update' : 'Create'}
-                </button>
-                <button
-                  type="button"
                   onClick={() => {
                     setShowForm(false);
                     setSelectedEnquiry(null);
                     setFormData({ name: "", email: "", phone: "", subject: "", message: "", location: "", height: "", weight: "", bmi: "" });
                   }}
-                  className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+                  className="p-2 bg-slate-800/50 hover:bg-slate-800/70 rounded-xl transition-colors border border-white/10"
                 >
-                  Cancel
+                  <XCircle size={20} className="text-gray-400" />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Name *</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Email *</label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Phone</label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Subject</label>
+                    <input
+                      type="text"
+                      value={formData.subject}
+                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Location</label>
+                    <input
+                      type="text"
+                      value={formData.location}
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                      placeholder="e.g., Gym Branch Name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Height (cm)</label>
+                    <input
+                      type="number"
+                      value={formData.height}
+                      onChange={(e) => setFormData({ ...formData, height: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                      placeholder="Height in cm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Weight (kg)</label>
+                    <input
+                      type="number"
+                      value={formData.weight}
+                      onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                      placeholder="Weight in kg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">BMI (Auto-calculated)</label>
+                    <input
+                      type="text"
+                      value={formData.bmi}
+                      readOnly
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-orange-500/30 rounded-xl text-orange-400 font-bold focus:outline-none"
+                      placeholder="Auto-calculated"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Message *</label>
+                  <textarea
+                    value={formData.message}
+                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                    rows={4}
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all resize-none"
+                    required
+                  />
+                </div>
+
+                {selectedEnquiry && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                    >
+                      <option value="pending" className="bg-slate-800 text-white">Pending</option>
+                      <option value="completed" className="bg-slate-800 text-white">Completed</option>
+                      <option value="cancelled" className="bg-slate-800 text-white">Cancelled</option>
+                    </select>
+                  </div>
+                )}
+
+                <div className="flex gap-4 pt-6 border-t border-white/10">
+                  <button
+                    type="submit"
+                    className="flex-1 px-6 py-3 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 rounded-xl font-medium transition-colors border border-orange-500/30 hover:shadow-lg hover:shadow-orange-500/20"
+                  >
+                    {selectedEnquiry ? 'Update Enquiry' : 'Create Enquiry'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForm(false);
+                      setSelectedEnquiry(null);
+                      setFormData({ name: "", email: "", phone: "", subject: "", message: "", location: "", height: "", weight: "", bmi: "" });
+                    }}
+                    className="flex-1 px-6 py-3 bg-slate-800/50 text-gray-300 hover:bg-slate-800/70 rounded-xl font-medium transition-colors border border-white/10"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

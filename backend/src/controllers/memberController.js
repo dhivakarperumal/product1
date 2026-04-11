@@ -1,11 +1,33 @@
 const db = require('../config/db');
-const bcrypt = require('bcryptjs');
+
+let memberTableName = null;
+
+async function resolveMemberTable() {
+  if (memberTableName) return memberTableName;
+
+  const [memberRows] = await db.query("SHOW TABLES LIKE 'members'");
+  if (memberRows.length > 0) {
+    const [cols] = await db.query("SHOW COLUMNS FROM members LIKE 'member_id'");
+    if (cols.length > 0) {
+      memberTableName = 'members';
+      return memberTableName;
+    }
+  }
+
+  const [gymRows] = await db.query("SHOW TABLES LIKE 'gym_members'");
+  if (gymRows.length > 0) {
+    memberTableName = 'gym_members';
+    return memberTableName;
+  }
+
+  memberTableName = 'members';
+  return memberTableName;
+}
 
 async function getAllMembers(req, res) {
   try {
-    // We want a list that includes:
-    // 1. All records from gym_members (joined with their user account)
-    // 2. All records from users (role='user') that don't have a gym_member record yet
+    const membersTable = await resolveMemberTable();
+
     const sql = `
       SELECT 
         gm.id, 
@@ -19,57 +41,25 @@ async function getAllMembers(req, res) {
         gm.bmi,
         gm.plan,
         gm.status,
-        u.id AS u_id, 
-        u.email AS user_email, 
-        u.role,
         (SELECT COUNT(*) FROM workout_programs wp WHERE wp.member_id = gm.id) AS workout_count,
         (SELECT COUNT(*) FROM diet_plans dp WHERE dp.member_id = gm.id) AS diet_count,
         gm.created_at,
-        'members' as source
-      FROM gym_members gm
-      LEFT JOIN users u ON (u.email = gm.email AND gm.email IS NOT NULL AND gm.email != '') 
-                        OR (u.mobile = gm.phone AND gm.phone IS NOT NULL AND gm.phone != '')
-      
-      UNION ALL
-      
-      SELECT 
-        NULL as id, 
-        NULL as member_id, 
-        u.username as name, 
-        u.mobile as phone, 
-        u.email, 
-        NULL as gender,
-        NULL as height,
-        NULL as weight,
-        NULL as bmi,
-        NULL as plan,
-        'active' as status,
-        u.id AS u_id, 
-        u.email AS user_email, 
-        u.role,
-        0 AS workout_count,
-        0 AS diet_count,
-        u.created_at,
-        'users' as source
-      FROM users u
-      WHERE u.role = 'user' AND NOT EXISTS (
-        SELECT 1 FROM gym_members gm2 
-        WHERE (gm2.email = u.email AND u.email IS NOT NULL AND u.email != '') 
-           OR (gm2.phone = u.mobile AND u.mobile IS NOT NULL AND u.mobile != '')
-      )
-      
-      ORDER BY created_at DESC
+        'members' AS source
+      FROM ${membersTable} gm
+      ORDER BY gm.created_at DESC
     `;
     const [rows] = await db.query(sql);
     res.json(rows);
   } catch (err) {
-    console.error('getAllMembers error', err);
-    res.status(500).json({ error: 'Query failed' });
+    console.error('getAllMembers query failed:', err.code, err.sqlMessage || err.message);
+    console.error('getAllMembers full error:', err);
+    res.status(500).json({ error: 'Query failed', details: err.message });
   }
 }
 
 async function getMemberById(req, res) {
   try {
+    const membersTable = await resolveMemberTable();
     const { id } = req.params;
     const idNum = parseInt(id, 10);
     const isNum = !isNaN(idNum);
@@ -79,24 +69,18 @@ async function getMemberById(req, res) {
     if (isNum) {
       sql = `
         SELECT gm.*,
-               u.id AS u_id,
-               u.email AS user_email,
                (SELECT COUNT(*) FROM workout_programs wp WHERE wp.member_id = gm.id) AS workout_count,
                (SELECT COUNT(*) FROM diet_plans dp WHERE dp.member_id = gm.id) AS diet_count
-        FROM gym_members gm
-        LEFT JOIN users u ON (u.email = gm.email AND gm.email IS NOT NULL AND gm.email != '') OR (u.mobile = gm.phone AND gm.phone IS NOT NULL AND gm.phone != '')
+        FROM ${membersTable} gm
         WHERE gm.id = ?
       `;
       params = [idNum];
     } else {
       sql = `
         SELECT gm.*,
-               u.id AS u_id,
-               u.email AS user_email,
                (SELECT COUNT(*) FROM workout_programs wp WHERE wp.member_id = gm.id) AS workout_count,
                (SELECT COUNT(*) FROM diet_plans dp WHERE dp.member_id = gm.id) AS diet_count
-        FROM gym_members gm
-        LEFT JOIN users u ON (u.email = gm.email AND gm.email IS NOT NULL AND gm.email != '') OR (u.mobile = gm.phone AND gm.phone IS NOT NULL AND gm.phone != '')
+        FROM ${membersTable} gm
         WHERE gm.member_id = ?
       `;
       params = [id];
@@ -117,11 +101,10 @@ async function createMember(req, res) {
   const {
     name, phone, email, gender, height, weight, bmi,
     plan, duration, joinDate, expiryDate, status,
-    photo, notes, address,
-    username, password
+    photo, notes, address
   } = req.body;
 
-  console.log('createMember received:', { name, phone, email, gender, height, weight, bmi, plan, duration, joinDate, expiryDate, status, photo: photo ? 'base64...' : null, notes, address, username });
+  console.log('createMember received:', { name, phone, email, gender, height, weight, bmi, plan, duration, joinDate, expiryDate, status, photo: photo ? 'base64...' : null, notes, address });
 
   const connection = await db.getConnection();
   try {
@@ -133,9 +116,11 @@ async function createMember(req, res) {
       return res.status(400).json({ message: "Name and phone are required" });
     }
 
+    const membersTable = await resolveMemberTable();
+
     // duplicate phone check
     const [existing] = await connection.query(
-      "SELECT * FROM gym_members WHERE phone = ?",
+      `SELECT * FROM ${membersTable} WHERE phone = ?`,
       [phone]
     );
 
@@ -143,6 +128,8 @@ async function createMember(req, res) {
       await connection.rollback();
       return res.status(400).json({ message: "Phone already exists" });
     }
+
+    const currentUserUuid = req.user?.userUuid || req.user?.user_uuid || null;
 
     // Parse numeric fields early so they can be used in insert loop
     const numHeight = height != null && !isNaN(height) ? Number(height) : null;
@@ -152,7 +139,7 @@ async function createMember(req, res) {
 
     // generate member_id using max numeric suffix, more robust than simple count
     const [maxResult] = await connection.query(
-      "SELECT MAX(CAST(SUBSTRING(member_id,3) AS UNSIGNED)) as maxnum FROM gym_members"
+      `SELECT MAX(CAST(SUBSTRING(member_id,3) AS UNSIGNED)) as maxnum FROM ${membersTable}`
     );
     let nextNumber = (maxResult[0].maxnum || 0) + 1;
     let memberId = `MB${String(nextNumber).padStart(3, "0")}`;
@@ -164,13 +151,14 @@ async function createMember(req, res) {
     for (let attempt = 0; attempt < 2 && !inserted; attempt++) {
       try {
         [result] = await connection.query(
-          `INSERT INTO gym_members
+          `INSERT INTO ${membersTable}
       (member_id, name, phone, email, gender, height, weight, bmi, plan, duration,
-       join_date, expiry_date, status, photo, notes, address)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       join_date, expiry_date, status, photo, notes, address, created_by, updated_by)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
           [
             memberId, name, phone, email, gender, numHeight, numWeight, numBmi,
-            plan, numDuration, joinDate, expiryDate, status, photo, notes, address
+            plan, numDuration, joinDate, expiryDate, status, photo, notes, address,
+            currentUserUuid, currentUserUuid
           ]
         );
         inserted = true;
@@ -189,36 +177,15 @@ async function createMember(req, res) {
       throw new Error('Failed to generate unique member_id');
     }
 
-    // create user account for member
-    try {
-      const pwd = password || phone || '';
-      const hashed = pwd ? await bcrypt.hash(pwd, 10) : null;
-      await connection.query(
-        `INSERT INTO users (email, password_hash, role, username, mobile)
-           VALUES (?, ?, ?, ?, ?)`,
-        [email || null, hashed, 'user', username || null, phone || null]
-      );
-    } catch (userErr) {
-      if (userErr.code === 'ER_DUP_ENTRY') {
-        console.warn('createMember: user already exists, skipping user insert');
-      } else {
-        console.error('createMember user insert error', userErr);
-        throw userErr;
-      }
-    }
-
     await connection.commit();
 
-    // fetch back using the richer query so the client sees counts / user_email
+    // fetch back the inserted member with counts
     const [fetched] = await connection.query(
       `
       SELECT gm.*,
-             u.id AS u_id,
-             u.email AS user_email,
-             0 AS workout_count,
-             0 AS diet_count
-      FROM gym_members gm
-      LEFT JOIN users u ON (u.email = gm.email AND gm.email IS NOT NULL AND gm.email != '') OR (u.mobile = gm.phone AND gm.phone IS NOT NULL AND gm.phone != '')
+             (SELECT COUNT(*) FROM workout_programs wp WHERE wp.member_id = gm.id) AS workout_count,
+             (SELECT COUNT(*) FROM diet_plans dp WHERE dp.member_id = gm.id) AS diet_count
+      FROM ${membersTable} gm
       WHERE gm.id = ?
       `,
       [result.insertId]
@@ -233,8 +200,8 @@ async function createMember(req, res) {
     res.json(member);
   } catch (err) {
     await connection.rollback();
-    console.error('createMember error:', err.message);
-    console.error('Full error:', err);
+    console.error('createMember error:', err.code, err.sqlMessage || err.message);
+    console.error('createMember full error:', err);
     res.status(500).json({ message: "Server error", error: err.message });
   } finally {
     connection.release();
@@ -245,14 +212,16 @@ async function updateMember(req, res) {
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
+    const membersTable = await resolveMemberTable();
 
+    const currentUserUuid = req.user?.userUuid || req.user?.user_uuid || null;
     const { id } = req.params;
     const idNum = parseInt(id, 10);
     const isNum = !isNaN(idNum);
 
     const { name, phone, email, gender, height, weight, bmi,
       plan, duration, joinDate, expiryDate, status,
-      photo, notes, address, username } = req.body;
+      photo, notes, address } = req.body;
     // ensure numeric values are correctly typed
     const numHeight = height != null && !isNaN(height) ? Number(height) : null;
     const numWeight = weight != null && !isNaN(weight) ? Number(weight) : null;
@@ -264,10 +233,10 @@ async function updateMember(req, res) {
       let dupQuery;
       let dupParams;
       if (isNum) {
-        dupQuery = `SELECT * FROM gym_members WHERE phone = ? AND id != ?`;
+        dupQuery = `SELECT * FROM ${membersTable} WHERE phone = ? AND id != ?`;
         dupParams = [phone, idNum];
       } else {
-        dupQuery = `SELECT * FROM gym_members WHERE phone = ? AND member_id != ?`;
+        dupQuery = `SELECT * FROM ${membersTable} WHERE phone = ? AND member_id != ?`;
         dupParams = [phone, id];
       }
 
@@ -281,30 +250,30 @@ async function updateMember(req, res) {
     let updateQuery;
     let updateParams;
     if (isNum) {
-      updateQuery = `UPDATE gym_members SET
+      updateQuery = `UPDATE ${membersTable} SET
         name=?, phone=?, email=?, gender=?,
         height=?, weight=?, bmi=?, plan=?, duration=?,
         join_date=?, expiry_date=?, status=?,
         photo=?, notes=?, address=?,
-        updated_at=CURRENT_TIMESTAMP
+        updated_by=?, updated_at=CURRENT_TIMESTAMP
        WHERE id=?`;
       updateParams = [
         name, phone, email, gender, numHeight, numWeight, numBmi,
         plan, numDuration, joinDate, expiryDate, status,
-        photo, notes, address, idNum
+        photo, notes, address, currentUserUuid, idNum
       ];
     } else {
-      updateQuery = `UPDATE gym_members SET
+      updateQuery = `UPDATE ${membersTable} SET
         name=?, phone=?, email=?, gender=?,
         height=?, weight=?, bmi=?, plan=?, duration=?,
         join_date=?, expiry_date=?, status=?,
         photo=?, notes=?, address=?,
-        updated_at=CURRENT_TIMESTAMP
+        updated_by=?, updated_at=CURRENT_TIMESTAMP
        WHERE member_id=?`;
       updateParams = [
         name, phone, email, gender, numHeight, numWeight, numBmi,
         plan, numDuration, joinDate, expiryDate, status,
-        photo, notes, address, id
+        photo, notes, address, currentUserUuid, id
       ];
     }
 
@@ -315,69 +284,24 @@ async function updateMember(req, res) {
       return res.status(404).json({ error: 'Member not found' });
     }
 
-    // sync user info (email / mobile / username)
-    try {
-      const userFields = [];
-      const userParams = [];
-      if (email !== undefined) {
-        userFields.push('email = ?');
-        userParams.push(email);
-      }
-      if (phone !== undefined) {
-        userFields.push('mobile = ?');
-        userParams.push(phone);
-      }
-      if (username !== undefined) {
-        userFields.push('username = ?');
-        userParams.push(username);
-      }
-      if (userFields.length > 0) {
-        const whereClause = [];
-        const whereParams = [];
-        // identify user by old email or mobile
-        if (email) {
-          whereClause.push('email = ?');
-          whereParams.push(email);
-        }
-        if (phone) {
-          whereClause.push('mobile = ?');
-          whereParams.push(phone);
-        }
-        if (whereClause.length) {
-          const updateSql = `UPDATE users SET ${userFields.join(', ')} WHERE ${whereClause.join(' OR ')}`;
-          await connection.query(updateSql, [...userParams, ...whereParams]);
-        }
-      }
-    } catch (userErr) {
-      console.warn('updateMember: failed to sync user', userErr.message);
-      // continue without fatal error
-    }
-
-    // Fetch the updated member
-    // use the same enhanced lookup as getMemberById so caller receives counts/user_email
+    // Fetch the updated member with counts
     let sql;
     let params;
     if (isNum) {
       sql = `
         SELECT gm.*,
-               u.id AS u_id,
-               u.email AS user_email,
                (SELECT COUNT(*) FROM workout_programs wp WHERE wp.member_id = gm.id) AS workout_count,
                (SELECT COUNT(*) FROM diet_plans dp WHERE dp.member_id = gm.id) AS diet_count
-        FROM gym_members gm
-        LEFT JOIN users u ON (u.email = gm.email AND gm.email IS NOT NULL AND gm.email != '') OR (u.mobile = gm.phone AND gm.phone IS NOT NULL AND gm.phone != '')
+        FROM ${membersTable} gm
         WHERE gm.id = ?
       `;
       params = [idNum];
     } else {
       sql = `
         SELECT gm.*,
-               u.id AS u_id,
-               u.email AS user_email,
                (SELECT COUNT(*) FROM workout_programs wp WHERE wp.member_id = gm.id) AS workout_count,
                (SELECT COUNT(*) FROM diet_plans dp WHERE dp.member_id = gm.id) AS diet_count
-        FROM gym_members gm
-        LEFT JOIN users u ON (u.email = gm.email AND gm.email IS NOT NULL AND gm.email != '') OR (u.mobile = gm.phone AND gm.phone IS NOT NULL AND gm.phone != '')
+        FROM ${membersTable} gm
         WHERE gm.member_id = ?
       `;
       params = [id];
@@ -398,6 +322,7 @@ async function updateMember(req, res) {
 
 async function deleteMember(req, res) {
   try {
+    const membersTable = await resolveMemberTable();
     const { id } = req.params;
     const idNum = parseInt(id, 10);
     const isNum = !isNaN(idNum);
@@ -405,10 +330,10 @@ async function deleteMember(req, res) {
     let deleteQuery;
     let deleteParams;
     if (isNum) {
-      deleteQuery = `DELETE FROM gym_members WHERE id = ?`;
+      deleteQuery = `DELETE FROM ${membersTable} WHERE id = ?`;
       deleteParams = [idNum];
     } else {
-      deleteQuery = `DELETE FROM gym_members WHERE member_id = ?`;
+      deleteQuery = `DELETE FROM ${membersTable} WHERE member_id = ?`;
       deleteParams = [id];
     }
 
@@ -427,22 +352,31 @@ async function deleteMember(req, res) {
 
 async function getMemberPlans(req, res) {
   try {
+    const membersTable = await resolveMemberTable();
     const { id } = req.params;
-    const userId = parseInt(id, 10);
+    const idNum = parseInt(id, 10);
 
-    if (isNaN(userId)) {
-      return res.status(400).json({ error: 'Invalid user ID' });
+    let sql;
+    let params;
+    if (!isNaN(idNum)) {
+      sql = `
+        SELECT m.membership_plan_id, p.*, m.is_active as member_active
+        FROM ${membersTable} m
+        LEFT JOIN plans p ON m.membership_plan_id = p.id
+        WHERE m.id = ?
+      `;
+      params = [idNum];
+    } else {
+      sql = `
+        SELECT m.membership_plan_id, p.*, m.is_active as member_active
+        FROM ${membersTable} m
+        LEFT JOIN plans p ON m.membership_plan_id = p.id
+        WHERE m.member_id = ?
+      `;
+      params = [id];
     }
 
-    // Get member info and their plan
-    const sql = `
-      SELECT m.membership_plan_id, p.*, m.is_active as member_active
-      FROM members m
-      LEFT JOIN plans p ON m.membership_plan_id = p.id
-      WHERE m.user_id = ?
-    `;
-
-    const [rows] = await db.query(sql, [userId]);
+    const [rows] = await db.query(sql, params);
 
     if (rows.length === 0) {
       return res.json([]); // No member found, return empty array

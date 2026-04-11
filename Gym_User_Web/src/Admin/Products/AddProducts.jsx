@@ -22,9 +22,9 @@ const SHOE_SIZES = ["5", "6", "7", "8", "9", "10"];
 const GENDERS = ["Male", "Female"];
 
 const inputClass = `
-  w-full bg-[#0f172a]/70 border border-white/10 rounded-xl px-4 py-3 mb-4.5
-  text-sm sm:text-base text-white placeholder:text-white/40
-  focus:outline-none focus:ring-2 focus:ring-orange-500
+  w-full bg-slate-950/90 border border-white/10 rounded-3xl px-4 py-3 text-sm text-white placeholder-slate-400
+  focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500
+  shadow-[0_24px_60px_rgba(15,23,42,0.25)]
 `;
 
 /* ================= INITIAL FORM ================= */
@@ -61,8 +61,14 @@ const AddProducts = () => {
         const res = await api.get(`${API}/${id}`);
         const data = res.data;
         setForm({ ...initialForm, ...data });
-      } catch {
-        toast.error("Failed to load product");
+      } catch (err) {
+        console.error('loadProduct error', err);
+        const message =
+          err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          err?.message ||
+          'Failed to load product';
+        toast.error(message);
       }
     };
 
@@ -201,387 +207,333 @@ const AddProducts = () => {
 
 
   return (
-    <div className="min-h-screen p-0 text-white">
-      <button
-        onClick={() => navigate(-1)}
-        className="mb-4 flex gap-2 items-center"
-      >
-        <FaArrowLeft /> Back
-      </button>
-
-      <form
-        onSubmit={handleSubmit}
-        className="gap-5 bg-white/5 p-8 rounded-3xl"
-      >
-        {/* PRODUCT NAME */}
-     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-  {/* PRODUCT NAME */}
-  <div>
-    <label className="text-xs text-gray-400 mb-1 block">
-      Product Name
-    </label>
-    <input
-      name="name"
-      value={form.name}
-      onChange={handleChange}
-      className={inputClass}
-      placeholder="Enter product name"
-    />
-  </div>
-
-  {/* CATEGORY */}
-  <div>
-    <label className="text-xs text-gray-400 mb-1 block">
-      Category
-    </label>
-    <select
-      name="category"
-      value={form.category}
-      onChange={handleChange}
-      className={inputClass}
-    >
-      <option value="">Select Category</option>
-      <option>Food</option>
-      <option>Dress</option>
-      <option>Accessories</option>
-    </select>
-  </div>
-
-</div>
-
-
-        {/* SUBCATEGORY */}
-        {form.category && (
-          <div>
-            <label className="text-xs text-gray-400 mb-1 block">
-              Subcategory
-            </label>
-            <select
-              name="subcategory"
-              value={form.subcategory}
-              onChange={handleChange}
-              className={inputClass}
-            >
-              <option value="">Select Subcategory</option>
-              {(form.category === "Food"
-                ? FOOD_SUB
-                : form.category === "Dress"
-                  ? DRESS_SUB
-                  : ACCESSORY_SUB
-              ).map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        <div>
-          <label className="text-xs text-gray-400 uppercase mb-2 block">
-            Rating
-          </label>
-          <div className="flex gap-2">
-            {[1, 2, 3, 4, 5].map((s) => (
-              <button
-                type="button"
-                key={s}
-                onClick={() => setForm((p) => ({ ...p, ratings: s }))}
-                className={`${inputClass} w-12 text-2xl text-center
-          ${form.ratings >= s ? "text-yellow-400" : "text-gray-500"}`}
-              >
-                ★
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ================= FOOD ================= */}
-        {form.category === "Food" && (
-          <div className="col-span-2">
-            <label className="text-sm font-semibold mb-3 block">
-              Weight & Pricing
-            </label>
-
-            {foodWeights.map((w) => (
-              <div
-                key={w}
-                className="flex flex-col sm:flex-row gap-3 mb-4 items-start sm:items-center"
-              >
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={form.weight.includes(w)}
-                    onChange={() => toggleMulti("weight", w)}
-                  />
-                  <span className="w-20">{w}</span>
-                </div>
-
-                {form.weight.includes(w) && (
-                  <>
-                    <div className="flex-1 min-w-0">
-                      <label className="text-xs text-gray-400">Qty</label>
-                      <input
-                        type="number"
-                        className={inputClass}
-                        value={form.stock[w]?.qty || ""}
-                        onChange={(e) =>
-                          updateFoodStock(w, "qty", e.target.value)
-                        }
-                      />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <label className="text-xs text-gray-400">MRP</label>
-                      <input
-                        type="number"
-                        className={inputClass}
-                        value={form.stock[w]?.mrp || ""}
-                        onChange={(e) =>
-                          updateFoodStock(w, "mrp", e.target.value)
-                        }
-                      />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <label className="text-xs text-gray-400">Offer %</label>
-                      <input
-                        type="number"
-                        className={inputClass}
-                        value={form.stock[w]?.offer || ""}
-                        onChange={(e) =>
-                          updateFoodStock(w, "offer", e.target.value)
-                        }
-                      />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <label className="text-xs text-gray-400">
-                        Final Price
-                      </label>
-                      <input
-                        readOnly
-                        className={`${inputClass} bg-white/10`}
-                        value={form.stock[w]?.offerPrice || ""}
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-       {/* ================= DRESS & ACCESSORIES ================= */}
-{(form.category === "Dress" ||
-  form.category === "Accessories") && (
-  <div className="col-span-2">
-
-    {/* COMMON PRICING */}
-    <label className="text-sm font-semibold mb-3 block">
-      Common Pricing
-    </label>
-
-    <div className="grid md:grid-cols-3 gap-4 mb-6">
-      {/* MRP */}
-      <div>
-        <label className="text-xs text-gray-400">MRP</label>
-        <input
-          type="number"
-          className={inputClass}
-          value={form.mrp}
-          onChange={(e) =>
-            updateCommonPrice("mrp", e.target.value)
-          }
-        />
-      </div>
-
-      {/* OFFER */}
-      <div>
-        <label className="text-xs text-gray-400">Offer %</label>
-        <input
-          type="number"
-          className={inputClass}
-          value={form.offer}
-          onChange={(e) =>
-            updateCommonPrice("offer", e.target.value)
-          }
-        />
-      </div>
-
-      {/* OFFER PRICE */}
-      <div>
-        <label className="text-xs text-gray-400">
-          Offer Price
-        </label>
-        <input
-          readOnly
-          className={`${inputClass} bg-white/10`}
-          value={form.offerPrice}
-        />
-      </div>
-    </div>
-
-    {/* SIZE */}
-    <label className="text-sm font-semibold mb-2 block">
-      Select Sizes
-    </label>
-
-    <div className="flex gap-4 mb-4 flex-wrap">
-      {(form.subcategory === "Shoes"
-        ? SHOE_SIZES
-        : DRESS_SIZES
-      ).map((s) => (
-        <label key={s} className="flex gap-2 items-center">
-          <input
-            type="checkbox"
-            checked={form.size.includes(s)}
-            onChange={() => toggleMulti("size", s)}
-          />
-          {s}
-        </label>
-      ))}
-    </div>
-
-    {/* GENDER */}
-    <label className="text-sm font-semibold mb-2 block">
-      Select Gender
-    </label>
-
-    <div className="flex gap-4 mb-6">
-      {GENDERS.map((g) => (
-        <label key={g} className="flex gap-2 items-center">
-          <input
-            type="checkbox"
-            checked={form.gender.includes(g)}
-            onChange={() => toggleMulti("gender", g)}
-          />
-          {g}
-        </label>
-      ))}
-    </div>
-
-    {/* STOCK MATRIX */}
-    <label className="text-sm font-semibold mb-3 block">
-      Stock Quantity
-    </label>
-
-          {form.size.length > 0 && form.gender.length > 0 ? (
-      form.size.map((s) =>
-        form.gender.map((g) => {
-          const key = `${s}-${g}`;
-          return (
-            <div
-              key={key}
-              className="flex flex-col sm:flex-row gap-3 mb-3 items-start sm:items-center"
-            >
-              <span className="w-full sm:w-28">{key}</span>
-
-              <div className="flex-1 min-w-0">
-                <input
-                  type="number"
-                  className={inputClass}
-                  placeholder="Qty"
-                  value={form.stock[key]?.qty || ""}
-                  onChange={(e) =>
-                    setForm((p) => ({
-                      ...p,
-                      stock: {
-                        ...p.stock,
-                        [key]: {
-                          qty: Number(e.target.value),
-                        },
-                      },
-                    }))
-                  }
-                />
-              </div>
-            </div>
-          );
-        })
-      )
-    ) : (
-      <p className="text-gray-400 text-sm">
-        Please select size and gender to manage stock.
-      </p>
-    )}
-  </div>
-)}
-
-
-        {/* DESCRIPTION */}
-        <div className="col-span-2">
-          <label className="text-xs text-gray-400 mb-1 block">
-            Description
-          </label>
-          <textarea
-            name="description"
-            rows={4}
-            value={form.description}
-            onChange={handleChange}
-            className={inputClass}
-            placeholder="Enter product description"
-          />
-        </div>
-
-        {/* IMAGES */}
-        <div className="col-span-2">
-          <label className="text-xs text-gray-400 mb-2 block">
-            Product Images
-          </label>
-
-          <input
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={handleImageUpload}
-            className={inputClass}
-          />
-
-          {/* IMAGE PREVIEW */}
-          {form.images.length > 0 && (
-            <div className="flex flex-wrap gap-4 mt-4">
-              {form.images.map((img, index) => (
-                <div
-                  key={index}
-                  className="relative group"
-                >
-                  <img
-                    src={img}
-                    alt="preview"
-                    className="h-28 w-28 object-cover rounded-xl border border-white/20"
-                  />
-
-                  {/* Remove Button */}
-                  <button
-                    type="button"
-                    onClick={() => removeImage(index)}
-                    className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 py-1 rounded-full 
-                       opacity-0 group-hover:opacity-100 transition"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-
-        {/* SUBMIT */}
-        <div className="col-span-2 flex justify-end">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-4 py-10 text-white">
+      <div className="mx-auto max-w-7xl space-y-10">
+        <div className="flex items-center justify-between">
           <button
-            disabled={loading}
-            className="bg-orange-600 px-8 py-3 rounded-xl font-semibold"
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
           >
-            {loading
-              ? "Saving..."
-              : id
-                ? "Update Product"
-                : "Save Product"}
+            <FaArrowLeft className="mr-2 h-4 w-4" /> Back
           </button>
+          <h1 className="text-2xl font-semibold text-white">
+            {id ? "Edit Product" : "Add New Product"}
+          </h1>
         </div>
-      </form>
 
+        <form onSubmit={handleSubmit} className="space-y-8">
+          <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-8 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <div className="space-y-8">
+              {/* BASIC INFO */}
+              <div>
+                <h2 className="text-lg font-semibold text-white mb-6">Basic Information</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Product Name *
+                    </label>
+                    <input
+                      name="name"
+                      value={form.name}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="Enter product name"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Category *
+                    </label>
+                    <select
+                      name="category"
+                      value={form.category}
+                      onChange={handleChange}
+                      className={inputClass}
+                      required
+                    >
+                      <option value="">Select Category</option>
+                      <option value="Food">Food</option>
+                      <option value="Dress">Dress</option>
+                      <option value="Accessories">Accessories</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Subcategory *
+                    </label>
+                    <select
+                      name="subcategory"
+                      value={form.subcategory}
+                      onChange={handleChange}
+                      className={inputClass}
+                      required
+                    >
+                      <option value="">Select Subcategory</option>
+                      {(form.category === "Food"
+                        ? FOOD_SUB
+                        : form.category === "Dress"
+                          ? DRESS_SUB
+                          : ACCESSORY_SUB
+                      ).map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Rating
+                    </label>
+                    <div className="flex gap-2">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <button
+                          type="button"
+                          key={s}
+                          onClick={() => setForm((p) => ({ ...p, ratings: s }))}
+                          className={`w-12 h-12 rounded-2xl border border-white/10 flex items-center justify-center text-2xl transition-all ${
+                            form.ratings >= s ? "text-yellow-400 bg-yellow-500/10" : "text-slate-500 hover:bg-white/5"
+                          }`}
+                        >
+                          ★
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    name="description"
+                    value={form.description}
+                    onChange={handleChange}
+                    className={`${inputClass} resize-none`}
+                    rows={3}
+                    placeholder="Enter product description"
+                  />
+                </div>
+              </div>
+
+              {/* PRICING INFO */}
+              {form.category && (
+                <div>
+                  <h2 className="text-lg font-semibold text-white mb-6">Pricing & Inventory</h2>
+
+                  {/* FOOD PRODUCTS */}
+                  {form.category === "Food" && (
+                    <div className="space-y-6">
+                      <h3 className="text-md font-medium text-slate-300">Weight Variants</h3>
+                      {foodWeights.map((w) => (
+                        <div key={w} className="bg-white/5 rounded-2xl p-6 border border-white/10">
+                          <div className="flex items-center gap-4 mb-4">
+                            <input
+                              type="checkbox"
+                              checked={form.weight.includes(w)}
+                              onChange={() => toggleMulti("weight", w)}
+                              className="w-4 h-4 rounded border-white/10 bg-slate-950/90"
+                            />
+                            <span className="text-white font-medium">{w}</span>
+                          </div>
+
+                          {form.weight.includes(w) && (
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Quantity</label>
+                                <input
+                                  type="number"
+                                  className={inputClass}
+                                  value={form.stock[w]?.qty || ""}
+                                  onChange={(e) => updateFoodStock(w, "qty", e.target.value)}
+                                  placeholder="0"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">MRP</label>
+                                <input
+                                  type="number"
+                                  className={inputClass}
+                                  value={form.stock[w]?.mrp || ""}
+                                  onChange={(e) => updateFoodStock(w, "mrp", e.target.value)}
+                                  placeholder="0"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Offer %</label>
+                                <input
+                                  type="number"
+                                  className={inputClass}
+                                  value={form.stock[w]?.offer || ""}
+                                  onChange={(e) => updateFoodStock(w, "offer", e.target.value)}
+                                  placeholder="0"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Final Price</label>
+                                <input
+                                  readOnly
+                                  className={`${inputClass} bg-slate-950/50`}
+                                  value={form.stock[w]?.offerPrice || ""}
+                                  placeholder="Auto calculated"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* DRESS & ACCESSORIES */}
+                  {(form.category === "Dress" || form.category === "Accessories") && (
+                    <div className="space-y-6">
+                      <h3 className="text-md font-medium text-slate-300">Common Pricing</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-300 mb-2">MRP</label>
+                          <input
+                            type="number"
+                            className={inputClass}
+                            value={form.mrp}
+                            onChange={(e) => updateCommonPrice("mrp", e.target.value)}
+                            placeholder="0"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-300 mb-2">Offer %</label>
+                          <input
+                            type="number"
+                            className={inputClass}
+                            value={form.offer}
+                            onChange={(e) => updateCommonPrice("offer", e.target.value)}
+                            placeholder="0"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-300 mb-2">Final Price</label>
+                          <input
+                            readOnly
+                            className={`${inputClass} bg-slate-950/50`}
+                            value={form.offerPrice}
+                            placeholder="Auto calculated"
+                          />
+                        </div>
+                      </div>
+
+                      {/* SIZE SELECTION */}
+                      <div>
+                        <h3 className="text-md font-medium text-slate-300 mb-4">Available Sizes</h3>
+                        <div className="flex flex-wrap gap-3">
+                          {(form.subcategory === "Shoes" ? SHOE_SIZES : DRESS_SIZES).map((s) => (
+                            <label key={s} className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={form.size.includes(s)}
+                                onChange={() => toggleMulti("size", s)}
+                                className="w-4 h-4 rounded border-white/10 bg-slate-950/90"
+                              />
+                              <span className="text-slate-300 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                                {s}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* GENDER SELECTION */}
+                      <div>
+                        <h3 className="text-md font-medium text-slate-300 mb-4">Available For</h3>
+                        <div className="flex gap-3">
+                          {GENDERS.map((g) => (
+                            <label key={g} className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={form.gender.includes(g)}
+                                onChange={() => toggleMulti("gender", g)}
+                                className="w-4 h-4 rounded border-white/10 bg-slate-950/90"
+                              />
+                              <span className="text-slate-300 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                                {g}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* IMAGES */}
+              <div>
+                <h2 className="text-lg font-semibold text-white mb-6">Product Images</h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Upload Images
+                    </label>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className={`${inputClass} file:mr-4 file:py-2 file:px-4 file:rounded-2xl file:border-0 file:text-sm file:font-semibold file:bg-orange-500 file:text-white hover:file:bg-orange-400`}
+                    />
+                  </div>
+
+                  {/* IMAGE PREVIEW */}
+                  {form.images.length > 0 && (
+                    <div>
+                      <h3 className="text-md font-medium text-slate-300 mb-4">Image Preview</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {form.images.map((img, index) => (
+                          <div key={index} className="relative group">
+                            <img
+                              src={img}
+                              alt="preview"
+                              className="w-full h-24 object-cover rounded-2xl border border-white/10"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeImage(index)}
+                              className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-xs opacity-0 group-hover:opacity-100 transition"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* SUBMIT BUTTON */}
+            <div className="flex justify-end pt-6 border-t border-white/10">
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex items-center justify-center rounded-full bg-orange-500 px-8 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-slate-950/20 border-t-slate-950 rounded-full animate-spin mr-2" />
+                    Saving...
+                  </>
+                ) : id ? (
+                  "Update Product"
+                ) : (
+                  "Create Product"
+                )}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

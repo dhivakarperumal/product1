@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { Users } from "lucide-react";
 
-import api from "../../api";
+import api, { API_URL } from "../../api";
 
 const inputClass =
-  "w-full bg-[#0f172a]/70 border border-white/10 rounded-xl px-4 py-4 text-left text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500";
+  "w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all";
 
 const Billing = () => {
   const [products, setProducts] = useState([]);
@@ -16,7 +17,6 @@ const Billing = () => {
   const [orderType, setOrderType] = useState("OFFLINE");
   const [createdOrderId, setCreatedOrderId] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [recentOrders, setRecentOrders] = useState([]);
 
   /* ================= LOAD MEMBERS ================= */
   const [members, setMembers] = useState([]);
@@ -92,22 +92,6 @@ const Billing = () => {
     loadProducts();
   }, []);
 
-  /* ================= LOAD RECENT ORDERS ================= */
-  useEffect(() => {
-    const loadRecentOrders = async () => {
-      try {
-        const res = await api.get("/orders");
-        const data = res.data || [];
-        // Sort by created_at DESC and take last 5
-        const sorted = (data || []).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        setRecentOrders(sorted.slice(0, 5));
-      } catch (err) {
-        console.error("Failed to load recent orders:", err);
-      }
-    };
-    loadRecentOrders();
-  }, [createdOrderId]); // Reload when a new order is created
-
   /* ================= GENERATE ORDER NUMBER ================= */
   const generateOrderNumber = async () => {
     try {
@@ -138,8 +122,6 @@ const Billing = () => {
 
     if (product.offer_price && Number(product.offer_price) > 0) {
       price = Number(product.offer_price);
-    } else if (product.mrp && Number(product.mrp) > 0) {
-      price = Number(product.mrp);
     } else if (product.offerPrice && Number(product.offerPrice) > 0) {
       // Fallback to camelCase in case API returns it
       price = Number(product.offerPrice);
@@ -151,7 +133,7 @@ const Billing = () => {
     const images = product.images ? (Array.isArray(product.images) ? product.images : JSON.parse(product.images)) : [];
     let image = images.length > 0 ? images[0] : null;
     if (image && !image.match(/^(https?:\/\/|data:)/)) {
-      image = `${API_BASE}/${image.replace(/^\//, "")}`;
+      image = `${API_URL}/${image.replace(/^\//, "")}`;
     }
 
     setCart((prev) => [
@@ -290,235 +272,238 @@ const Billing = () => {
 
   /* ================= UI ================= */
   return (
-    <div className="p-6 max-w-6xl mx-auto text-white bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-4 py-10 text-white">
+      <div className="mx-auto max-w-7xl space-y-10">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold text-white">Billing Management</h1>
+        </div>
 
-      <div className="mb-3">
-        <h1 className="page-title text-2xl font-bold text-white">Billing</h1>
-      </div>
-
-      {/* SELECT MEMBER/USER */}
-      <div className="bg-white/5 p-6 rounded-2xl border border-white/10">
-        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-
-          Select Member or User
-        </h3>
-        <select
-          className={`${inputClass} !bg-[#1a1f35]/80`}
-          value={selectedMember}
-          onChange={(e) => handleMemberChange(e.target.value)}
-        >
-          <option value="">-- Choose Member</option>
-          {members.map((m) => (
-            <option key={m.id || m.member_id || m.u_id} value={m.id || m.member_id || m.u_id} className="text-black">
-              {m.name || m.displayName || m.username} ({m.phone || m.mobile || "No Phone"}) 
-            </option>
-          ))}
-        </select>
-        <p className="text-xs text-gray-400 mt-2 italic">Selecting a member will autopopulate the shipping details and address below.</p>
-      </div>
-
-      {/* RECENT ORDERS / BILLS */}
-
-      <div>
-        <h3 className="text-lg font-semibold mb-3">Add Products</h3>
-
-        <div className="grid md:grid-cols-4 gap-4 mb-6">
+        {/* Member Selection Section */}
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-white">
+            <Users size={20} className="text-blue-400" />
+            Select Member or User
+          </h3>
           <select
-            className={inputClass}
-            defaultValue=""
-            onChange={(e) => {
-              const selectedId = parseInt(e.target.value, 10);
-              if (!isNaN(selectedId)) {
-                setProduct(products.find((p) => p.id === selectedId) || null);
-              } else {
-                setProduct(null);
-              }
-            }}
+            className="w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+            value={selectedMember}
+            onChange={(e) => handleMemberChange(e.target.value)}
           >
-            <option value="">Select Product</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
+            <option value="" className="bg-slate-800 text-white">-- Choose Member</option>
+            {members.map((m) => (
+              <option key={m.id || m.member_id || m.u_id} value={m.id || m.member_id || m.u_id} className="bg-slate-800 text-white">
+                {m.name || m.displayName || m.username} ({m.phone || m.mobile || "No Phone"})
               </option>
             ))}
           </select>
+          <p className="text-xs text-gray-400 mt-2 italic">Selecting a member will autopopulate the shipping details and address below.</p>
+        </div>
 
-          <select
-            className={inputClass}
-            value={variant}
-            onChange={(e) => setVariant(e.target.value)}
-          >
-            <option value="">Select Variant</option>
-            {product &&
-              Object.entries(product.stock || {}).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {k} | Stock: {v.qty}
+        {/* Product Selection Section */}
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <h3 className="text-lg font-semibold mb-6 text-white">Add Products</h3>
+
+          <div className="grid md:grid-cols-4 gap-4 mb-6">
+            <select
+              className={inputClass}
+              defaultValue=""
+              onChange={(e) => {
+                const selectedId = parseInt(e.target.value, 10);
+                if (!isNaN(selectedId)) {
+                  setProduct(products.find((p) => p.id === selectedId) || null);
+                } else {
+                  setProduct(null);
+                }
+              }}
+            >
+              <option value="" className="bg-slate-800 text-white">Select Product</option>
+              {products.map((p) => (
+                <option key={p.id} value={p.id} className="bg-slate-800 text-white">
+                  {p.name}
                 </option>
               ))}
-          </select>
+            </select>
 
-          <input
-            type="number"
-            min="1"
-            value={qty}
-            onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
-            className={inputClass}
-            placeholder="Qty"
-          />
+            <select
+              className={inputClass}
+              value={variant}
+              onChange={(e) => setVariant(e.target.value)}
+            >
+              <option value="" className="bg-slate-800 text-white">Select Variant</option>
+              {product &&
+                Object.entries(product.stock || {}).map(([k, v]) => (
+                  <option key={k} value={k} className="bg-slate-800 text-white">
+                    {k} | Stock: {v.qty}
+                  </option>
+                ))}
+            </select>
 
-          <button
-            onClick={addToCart}
-            className="px-6 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-semibold transition"
-          >
-            Add to Cart
-          </button>
+            <input
+              type="number"
+              min="1"
+              value={qty}
+              onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
+              className={inputClass}
+              placeholder="Qty"
+            />
+
+            <button
+              onClick={addToCart}
+              className="px-6 py-3 rounded-xl bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border border-orange-500/30 font-semibold transition-colors"
+            >
+              Add to Cart
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* SHIPPING DETAILS */}
-      <div>
-        <h3 className="text-lg font-semibold mb-3">Shipping Details</h3>
+        {/* Shipping Details Section */}
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <h3 className="text-lg font-semibold mb-6 text-white">Shipping Details</h3>
 
-        <div className="grid md:grid-cols-2 gap-4 mb-6">
-          {Object.keys(shipping).map((key) => (
-            <div key={key}>
-              <label className="text-xs text-gray-400 uppercase block mb-2">
-                {key}
-              </label>
-              <input
-                className={inputClass}
-                value={shipping[key]}
-                onChange={(e) =>
-                  setShipping((prev) => ({
-                    ...prev,
-                    [key]: e.target.value,
-                  }))
-                }
-                placeholder={key}
-              />
-            </div>
-          ))}
+          <div className="grid md:grid-cols-2 gap-4 mb-6">
+            {Object.keys(shipping).map((key) => (
+              <div key={key}>
+                <label className="text-xs text-gray-400 uppercase block mb-2 font-medium">
+                  {key}
+                </label>
+                <input
+                  className={inputClass}
+                  value={shipping[key]}
+                  onChange={(e) =>
+                    setShipping((prev) => ({
+                      ...prev,
+                      [key]: e.target.value,
+                    }))
+                  }
+                  placeholder={key}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Order Type */}
+          <div>
+            <label className="text-xs text-gray-400 uppercase block mb-2 font-medium">
+              Order Type
+            </label>
+            <select
+              value={orderType}
+              onChange={(e) => setOrderType(e.target.value)}
+              className={inputClass}
+            >
+              <option value="OFFLINE" className="bg-slate-800 text-white">Offline (Cash)</option>
+              <option value="ONLINE" className="bg-slate-800 text-white">Online (Payment)</option>
+            </select>
+          </div>
         </div>
-      </div>
 
-      {/* ORDER TYPE */}
-      <div>
-        <label className="text-xs text-gray-400 uppercase block mb-2">
-          Order Type
-        </label>
+        {/* Cart Section */}
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl overflow-hidden">
+          <div className="hidden sm:block">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-800/50">
+                <tr>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">S.No</th>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Product</th>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Variant</th>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Qty</th>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Price</th>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Total</th>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cart.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="px-6 py-8 text-center text-gray-400">
+                      No items in cart
+                    </td>
+                  </tr>
+                ) : (
+                  cart.map((i, idx) => (
+                    <tr key={idx} className="border-b border-white/5 hover:bg-slate-800/30 transition-colors">
+                      <td className="px-6 py-4 text-white font-medium">{idx + 1}</td>
+                      <td className="px-6 py-4 text-white">{i.name}</td>
+                      <td className="px-6 py-4 text-gray-300">{i.variant}</td>
+                      <td className="px-6 py-4 text-white">{i.quantity}</td>
+                      <td className="px-6 py-4 text-white">₹{i.price.toFixed(2)}</td>
+                      <td className="px-6 py-4 text-white font-semibold">₹{i.total.toFixed(2)}</td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => removeItem(idx)}
+                          className="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg text-sm font-medium transition-colors border border-red-500/30"
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-        <select
-          value={orderType}
-          onChange={(e) => setOrderType(e.target.value)}
-          className={inputClass}
-        >
-          <option value="OFFLINE">Offline (Cash)</option>
-          <option value="ONLINE">Online (Payment)</option>
-        </select>
-      </div>
-
-      {/* CART (desktop) */}
-      <div className="hidden sm:block overflow-x-auto bg-white/5 rounded-xl">
-        <table className="min-w-full text-sm">
-          <thead className="bg-white/10 border-b border-white/20">
-            <tr>
-              <th className="px-4 py-4 text-left">S.No</th>
-              <th className="px-4 py-4 text-left">Product</th>
-              <th className="px-4 py-4 text-left">Variant</th>
-              <th className="px-4 py-4 text-left">Qty</th>
-              <th className="px-4 py-4 text-left">Price</th>
-              <th className="px-4 py-4 text-left">Total</th>
-              <th className="px-4 py-4 text-left">Action</th>
-            </tr>
-          </thead>
-          <tbody>
+          {/* Cart Mobile Cards */}
+          <div className="sm:hidden p-6">
             {cart.length === 0 ? (
-              <tr>
-                <td colSpan="7" className="px-4 py-6 text-center text-gray-400">
-                  No items in cart
-                </td>
-              </tr>
+              <div className="text-center py-6 text-gray-400">Cart is empty</div>
             ) : (
               cart.map((i, idx) => (
-                <tr key={idx} className="border-b border-white/10 hover:bg-white/5">
-                  <td className="px-4 py-4">{idx + 1}</td>
-                  <td className="px-4 py-4">{i.name}</td>
-                  <td className="px-4 py-4 text-sm text-gray-300">{i.variant}</td>
-                  <td className="px-4 py-4">{i.quantity}</td>
-                  <td className="px-4 py-4">₹{i.price.toFixed(2)}</td>
-                  <td className="px-4 py-4 font-semibold">₹{i.total.toFixed(2)}</td>
-                  <td className="px-4 py-4">
+                <div key={idx} className="bg-slate-800/50 p-4 rounded-xl border border-white/10 mb-3">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <p className="font-semibold text-white">{i.name}</p>
+                      <p className="text-xs text-gray-400">{i.variant}</p>
+                      <p className="text-xs text-gray-400">Qty: {i.quantity}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-white">₹{i.total.toFixed(2)}</p>
+                      <p className="text-xs text-gray-400">₹{i.price.toFixed(2)} each</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
                     <button
                       onClick={() => removeItem(idx)}
-                      className="text-red-400 hover:text-red-300 transition"
+                      className="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg text-sm font-medium transition-colors border border-red-500/30"
                     >
                       Remove
                     </button>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))
             )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* CART (mobile cards) */}
-      <div className="sm:hidden space-y-3">
-        {cart.length === 0 ? (
-          <div className="text-center py-6 text-white/50">Cart is empty</div>
-        ) : (
-          cart.map((i, idx) => (
-            <div key={idx} className="bg-white/5 p-4 rounded-xl border border-white/10">
-              <div className="flex justify-between">
-                <div>
-                  <p className="font-semibold text-white">{i.name}</p>
-                  <p className="text-xs text-gray-400">{i.variant}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold">₹{i.total.toFixed(2)}</p>
-                  <p className="text-xs text-gray-400">Qty: {i.quantity}</p>
-                </div>
-              </div>
-              <div className="mt-3 flex justify-end">
-                <button
-                  onClick={() => removeItem(idx)}
-                  className="text-red-400 hover:text-red-300"
-                >
-                  Remove
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* TOTAL & CHECKOUT */}
-      <div className="flex justify-between items-center pt-6 border-t border-white/20">
-        <div>
-          <p className="text-gray-400 text-sm">Grand Total</p>
-          <h3 className="text-3xl font-bold text-orange-400">
-            ₹{subtotal.toFixed(2)}
-          </h3>
+          </div>
         </div>
 
-        <button
-          disabled={loading || cart.length === 0}
-          onClick={saveBill}
-          className="px-8 py-3 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-white font-semibold transition"
-        >
-          {loading ? "Processing..." : "Place Order"}
-        </button>
-      </div>
+        {/* Total and Checkout Section */}
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <div>
+              <p className="text-gray-400 text-sm mb-2">Grand Total</p>
+              <h3 className="text-4xl font-bold text-orange-400">
+                ₹{subtotal.toFixed(2)}
+              </h3>
+            </div>
+
+            <button
+              disabled={loading || cart.length === 0}
+              onClick={saveBill}
+              className="px-8 py-4 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-lg font-semibold transition-colors border border-orange-500/30 hover:shadow-lg hover:shadow-orange-500/20"
+            >
+              {loading ? "Processing..." : "Place Order"}
+            </button>
+          </div>
+        </div>
 
       {/* SUCCESS MODAL - SHOW ORDER ID */}
       {showSuccessModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gradient-to-br from-[#0f172a] to-[#1a1f35] border-2 border-green-500/50 rounded-2xl p-8 max-w-md w-full shadow-2xl">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-slate-950 to-slate-900 border-2 border-green-500/50 rounded-[2rem] p-8 max-w-md w-full shadow-[0_40px_120px_rgba(0,0,0,0.35)]">
 
             {/* SUCCESS CHECKMARK */}
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 rounded-full bg-green-500/20 border-2 border-green-500 flex items-center justify-center">
-                <svg className="w-8 h-8 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+            <div className="flex justify-center mb-6">
+              <div className="w-20 h-20 rounded-full bg-green-500/20 border-2 border-green-500 flex items-center justify-center">
+                <svg className="w-10 h-10 text-green-400" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
               </div>
@@ -526,7 +511,7 @@ const Billing = () => {
 
             {/* TITLE */}
             <h2 className="text-2xl font-bold text-center text-white mb-2">Order Placed Successfully! 🎉</h2>
-            <p className="text-center text-gray-300 text-sm mb-6">Your order has been created and added to the system.</p>
+            <p className="text-center text-gray-300 text-sm mb-8">Your order has been created and added to the system.</p>
 
             {/* ORDER ID - HIGHLIGHTED */}
             <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/50 rounded-xl p-6 mb-6 text-center">
@@ -535,7 +520,7 @@ const Billing = () => {
             </div>
 
             {/* ORDER DETAILS */}
-            <div className="bg-white/5 rounded-lg p-4 mb-6 space-y-3">
+            <div className="bg-slate-800/50 rounded-xl p-4 mb-6 space-y-3 border border-white/10">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Order Type:</span>
                 <span className="text-white font-semibold">{orderType === "OFFLINE" ? "Offline (Cash)" : "Online (Payment)"}</span>
@@ -550,27 +535,29 @@ const Billing = () => {
               </div>
             </div>
 
-            {/* ACTION BUTTON */}
-            <button
-              onClick={() => setShowSuccessModal(false)}
-              className="w-full px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold rounded-lg transition"
-            >
-              Continue
-            </button>
+            {/* ACTION BUTTONS */}
+            <div className="space-y-3">
+              <button
+                onClick={() => setShowSuccessModal(false)}
+                className="w-full px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold rounded-xl transition-all hover:shadow-lg hover:shadow-green-500/20"
+              >
+                Continue
+              </button>
 
-            {/* COPY ORDER ID BUTTON */}
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(createdOrderId);
-                toast.success("Order ID copied!");
-              }}
-              className="w-full mt-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition"
-            >
-              📋 Copy Order ID
-            </button>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(createdOrderId);
+                  toast.success("Order ID copied!");
+                }}
+                className="w-full px-6 py-3 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 text-sm font-semibold rounded-xl transition-colors border border-blue-500/30"
+              >
+                📋 Copy Order ID
+              </button>
+            </div>
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

@@ -41,6 +41,15 @@ async function getStaffById(req, res) {
       query = `SELECT * FROM staff WHERE employee_id = ?`;
       params = [id];
     }
+
+    // Filter by admin's UUID if user is an admin
+    if (req.user?.role === 'admin') {
+      const adminUuid = req.user?.adminUuid || req.user?.userUuid;
+      if (adminUuid) {
+        query += ' AND admin_uuid = ?';
+        params.push(adminUuid);
+      }
+    }
     
     const [rows] = await db.query(query, params);
     if (rows.length === 0) return res.status(404).json({ error: 'Staff not found' });
@@ -52,6 +61,7 @@ async function getStaffById(req, res) {
 }
 
 const bcrypt = require('bcryptjs');
+const { getActorUuid } = require('../utils/auditTrail');
 
 async function createStaff(req, res) {
   // create staff record and also add a user entry for login (trainer role)
@@ -61,12 +71,16 @@ async function createStaff(req, res) {
 
     const body = req.body;
 
+    // For admin creating staff, use their UUID as the audit trail
+    // req.user comes from JWT which has adminUuid and userUuid
+    const adminUuid = req.user?.adminUuid || req.user?.userUuid || null;
+
     const query = `INSERT INTO staff
       (employee_id, username, name, email, phone, role, department, gender, blood_group,
        dob, joining_date, qualification, experience, shift, salary, address,
        emergency_name, emergency_phone, status, time_in, time_out,
-       photo, aadhar_doc, id_doc, certificate_doc, created_at, updated_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+       photo, aadhar_doc, id_doc, certificate_doc, admin_uuid, created_by, updated_by, created_at, updated_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
 
     const params = [
       body.employee_id || null,
@@ -94,6 +108,9 @@ async function createStaff(req, res) {
       body.aadhar_doc || null,
       body.id_doc || null,
       body.certificate_doc || null,
+      adminUuid,
+      adminUuid,  // created_by = admin UUID
+      adminUuid,  // updated_by = admin UUID
       new Date(),
       new Date(),
     ];
@@ -105,10 +122,12 @@ async function createStaff(req, res) {
       const passwordToHash = body.password || body.phone || '';
       const hashed = passwordToHash ? await bcrypt.hash(passwordToHash, 10) : null;
       const userRole = 'trainer';
+      const userAdminId = req.user?.role === 'admin' ? req.user.userId : null;
+      
       await connection.query(
-        `INSERT INTO users (email, password_hash, role, username, mobile)
-           VALUES (?, ?, ?, ?, ?)`,
-        [body.email || null, hashed, userRole, body.username || null, body.phone || null]
+        `INSERT INTO users (email, password_hash, role, username, mobile, admin_id, admin_uuid, subscription_status, user_uuid, created_by, updated_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, UUID(), ?, ?)`,
+        [body.email || null, hashed, userRole, body.username || null, body.phone || null, userAdminId, adminUuid, 'active', adminUuid, adminUuid]
       );
     } catch (userErr) {
       // duplicate user entries should not block staff creation,
@@ -157,9 +176,30 @@ async function updateStaff(req, res) {
     
     const body = req.body;
 
+    const [existingRows] = isNum
+      ? await connection.query('SELECT * FROM staff WHERE id = ?', [idNum])
+      : await connection.query('SELECT * FROM staff WHERE employee_id = ?', [id]);
+
+    if (existingRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'Staff not found' });
+    }
+
+    // Check authorization - admin can only update their own staff
+    if (req.user?.role === 'admin') {
+      const adminUuid = req.user?.adminUuid || req.user?.userUuid;
+      if (adminUuid && existingRows[0].admin_uuid !== adminUuid) {
+        await connection.rollback();
+        return res.status(403).json({ error: 'Not authorized to update this staff member' });
+      }
+    }
+
     let query;
     let params;
     
+    // Use admin's UUID for audit trail
+    const adminUuid = req.user?.adminUuid || req.user?.userUuid || null;
+
     const baseParams = [
       body.employee_id || null,
       body.username || null,
@@ -186,6 +226,7 @@ async function updateStaff(req, res) {
       body.aadhar_doc || null,
       body.id_doc || null,
       body.certificate_doc || null,
+      adminUuid,  // updated_by = admin UUID
     ];
 
     if (isNum) {
@@ -194,7 +235,7 @@ async function updateStaff(req, res) {
         department = ?, gender = ?, blood_group = ?, dob = ?, joining_date = ?,
         qualification = ?, experience = ?, shift = ?, salary = ?, address = ?,
         emergency_name = ?, emergency_phone = ?, status = ?, time_in = ?, time_out = ?,
-        photo = ?, aadhar_doc = ?, id_doc = ?, certificate_doc = ?, updated_at = CURRENT_TIMESTAMP
+        photo = ?, aadhar_doc = ?, id_doc = ?, certificate_doc = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?`;
       params = [...baseParams, idNum];
     } else {
@@ -203,7 +244,7 @@ async function updateStaff(req, res) {
         department = ?, gender = ?, blood_group = ?, dob = ?, joining_date = ?,
         qualification = ?, experience = ?, shift = ?, salary = ?, address = ?,
         emergency_name = ?, emergency_phone = ?, status = ?, time_in = ?, time_out = ?,
-        photo = ?, aadhar_doc = ?, id_doc = ?, certificate_doc = ?, updated_at = CURRENT_TIMESTAMP
+        photo = ?, aadhar_doc = ?, id_doc = ?, certificate_doc = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
         WHERE employee_id = ?`;
       params = [...baseParams, id];
     }
@@ -283,9 +324,21 @@ async function getAllStaff(req, res) {
     const { role } = req.query;
     let sql = 'SELECT * FROM staff';
     const params = [];
+    const conditions = [];
     if (role) {
-      sql += ' WHERE role = ?';
+      conditions.push('role = ?');
       params.push(role);
+    }
+    // Filter by admin's UUID if user is an admin
+    if (req.user?.role === 'admin') {
+      const adminUuid = req.user?.adminUuid || req.user?.userUuid;
+      if (adminUuid) {
+        conditions.push('admin_uuid = ?');
+        params.push(adminUuid);
+      }
+    }
+    if (conditions.length) {
+      sql += ` WHERE ${conditions.join(' AND ')}`;
     }
     sql += ' ORDER BY created_at DESC';
     const [rows] = await db.query(sql, params);
@@ -304,6 +357,25 @@ async function deleteStaff(req, res) {
     
     let query;
     let params;
+    if (isNum) {
+      query = `SELECT * FROM staff WHERE id = ?`;
+      params = [idNum];
+    } else {
+      query = `SELECT * FROM staff WHERE employee_id = ?`;
+      params = [id];
+    }
+
+    const [existingRows] = await db.query(query, params);
+    if (existingRows.length === 0) return res.status(404).json({ error: 'Staff not found' });
+    
+    // Check authorization - admin can only delete their own staff
+    if (req.user?.role === 'admin') {
+      const adminUuid = req.user?.adminUuid || req.user?.userUuid;
+      if (adminUuid && existingRows[0].admin_uuid !== adminUuid) {
+        return res.status(403).json({ error: 'Not authorized to delete this staff member' });
+      }
+    }
+
     if (isNum) {
       query = `DELETE FROM staff WHERE id = ?`;
       params = [idNum];

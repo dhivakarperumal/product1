@@ -17,16 +17,33 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+const optionalAuthenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return next();
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET || 'secret', (err, user) => {
+    if (!err && user) {
+      req.user = user;
+    }
+    next();
+  });
+};
+
 const requireAdmin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Authentication required' });
   }
 
-  if (!['admin', 'super admin'].includes(req.user.role)) {
+  const normalizedRole = String(req.user.role || '').toLowerCase();
+  if (!['admin', 'super admin', 'superadmin'].includes(normalizedRole)) {
     return res.status(403).json({ error: 'Admin access required' });
   }
 
   next();
 };
 
-module.exports = { authenticateToken, requireAdmin };
+module.exports = { authenticateToken, optionalAuthenticateToken, requireAdmin };

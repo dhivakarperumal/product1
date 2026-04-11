@@ -59,16 +59,18 @@ import BuyNow from "./UserPanel/Pricings/BuyNow.jsx";
 import ServiceDetails from "./UserPanel/Services/ServiceDetails.jsx";
 
 // Super Admin Routes
+import SuperAdminAccess from "./SuperAdmin/SuperAdminAccess.jsx";
 import SuperAdminPanel from "./SuperAdmin/SuperAdminPanel.jsx";
-import SuperAdminDasboard from "./SuperAdmin/Dashboard/Dasboard.jsx";
+import SuperAdminDashboard from "./SuperAdmin/Dashboard/SuperAdminDashboard.jsx";
 import Payment from "./SuperAdmin/PaymentList/Payment.jsx";
 import Users from "./SuperAdmin/Users/Users.jsx";
 import Profile from "./SuperAdmin/Profile/Profile.jsx";
 import AddUser from "./SuperAdmin/Users/AddUser.jsx";
 import EditUser from "./SuperAdmin/Users/EditUser.jsx";
+import Subscriptions from "./SuperAdmin/Subscriptions/Subscriptions.jsx";
 
 // ✅ Lazy components
-const Login = lazy(() => import("./Components/Login.jsx"));
+const AdvancedLogin = lazy(() => import("./Components/AdvancedLogin.jsx"));
 const Register = lazy(() => import("./Components/Register.jsx"));
 
 // Example protected pages
@@ -145,7 +147,7 @@ const router = createHashRouter([
       // { path: "/services/:slug", element: <ServicesDetails /> },
       // { path: "/calendar", element: <ClassesTable /> },
       // { path: "/contact", element: <Contact /> },
-      { path: "/login", element: <Login /> },
+      { path: "/login", element: <AdvancedLogin /> },
       { path: "/register", element: <Register /> },
     ]
   },
@@ -217,6 +219,8 @@ const router = createHashRouter([
       // Products routes
       { path: "products", element: <AdminProducts /> },
       { path: "addproducts", element: <AddProducts /> },
+      { path: "addproducts/:id", element: <AddProducts /> },
+      { path: "products/:id/edit", element: <AddProducts /> },
       { path: "products/:id", element: <ProductDetail /> },
 
       // Stock routes
@@ -295,17 +299,14 @@ const router = createHashRouter([
 
   {
     path: "/superadmin",
-    element: (
-      
-        <SuperAdminPanel />
-      
-    ),
+    element: <SuperAdminAccess />,
     errorElement: <RouteError />,
     children: [
-      { index: true, element: <SuperAdminDasboard /> },
+      { index: true, element: <SuperAdminDashboard /> },
       { path: "paymentlist", element: <Payment /> },
       { path: "profile", element: <Profile /> },
       { path: "users", element: <Users /> },
+      { path: "subscriptions", element: <Subscriptions /> },
       { path: "adduser", element: <AddUser /> },
       { path: "edituser/:id", element: <EditUser /> },
     ],

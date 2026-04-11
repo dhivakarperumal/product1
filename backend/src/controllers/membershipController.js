@@ -5,9 +5,9 @@ async function getAllMemberships(req, res) {
   try {
     const [rows] = await db.query(`
       SELECT m.*, 
-             COALESCE(m.userName, u.username) as username, 
-             COALESCE(m.userEmail, u.email) as email, 
-             COALESCE(m.userPhone, u.mobile) as mobile, 
+             u.username, 
+             u.email, 
+             u.mobile, 
              u.role
       FROM memberships m
       LEFT JOIN users u ON m.userId = u.id
@@ -58,9 +58,6 @@ async function createMembership(req, res) {
   try {
     const {
       userId,
-      userName,
-      userEmail,
-      userPhone,
       planId,
       planName,
       pricePaid,
@@ -77,15 +74,12 @@ async function createMembership(req, res) {
 
     const query = `
       INSERT INTO memberships
-      (userId, userName, userEmail, userPhone, planId, planName, pricePaid, duration, startDate, endDate, paymentId, paymentMode, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (userId, planId, planName, pricePaid, duration, startDate, endDate, paymentId, paymentMode, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const values = [
       userId,
-      userName || null,
-      userEmail || null,
-      userPhone || null,
       planId,
       planName,
       actualPricePaid,
@@ -187,6 +181,7 @@ async function updateMembership(req, res) {
 /* ================= GET EXPIRING SOON ================= */
 async function getExpiringSoon(req, res) {
   try {
+    console.log('getExpiringSoon called with query', req.query);
     const { trainerUserId } = req.query;
     let staffId = null;
 
@@ -207,8 +202,8 @@ async function getExpiringSoon(req, res) {
 
     let sql = `
       SELECT m.*, 
-             COALESCE(m.userName, u.username) as username, 
-             COALESCE(m.userEmail, u.email) as email
+             u.username, 
+             u.email
       FROM memberships m
       LEFT JOIN users u ON m.userId = u.id
     `;
@@ -227,17 +222,19 @@ async function getExpiringSoon(req, res) {
     res.json(rows);
   } catch (error) {
     console.error("Error fetching expiring memberships:", error);
-    res.status(500).json({ error: "Failed to fetch alerts" });
+    console.error(error.stack || error);
+    res.status(500).json({ error: "Failed to fetch alerts", details: error.message });
   }
 }
 
 /* ================= GET TODAY REGISTRATIONS ================= */
 async function getTodayRegistrations(req, res) {
   try {
+    console.log('getTodayRegistrations called');
     const [rows] = await db.query(`
       SELECT m.*, 
-             COALESCE(m.userName, u.username) as username, 
-             COALESCE(m.userEmail, u.email) as email
+             u.username, 
+             u.email
       FROM memberships m
       LEFT JOIN users u ON m.userId = u.id
       WHERE DATE(m.createdAt) = CURDATE()
@@ -246,7 +243,8 @@ async function getTodayRegistrations(req, res) {
     res.json(rows);
   } catch (error) {
     console.error("Error fetching today's registrations:", error);
-    res.status(500).json({ error: "Failed to fetch registrations" });
+    console.error(error.stack || error);
+    res.status(500).json({ error: "Failed to fetch registrations", details: error.message });
   }
 }
 

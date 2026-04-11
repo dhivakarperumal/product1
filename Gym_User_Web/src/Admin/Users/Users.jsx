@@ -1,12 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  collection,
-  getDocs,
-  updateDoc,
-  doc,
-  deleteDoc,
-} from "firebase/firestore";
-import { db } from "../../firebase";
+import api from "../../api";
 import toast from "react-hot-toast";
 import {
   FaUsers,
@@ -15,7 +8,10 @@ import {
   FaToggleOn,
   FaToggleOff,
   FaShieldAlt,
+  FaUserPlus,
+  FaEdit,
 } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -23,6 +19,7 @@ const Users = () => {
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -35,10 +32,20 @@ const Users = () => {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const snap = await getDocs(collection(db, "users"));
-      setUsers(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const res = await api.get("/users");
+      const data = Array.isArray(res.data) ? res.data : [];
+      setUsers(
+        data.map((u) => ({
+          id: u.id,
+          username: u.username || u.email || "Unknown",
+          email: u.email,
+          mobile: u.mobile,
+          active: true,
+          role: (u.role || "member").toLowerCase(),
+        }))
+      );
     } catch (err) {
-      console.error("Error loading users:", err);
+      console.error("Failed to load users:", err);
       toast.error("Failed to load users");
     } finally {
       setLoading(false);
@@ -47,34 +54,28 @@ const Users = () => {
 
   const updateRole = async (id, role) => {
     try {
-      await updateDoc(doc(db, "users", id), { role });
+      await api.put(`/users/${id}`, { role });
       toast.success("Role updated successfully");
       loadUsers();
     } catch (err) {
-      console.error("Error updating role:", err);
+      console.error("Failed to update role:", err);
       toast.error("Failed to update role");
     }
   };
 
   const toggleStatus = async (id, active) => {
-    try {
-      await updateDoc(doc(db, "users", id), { active: !active });
-      toast.success("User status updated");
-      loadUsers();
-    } catch (err) {
-      console.error("Error toggling status:", err);
-      toast.error("Failed to update status");
-    }
+    // For now, we'll skip status toggle as the backend doesn't have active field
+    toast.info("Status toggle not implemented yet");
   };
 
   const deleteUser = async (id) => {
     if (window.confirm("Are you sure you want to delete this user?")) {
       try {
-        await deleteDoc(doc(db, "users", id));
+        await api.delete(`/users/${id}`);
         toast.success("User deleted successfully");
         loadUsers();
       } catch (err) {
-        console.error("Error deleting user:", err);
+        console.error("Failed to delete user:", err);
         toast.error("Failed to delete user");
       }
     }
@@ -125,7 +126,13 @@ const Users = () => {
     <div className="space-y-6 p-2">
       {/* HEADER */}
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-800"></h1>
+        <h1 className="text-3xl font-bold text-gray-800">Users Management</h1>
+        <button
+          onClick={() => navigate("/admin/adduser")}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
+        >
+          <FaUserPlus /> Add User
+        </button>
       </div>
 
       {/* ===================== STATS CARDS ===================== */}
@@ -236,9 +243,9 @@ const Users = () => {
                         className="border border-gray-300 px-2 py-1 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                       >
                         <option value="admin">Admin</option>
-                        <option value="doctor">Doctor</option>
+                        <option value="trainer">Trainer</option>
                         <option value="staff">Staff</option>
-                        <option value="patient">Patient</option>
+                        <option value="member">Member</option>
                       </select>
                     </td>
 

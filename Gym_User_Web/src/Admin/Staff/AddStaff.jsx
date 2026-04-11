@@ -15,7 +15,7 @@ import api from "../../api";
 // Note: backend should provide staff endpoints. Frontend will POST/PUT to `/staff`.
 
 /* ---------------- COMPONENT ---------------- */
-const inputClass = "mt-1 w-full  rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+const inputClass = "w-full bg-slate-950/90 border border-white/10 rounded-3xl px-4 py-3 text-sm text-white placeholder-slate-400 shadow-[0_24px_60px_rgba(15,23,42,0.25)] outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
 
 
 const AddEditStaff = () => {
@@ -70,6 +70,20 @@ const AddEditStaff = () => {
 
   const [previewFile, setPreviewFile] = useState(null);
 
+  // Helper function to format date for input type="date" (YYYY-MM-DD)
+  const formatDateForInput = (dateValue) => {
+    if (!dateValue) return "";
+    if (typeof dateValue === 'string') {
+      // If it's already in YYYY-MM-DD format, return as is
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) return dateValue;
+      // If it has time component or other format, parse and extract date part
+      const date = new Date(dateValue);
+      if (isNaN(date.getTime())) return "";
+      return date.toISOString().split('T')[0];
+    }
+    return "";
+  };
+
   /* ---------------- LOAD STAFF (EDIT ONLY) ---------------- */
 
   useEffect(() => {
@@ -96,8 +110,8 @@ const AddEditStaff = () => {
           department: data.department || "",
           gender: data.gender || "",
           bloodGroup: data.blood_group || "",
-          dob: data.dob || "",
-          joiningDate: data.joining_date || "",
+          dob: formatDateForInput(data.dob),
+          joiningDate: formatDateForInput(data.joining_date),
           qualification: data.qualification || "",
           experience: data.experience || "",
           shift: data.shift || "",
@@ -239,11 +253,6 @@ const AddEditStaff = () => {
       newErrors.username = "Username is required";
     }
 
-    // Employee ID validation (only for edit mode - auto-generated for new staff)
-    if (isEdit && !form.employeeId?.trim()) {
-      newErrors.employeeId = "Employee ID is required";
-    }
-
     // Role validation
     if (!form.role?.trim()) {
       newErrors.role = "Role is required";
@@ -261,25 +270,23 @@ const AddEditStaff = () => {
       newErrors.salary = "Please enter a valid salary amount";
     }
 
-    // Shift validation
-    if (!form.shift?.trim()) {
-      newErrors.shift = "Shift is required";
-    }
+    // Shift validation (optional)
+    // if (!form.shift?.trim()) {
+    //   newErrors.shift = "Shift is required";
+    // }
 
     // Gender validation
     if (!form.gender?.trim()) {
       newErrors.gender = "Gender is required";
     }
 
-    // Blood Group validation
-    if (!form.bloodGroup?.trim()) {
-      newErrors.bloodGroup = "Blood group is required";
-    }
+    // Blood Group validation (optional)
+    // if (!form.bloodGroup?.trim()) {
+    //   newErrors.bloodGroup = "Blood group is required";
+    // }
 
-    // Date of Birth validation
-    if (!form.dob?.trim()) {
-      newErrors.dob = "Date of Birth is required";
-    } else {
+    // Date of Birth validation (optional)
+    if (form.dob?.trim()) {
       const dobDate = new Date(form.dob);
       const today = new Date();
       const age = today.getFullYear() - dobDate.getFullYear();
@@ -288,27 +295,23 @@ const AddEditStaff = () => {
       }
     }
 
-    // Joining Date validation
-    if (!form.joiningDate?.trim()) {
-      newErrors.joiningDate = "Joining Date is required";
+    // Joining Date validation (optional)
+    // if (!form.joiningDate?.trim()) {
+    //   newErrors.joiningDate = "Joining Date is required";
+    // }
+
+    // Address validation (optional)
+    if (form.address?.trim() && form.address.length < 3) {
+      newErrors.address = "Address must be at least 3 characters";
     }
 
-    // Address validation
-    if (!form.address?.trim()) {
-      newErrors.address = "Address is required";
-    } else if (form.address.length < 5) {
-      newErrors.address = "Address must be at least 5 characters";
-    }
+    // Time In validation (optional)
+    // if (!form.timeIn?.trim()) {
+    //   newErrors.timeIn = "Time In is required";
+    // }
 
-    // Time In validation
-    if (!form.timeIn?.trim()) {
-      newErrors.timeIn = "Time In is required";
-    }
-
-    // Time Out validation
-    if (!form.timeOut?.trim()) {
-      newErrors.timeOut = "Time Out is required";
-    } else if (form.timeIn && form.timeOut <= form.timeIn) {
+    // Time Out validation (optional)
+    if (form.timeIn && form.timeOut && form.timeOut <= form.timeIn) {
       newErrors.timeOut = "Time Out must be after Time In";
     }
 
@@ -429,333 +432,533 @@ const AddEditStaff = () => {
   };
 
   return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-4 py-10 text-white">
+      <div className="mx-auto max-w-7xl space-y-10">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+          >
+            <FaArrowLeft className="mr-2 h-4 w-4" /> Back
+          </button>
+          <h1 className="text-2xl font-semibold text-white">
+            {isEdit ? "Edit Staff Member" : "Add New Staff Member"}
+          </h1>
+        </div>
 
-     <div className="">
+        <form onSubmit={handleSubmit} className="space-y-8">
+          <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-8 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+            <div className="space-y-8">
+
+              {/* BASIC INFORMATION */}
               <div>
-                <button
-                  onClick={() => navigate(-1)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition"
-                >
-                  <FaArrowLeft /> Back
-                </button>
+                <h2 className="text-lg font-semibold text-white mb-6">Basic Information</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Full Name *
+                    </label>
+                    <input
+                      name="name"
+                      placeholder="Enter full name"
+                      value={form.name}
+                      onChange={handleChange}
+                      className={`${inputClass} ${errors.name ? "border-red-500 focus:ring-red-500" : ""}`}
+                      required
+                    />
+                    <ErrorText field="name" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      placeholder="Enter email address"
+                      value={form.email}
+                      onChange={handleChange}
+                      className={`${inputClass} ${errors.email ? "border-red-500 focus:ring-red-500" : ""}`}
+                      required
+                    />
+                    <ErrorText field="email" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Phone Number *
+                    </label>
+                    <input
+                      name="phone"
+                      placeholder="Enter phone number"
+                      value={form.phone}
+                      onChange={handleChange}
+                      className={`${inputClass} ${errors.phone ? "border-red-500 focus:ring-red-500" : ""}`}
+                      required
+                    />
+                    <ErrorText field="phone" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Username
+                    </label>
+                    <input
+                      name="username"
+                      placeholder="Auto-generated from email"
+                      value={form.username}
+                      onChange={handleChange}
+                      className={`${inputClass} bg-slate-950/50`}
+                      readOnly
+                    />
+                    <ErrorText field="username" />
+                  </div>
+
+                  {!isEdit && (
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-slate-300 mb-2">
+                        Password
+                      </label>
+                      <input
+                        type="password"
+                        name="password"
+                        placeholder="Auto-generated from phone number"
+                        value={form.password}
+                        onChange={handleChange}
+                        className={`${inputClass} bg-slate-950/50 ${errors.password ? "border-red-500 focus:ring-red-500" : ""}`}
+                        readOnly
+                      />
+                      <p className="text-xs text-slate-400 mt-1">Login credentials will be set to the phone number</p>
+                      <ErrorText field="password" />
+                    </div>
+                  )}
+                </div>
               </div>
-    <div className="w-full p-5 max-w-6xl backdrop-blur-xl bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] border-white/10 rounded-2xl shadow-2xl p-8">
-      <h3 className="text-lg font-semibold mb-6">
-        {isEdit ? "Edit Staff" : "Add Staff"}
-      </h3>
 
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* WORK DETAILS */}
+              <div>
+                <h2 className="text-lg font-semibold text-white mb-6">Work Details</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Employee ID
+                    </label>
+                    <input
+                      name="employeeId"
+                      placeholder="Auto-generated on submit"
+                      value={form.employeeId}
+                      onChange={handleChange}
+                      className={`${inputClass} bg-slate-950/50`}
+                      readOnly
+                    />
+                    <ErrorText field="employeeId" />
+                  </div>
 
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Role *
+                    </label>
+                    <select
+                      name="role"
+                      value={form.role}
+                      onChange={handleChange}
+                      className={`${inputClass} ${errors.role ? "border-red-500 focus:ring-red-500" : ""}`}
+                      required
+                    >
+                      <option value="" className="bg-slate-950 text-slate-400">Select role</option>
+                      <option value="trainer" className="bg-slate-950 text-white">Trainer</option>
+                      <option value="personal_trainer" className="bg-slate-950 text-white">Personal Trainer</option>
+                      <option value="gym_manager" className="bg-slate-950 text-white">Gym Manager</option>
+                      <option value="receptionist" className="bg-slate-950 text-white">Receptionist</option>
+                      <option value="nutritionist" className="bg-slate-950 text-white">Nutritionist</option>
+                      <option value="security" className="bg-slate-950 text-white">Security</option>
+                    </select>
+                    <ErrorText field="role" />
+                  </div>
 
-        <div>
-          <label className="text-sm font-medium">Name *</label>
-          <input name="name" placeholder="Enter Name" value={form.name} onChange={handleChange}
-            className={`${inputClass} ${errors.name ? "border-red-500 focus:ring-red-500" : ""}`} />
-          <ErrorText field="name" />
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Department *
+                    </label>
+                    <input
+                      name="department"
+                      placeholder="Enter department"
+                      value={form.department}
+                      onChange={handleChange}
+                      className={`${inputClass} ${errors.department ? "border-red-500 focus:ring-red-500" : ""}`}
+                      required
+                    />
+                    <ErrorText field="department" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Salary *
+                    </label>
+                    <input
+                      type="number"
+                      name="salary"
+                      placeholder="Enter salary"
+                      value={form.salary}
+                      onChange={handleChange}
+                      className={`${inputClass} ${errors.salary ? "border-red-500 focus:ring-red-500" : ""}`}
+                      required
+                    />
+                    <ErrorText field="salary" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Shift *
+                    </label>
+                    <input
+                      name="shift"
+                      placeholder="Enter shift (e.g., Morning, Evening)"
+                      value={form.shift}
+                      onChange={handleChange}
+                      className={`${inputClass} ${errors.shift ? "border-red-500 focus:ring-red-500" : ""}`}
+                      required
+                    />
+                    <ErrorText field="shift" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Joining Date *
+                    </label>
+                    <input
+                      type="date"
+                      name="joiningDate"
+                      value={form.joiningDate}
+                      onChange={handleChange}
+                      className={`${inputClass} ${errors.joiningDate ? "border-red-500 focus:ring-red-500" : ""}`}
+                      required
+                    />
+                    <ErrorText field="joiningDate" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Time In *
+                    </label>
+                    <input
+                      type="time"
+                      name="timeIn"
+                      value={form.timeIn}
+                      onChange={handleChange}
+                      className={`${inputClass} ${errors.timeIn ? "border-red-500 focus:ring-red-500" : ""}`}
+                      required
+                    />
+                    <ErrorText field="timeIn" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Time Out *
+                    </label>
+                    <input
+                      type="time"
+                      name="timeOut"
+                      value={form.timeOut}
+                      onChange={handleChange}
+                      className={`${inputClass} ${errors.timeOut ? "border-red-500 focus:ring-red-500" : ""}`}
+                      required
+                    />
+                    <ErrorText field="timeOut" />
+                  </div>
+                </div>
+              </div>
+
+              {/* PERSONAL DETAILS */}
+              <div>
+                <h2 className="text-lg font-semibold text-white mb-6">Personal Details</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Gender *
+                    </label>
+                    <select
+                      name="gender"
+                      value={form.gender}
+                      onChange={handleChange}
+                      className={`${inputClass} ${errors.gender ? "border-red-500 focus:ring-red-500" : ""}`}
+                      required
+                    >
+                      <option value="" className="bg-slate-950 text-slate-400">Select gender</option>
+                      <option value="Male" className="bg-slate-950 text-white">Male</option>
+                      <option value="Female" className="bg-slate-950 text-white">Female</option>
+                      <option value="Other" className="bg-slate-950 text-white">Other</option>
+                    </select>
+                    <ErrorText field="gender" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Blood Group *
+                    </label>
+                    <select
+                      name="bloodGroup"
+                      value={form.bloodGroup}
+                      onChange={handleChange}
+                      className={`${inputClass} ${errors.bloodGroup ? "border-red-500 focus:ring-red-500" : ""}`}
+                      required
+                    >
+                      <option value="" className="bg-slate-950 text-slate-400">Select blood group</option>
+                      {bloodGroups.map((bg) => (
+                        <option key={bg} value={bg} className="bg-slate-950 text-white">
+                          {bg}
+                        </option>
+                      ))}
+                    </select>
+                    <ErrorText field="bloodGroup" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Date of Birth *
+                    </label>
+                    <input
+                      type="date"
+                      name="dob"
+                      value={form.dob}
+                      onChange={handleChange}
+                      className={`${inputClass} ${errors.dob ? "border-red-500 focus:ring-red-500" : ""}`}
+                      required
+                    />
+                    <ErrorText field="dob" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Qualification
+                    </label>
+                    <input
+                      name="qualification"
+                      placeholder="Enter qualification"
+                      value={form.qualification}
+                      onChange={handleChange}
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Experience (Years)
+                    </label>
+                    <input
+                      type="number"
+                      name="experience"
+                      placeholder="Enter experience in years"
+                      value={form.experience}
+                      onChange={handleChange}
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Address *
+                    </label>
+                    <textarea
+                      name="address"
+                      placeholder="Enter full address"
+                      value={form.address}
+                      onChange={handleChange}
+                      rows={3}
+                      className={`${inputClass} resize-none ${errors.address ? "border-red-500 focus:ring-red-500" : ""}`}
+                      required
+                    />
+                    <ErrorText field="address" />
+                  </div>
+                </div>
+              </div>
+
+              {/* EMERGENCY CONTACT */}
+              <div>
+                <h2 className="text-lg font-semibold text-white mb-6">Emergency Contact</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Emergency Contact Name
+                    </label>
+                    <input
+                      name="emergencyName"
+                      placeholder="Enter emergency contact name"
+                      value={form.emergencyName}
+                      onChange={handleChange}
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Emergency Contact Phone
+                    </label>
+                    <input
+                      name="emergencyPhone"
+                      placeholder="Enter emergency contact phone"
+                      value={form.emergencyPhone}
+                      onChange={handleChange}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* DOCUMENTS */}
+              <div>
+                <h2 className="text-lg font-semibold text-white mb-6">Documents</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Photo
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileUpload(e, "photo")}
+                      className={inputClass}
+                    />
+                    {form.photo && (
+                      <div className="mt-2 flex gap-2 items-center">
+                        {form.photo.startsWith('data:image') ? (
+                          <img src={form.photo} alt="Photo preview" className="h-16 w-16 rounded-lg object-cover border border-white/10" />
+                        ) : (
+                          <div className="p-2 bg-white/5 rounded border border-white/10 text-xs text-slate-400">
+                            Invalid Photo Data
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => openPreview(form.photo, "photo.jpg")}
+                          className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded text-sm hover:bg-blue-500/30 transition-colors"
+                        >
+                          Preview
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Aadhar Card
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf,.doc,.docx"
+                      onChange={(e) => handleFileUpload(e, "aadharDoc")}
+                      className={inputClass}
+                    />
+                    {form.aadharDoc && (
+                      <div className="mt-2 flex gap-2 items-center">
+                        {form.aadharDoc.startsWith('data:image') ? (
+                          <img src={form.aadharDoc} alt="Aadhar preview" className="h-16 w-16 rounded-lg object-cover border border-white/10" />
+                        ) : (
+                          <div className="p-2 bg-white/5 rounded border border-white/10 text-xs text-slate-400">📄 Aadhar Doc</div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => openPreview(form.aadharDoc, "aadhar")}
+                          className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded text-sm hover:bg-blue-500/30 transition-colors"
+                        >
+                          Preview
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      ID Proof
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf,.doc,.docx"
+                      onChange={(e) => handleFileUpload(e, "idDoc")}
+                      className={inputClass}
+                    />
+                    {form.idDoc && (
+                      <div className="mt-2 flex gap-2 items-center">
+                        {form.idDoc.startsWith('data:image') ? (
+                          <img src={form.idDoc} alt="ID Proof preview" className="h-16 w-16 rounded-lg object-cover border border-white/10" />
+                        ) : (
+                          <div className="p-2 bg-white/5 rounded border border-white/10 text-xs text-slate-400">📄 ID Proof</div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => openPreview(form.idDoc, "idproof")}
+                          className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded text-sm hover:bg-blue-500/30 transition-colors"
+                        >
+                          Preview
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Certificate
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf,.doc,.docx"
+                      onChange={(e) => handleFileUpload(e, "certificateDoc")}
+                      className={inputClass}
+                    />
+                    {form.certificateDoc && (
+                      <div className="mt-2 flex gap-2 items-center">
+                        {form.certificateDoc.startsWith('data:image') ? (
+                          <img src={form.certificateDoc} alt="Certificate preview" className="h-16 w-16 rounded-lg object-cover border border-white/10" />
+                        ) : (
+                          <div className="p-2 bg-white/5 rounded border border-white/10 text-xs text-slate-400">📄 Certificate</div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => openPreview(form.certificateDoc, "certificate")}
+                          className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded text-sm hover:bg-blue-500/30 transition-colors"
+                        >
+                          Preview
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
         </div>
-        {/* USERNAME */}
-        <div>
-          <label className="text-sm font-medium">Username (Auto from Email)</label>
-          <input name="username" placeholder="Auto-populated from email" value={form.username} onChange={handleChange}
-            className={`${inputClass} ${errors.username ? "border-red-500 focus:ring-red-500" : ""}`} disabled readOnly />
-          <ErrorText field="username" />
-        </div>
 
-        {/* EMAIL */}
-        <div>
-          <label className="text-sm font-medium">Email *</label>
-          <input name="email" placeholder="Enter Email Address" value={form.email} onChange={handleChange}
-            className={`${inputClass} ${errors.email ? "border-red-500 focus:ring-red-500" : ""}`} />
-          <ErrorText field="email" />
-        </div>
+          {/* SUBMIT BUTTONS */}
+          <div className="flex justify-end gap-4 pt-8 border-t border-white/10">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+            >
+              Cancel
+            </button>
 
-        {/* PASSWORD (ADD ONLY) */}
-        {!isEdit && (
-          <div>
-            <label className="text-sm font-medium">
-              Password <span className="text-xs text-gray-300">(set equal to phone number)</span>
-            </label>
-            <input type="password" name="password" value={form.password}
-              onChange={handleChange} placeholder="Auto-populated from phone"
-              className={`${inputClass} ${errors.password ? "border-red-500 focus:ring-red-500" : ""}`} disabled readOnly />
-            <p className="text-xs text-gray-400 mt-1">Login credentials for the staff account will use this value.</p>
-            <ErrorText field="password" />
+            <button
+              type="submit"
+              disabled={loading}
+              className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-red-500 px-6 py-3 text-sm font-semibold text-white transition hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  {isEdit ? "Update Staff" : "Save Staff"}
+                </>
+              )}
+            </button>
           </div>
-        )}
-
-        {/* PHONE */}
-        <div>
-          <label className="text-sm font-medium">Phone *</label>
-          <input name="phone" placeholder="Enter Phone Number" value={form.phone} onChange={handleChange}
-            className={`${inputClass} ${errors.phone ? "border-red-500 focus:ring-red-500" : ""}`} />
-          <ErrorText field="phone" />
-        </div>
-
-        {/* NAME */}
-        <div>
-          <label className="text-sm font-medium">Salary *</label>
-          <input name="salary" placeholder="Enter Salary" value={form.salary} onChange={handleChange}
-            className={`${inputClass} ${errors.salary ? "border-red-500 focus:ring-red-500" : ""}`} />
-          <ErrorText field="salary" />
-        </div>
-
-        {/* SHIFT */}
-        <div>
-          <label className="text-sm font-medium">Shift *</label>
-          <input name="shift" placeholder="Enter Shift" value={form.shift} onChange={handleChange}
-            className={`${inputClass} ${errors.shift ? "border-red-500 focus:ring-red-500" : ""}`} />
-          <ErrorText field="shift" />
-        </div>
-
-        {/* EMPLOYEE ID */}
-        <div>
-          <label className="text-sm font-medium">Employee ID * (Auto-generated on submit)</label>
-          <input name="employeeId" value={form.employeeId} onChange={handleChange}
-            placeholder="Will be generated when adding"
-            className={`${inputClass} ${errors.employeeId ? "border-red-500 focus:ring-red-500" : ""}`} disabled readOnly />
-          <ErrorText field="employeeId" />
-        </div>
-
-        {/* ROLE */}
-        <div>
-          <label className="text-sm text-white/70 mb-1 block">
-            Role *
-          </label>
-
-          <select
-            name="role"
-            value={form.role}
-            onChange={handleChange}
-            className={`${inputClass} text-white ${errors.role ? "border-red-500 focus:ring-red-500" : ""}`}
-          >
-            <option value="" className="text-gray-400 bg-[#0f172a]">
-              Select role
-            </option>
-
-            <option value="trainer" className="text-black bg-white">
-              Trainer
-            </option>
-            <option value="personal_trainer" className="text-black bg-white">
-              Personal Trainer
-            </option>
-            <option value="gym_manager" className="text-black bg-white">
-              Gym Manager
-            </option>
-            <option value="receptionist" className="text-black bg-white">
-              Receptionist
-            </option>
-            <option value="nutritionist" className="text-black bg-white">
-              Nutritionist
-            </option>
-            <option value="security" className="text-black bg-white">
-              Security
-            </option>
-          </select>
-
-          <ErrorText field="role" />
-        </div>
-
-
-
-        {/* DEPARTMENT */}
-        <div>
-          <label className="text-sm font-medium">Department *</label>
-          <input name="department" placeholder="Enter Department" value={form.department} onChange={handleChange}
-            className={`${inputClass} ${errors.department ? "border-red-500 focus:ring-red-500" : ""}`} />
-          <ErrorText field="department" />
-        </div>
-
-        {/* GENDER */}
-        <div>
-          <label className="text-sm font-medium">Gender *</label>
-          <select name="gender" value={form.gender} onChange={handleChange}
-            className={`${inputClass} text-white ${errors.gender ? "border-red-500 focus:ring-red-500" : ""}`}>
-            <option className="text-gray-400 bg-[#0f172a]" value="">Select gender</option>
-            <option className="text-gray-400 bg-[#0f172a]" >Male</option>
-            <option className="text-gray-400 bg-[#0f172a]" >Female</option>
-            <option className="text-gray-400 bg-[#0f172a]" >Other</option>
-          </select>
-          <ErrorText field="gender" />
-        </div>
-
-        {/* BLOOD GROUP */}
-        <div>
-          <label className="text-sm text-white/70 mb-1 block">
-            Blood Group *
-          </label>
-
-          <select
-            name="bloodGroup"
-            value={form.bloodGroup}
-            onChange={handleChange}
-            className={`${inputClass} text-white ${errors.bloodGroup ? "border-red-500 focus:ring-red-500" : ""
-              }`}
-          >
-            {/* Placeholder */}
-            <option value="" className="text-gray-400 bg-[#0f172a]">
-              Select blood group
-            </option>
-
-            {/* Options */}
-            {bloodGroups.map((bg) => (
-              <option
-                key={bg}
-                value={bg}
-                className="text-black bg-white"
-              >
-                {bg}
-              </option>
-            ))}
-          </select>
-
-          <ErrorText field="bloodGroup" />
-        </div>
-
-
-        {/* DOB */}
-        <div>
-          <label className="text-sm font-medium">Date of Birth *</label>
-          <input type="date" name="dob" value={form.dob} onChange={handleChange}
-            className={`${inputClass} ${errors.dob ? "border-red-500 focus:ring-red-500" : ""}`} />
-          <ErrorText field="dob" />
-        </div>
-
-        {/* JOINING DATE */}
-        <div>
-          <label className="text-sm font-medium">Joining Date *</label>
-          <input type="date" name="joiningDate" value={form.joiningDate} onChange={handleChange}
-            className={`${inputClass} ${errors.joiningDate ? "border-red-500 focus:ring-red-500" : ""}`} />
-          <ErrorText field="joiningDate" />
-        </div>
-
-        {/* TIME IN */}
-        <div>
-          <label className="text-sm font-medium">Time In (HH:MM) *</label>
-          <input type="time" name="timeIn" value={form.timeIn} onChange={handleChange}
-            className={`${inputClass} ${errors.timeIn ? "border-red-500 focus:ring-red-500" : ""}`} />
-          <ErrorText field="timeIn" />
-        </div>
-
-        {/* TIME OUT */}
-        <div>
-          <label className="text-sm font-medium">Time Out (HH:MM) *</label>
-          <input type="time" name="timeOut" value={form.timeOut} onChange={handleChange}
-            className={`${inputClass} ${errors.timeOut ? "border-red-500 focus:ring-red-500" : ""}`} />
-          <ErrorText field="timeOut" />
-        </div>
-
-        {/* ADDRESS */}
-        <div className="col-span-2">
-          <label className="text-sm font-medium">Address *</label>
-          <textarea name="address" placeholder="Enter Address" value={form.address} onChange={handleChange}
-            className={`${inputClass} ${errors.address ? "border-red-500 focus:ring-red-500" : ""}`} />
-          <ErrorText field="address" />
-        </div>
-
-        {/* PHOTO */}
-        <div>
-          <label className="text-sm font-medium">Photo</label>
-          <input type="file" accept="image/*"
-            onChange={(e) => handleFileUpload(e, "photo")}
-            className={inputClass} />
-          {form.photo && (
-            <div className="mt-2 flex gap-2 items-center">
-              {form.photo.startsWith('data:image') ? (
-                <img src={form.photo} alt="Photo preview" className="h-24 rounded border border-gray-300" />
-              ) : (
-                <div className="p-2 bg-white/5 rounded border border-white/10 text-[10px] text-gray-500 font-bold uppercase tracking-widest">
-                  Invalid Photo Data
-                </div>
-              )}
-              <button type="button" onClick={() => openPreview(form.photo, "photo.jpg")}
-                className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
-                Preview
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* AADHAR */}
-        <div>
-          <label className="text-sm font-medium">Aadhar (Image/PDF)</label>
-          <input type="file" accept="image/*,.pdf,.doc,.docx"
-            onChange={(e) => handleFileUpload(e, "aadharDoc")}
-            className={inputClass} />
-          {form.aadharDoc && (
-            <div className="mt-2 flex gap-2 items-center">
-              {form.aadharDoc.startsWith('data:image') ? (
-                <img src={form.aadharDoc} alt="Aadhar preview" className="h-24 rounded border border-gray-300" />
-              ) : (
-                <div className="p-2 bg-gray-100 rounded border border-gray-300 text-sm">📄 Aadhar Doc</div>
-              )}
-              <button type="button" onClick={() => openPreview(form.aadharDoc, "aadhar")}
-                className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
-                Preview
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* ID */}
-        <div>
-          <label className="text-sm font-medium">ID Proof (Image/PDF)</label>
-          <input type="file" accept="image/*,.pdf,.doc,.docx"
-            onChange={(e) => handleFileUpload(e, "idDoc")}
-            className={inputClass} />
-          {form.idDoc && (
-            <div className="mt-2 flex gap-2 items-center">
-              {form.idDoc.startsWith('data:image') ? (
-                <img src={form.idDoc} alt="ID Proof preview" className="h-24 rounded border border-gray-300" />
-              ) : (
-                <div className="p-2 bg-gray-100 rounded border border-gray-300 text-sm">📄 ID Proof</div>
-              )}
-              <button type="button" onClick={() => openPreview(form.idDoc, "idproof")}
-                className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
-                Preview
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* CERTIFICATE */}
-        <div>
-          <label className="text-sm font-medium">Certificate (Image/PDF)</label>
-          <input type="file" accept="image/*,.pdf,.doc,.docx"
-            onChange={(e) => handleFileUpload(e, "certificateDoc")}
-            className={inputClass} />
-          {form.certificateDoc && (
-            <div className="mt-2 flex gap-2 items-center">
-              {form.certificateDoc.startsWith('data:image') ? (
-                <img src={form.certificateDoc} alt="Certificate preview" className="h-24 rounded border border-gray-300" />
-              ) : (
-                <div className="p-2 bg-white/5 rounded border border-white/10 text-[10px] text-gray-500 font-bold uppercase tracking-widest">
-                  📄 Certificate Doc
-                </div>
-              )}
-              <button type="button" onClick={() => openPreview(form.certificateDoc, "certificate")}
-                className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
-                Preview
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* ACTIONS */}
-        <div className="col-span-2 flex justify-end gap-4 mt-6">
-          <button type="button" onClick={() => navigate(-1)}
-            className="border border-orange-400 px-6 py-2 rounded">
-            Cancel
-          </button>
-          <button type="submit" disabled={loading}
-            className="flex items-center gap-2 px-5 py-2 rounded-lg font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:scale-105 transition-all shadow-lg">
-            {loading ? "Saving..." : isEdit ? "Update" : "Save"}
-          </button>
-        </div>
-
-      </form>
+        </form>
+      </div>
 
       <PreviewModal />
-    </div>
     </div>
   );
 };

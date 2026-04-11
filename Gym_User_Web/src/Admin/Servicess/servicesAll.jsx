@@ -7,14 +7,14 @@ import {
   FiPlus,
   FiEdit,
   FiTrash2,
+  FiSearch,
+  FiBriefcase,
 } from "react-icons/fi";
 
-/* ================= STYLES ================= */
-const thClass = "px-4 py-3 text-left text-sm text-gray-300";
-const tdClass = "px-4 py-3 text-sm text-gray-200";
-
+/* ================= COMPONENT ================= */
 const ServicesList = () => {
   const [services, setServices] = useState([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -87,102 +87,161 @@ const ServicesList = () => {
     }
   };
 
+  /* ================= FILTER ================= */
+  const filteredServices = services.filter(
+    (s) =>
+      s.title?.toLowerCase().includes(search.toLowerCase()) ||
+      s.shortDesc?.toLowerCase().includes(search.toLowerCase()) ||
+      s.serviceId?.toLowerCase().includes(search.toLowerCase())
+  );
+
   /* ================= UI ================= */
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl text-white font-semibold">
-          Gym Services
-        </h2>
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
 
-        <button
-          onClick={() => navigate("/admin/addservice")}
-          className="px-5 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold"
-        >
-          + Add Service
-        </button>
-      </div>
+        {/* HEADER */}
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl p-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-orange-500/20 rounded-xl border border-orange-500/30">
+                <FiBriefcase className="text-orange-400 text-2xl" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-white">Gym Services</h1>
+                <p className="text-gray-400 mt-1">Manage and organize your gym's service offerings</p>
+              </div>
+            </div>
 
-      {loading && !cache.adminServices ? (
-        <div className="flex flex-col items-center justify-center py-40 gap-6">
-          <div className="relative">
-            <div className="w-16 h-16 border-4 border-red-500/20 border-t-red-500 rounded-full animate-spin" />
-            <div className="absolute inset-0 bg-red-500/10 blur-xl rounded-full animate-pulse" />
+            <button
+              onClick={() => navigate("/admin/addservice")}
+              className="flex items-center justify-center gap-3 px-6 py-3 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 rounded-xl font-medium transition-all border border-orange-500/30 hover:shadow-lg hover:shadow-orange-500/20"
+            >
+              <FiPlus className="text-lg" />
+              Add New Service
+            </button>
           </div>
-          <p className="text-white/40 text-xs uppercase tracking-[0.4em] animate-pulse">Syncing Brand Assets</p>
         </div>
-      ) : services.length === 0 ? (
-        <p className="text-gray-400">No services found</p>
-      ) : (
-        <div className="overflow-x-auto bg-white/5 border border-white/10 rounded-2xl">
-          <table className="w-full border-collapse">
-            <thead className="bg-white/5">
-              <tr>
-                <th className={thClass}>Service ID</th>
-                <th className={thClass}>Image</th>
-                <th className={thClass}>Title</th>
-                <th className={thClass}>Slug</th>
-                <th className={thClass}>Actions</th>
-              </tr>
-            </thead>
 
-            <tbody>
-              {services.map((s) => (
-                <tr
-                  key={s.id}
-                  className="border-t border-white/10 hover:bg-white/5"
-                >
-                  <td className={tdClass}>
-                    {s.serviceId}
-                  </td>
-
-                  <td className={tdClass}>
-                    <img
-                      src={
-                        s.heroImage
-                          ? makeImageUrl(s.heroImage)
-                          : "https://via.placeholder.com/64?text=No+Image"
-                      }
-                      alt={s.title}
-                      onError={(e) => { e.target.src = "https://via.placeholder.com/64?text=No+Image"; }}
-                      className="h-12 w-16 rounded-lg object-cover border border-white/20"
-                    />
-                  </td>
-
-                  <td className={tdClass}>
-                    {s.title}
-                  </td>
-
-                  <td className={tdClass}>
-                    {s.slug}
-                  </td>
-
-                  <td className={tdClass}>
-  <div className="flex gap-2">
-    <button
-      onClick={() => navigate(`/admin/addservice/${s.id}`)}
-      className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-      title="Edit"
-    >
-      <FiEdit size={16} />
-    </button>
-
-    <button
-      onClick={() => handleDelete(s.id)}
-      className="p-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
-      title="Delete"
-    >
-      <FiTrash2 size={16} />
-    </button>
-  </div>
-</td>
-
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* SEARCH */}
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl p-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <div className="relative w-full max-w-md">
+              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                placeholder="Search services..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+              />
+            </div>
+            <div className="text-sm text-gray-400">
+              {filteredServices.length} service{filteredServices.length !== 1 ? 's' : ''} found
+            </div>
+          </div>
         </div>
-      )}
+
+        {/* SERVICES TABLE */}
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl p-8">
+          {loading && !cache.adminServices ? (
+            <div className="flex flex-col items-center justify-center py-32 gap-6">
+              <div className="relative">
+                <div className="w-16 h-16 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
+                <div className="absolute inset-0 bg-orange-500/10 blur-xl rounded-full animate-pulse" />
+              </div>
+              <p className="text-gray-400 text-sm uppercase tracking-[0.4em] animate-pulse">Loading Services</p>
+            </div>
+          ) : filteredServices.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-32 gap-4">
+              <div className="p-4 bg-slate-800/50 rounded-full">
+                <FiBriefcase className="text-gray-400 text-3xl" />
+              </div>
+              <p className="text-gray-400 text-lg font-medium">No services found</p>
+              <p className="text-gray-500 text-sm">Try adjusting your search or add a new service</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Service ID</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Image</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Title</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Description</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Actions</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {filteredServices.map((s) => (
+                    <tr
+                      key={s.id}
+                      className="border-b border-white/5 hover:bg-slate-800/30 transition-colors group"
+                    >
+                      <td className="px-6 py-4 text-sm text-gray-300 font-mono">
+                        {s.serviceId}
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="w-16 h-12 rounded-lg overflow-hidden border border-white/10 group-hover:border-orange-500/30 transition-colors">
+                          <img
+                            src={
+                              s.heroImage
+                                ? makeImageUrl(s.heroImage)
+                                : "https://via.placeholder.com/64?text=No+Image"
+                            }
+                            alt={s.title}
+                            onError={(e) => { e.target.src = "https://via.placeholder.com/64?text=No+Image"; }}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="text-white font-medium group-hover:text-orange-400 transition-colors">
+                            {s.title}
+                          </p>
+                          <p className="text-gray-500 text-xs font-mono mt-1">
+                            {s.slug}
+                          </p>
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <p className="text-gray-400 text-sm line-clamp-2 max-w-xs">
+                          {s.shortDesc}
+                        </p>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => navigate(`/admin/addservice/${s.id}`)}
+                            className="p-2 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-xl border border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/20 transition-all"
+                            title="Edit service"
+                          >
+                            <FiEdit className="text-sm" />
+                          </button>
+
+                          <button
+                            onClick={() => handleDelete(s.id)}
+                            className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-xl border border-red-500/30 hover:shadow-lg hover:shadow-red-500/20 transition-all"
+                            title="Delete service"
+                          >
+                            <FiTrash2 className="text-sm" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+      </div>
     </div>
   );
 };
