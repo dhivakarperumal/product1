@@ -1,6 +1,10 @@
 const db = require('../config/db');
 const { getActorUuid } = require('../utils/auditTrail');
 
+// Extract admin UUID from request user
+const getAdminUuid = (user) =>
+  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+
 /**
  * GET /api/attendance?date=YYYY-MM-DD&trainerId=...
  * Returns all attendance records for a specific date.
@@ -8,6 +12,21 @@ const { getActorUuid } = require('../utils/auditTrail');
 async function getAttendance(req, res) {
   try {
     const { date, trainerId, memberOnly } = req.query;
+
+    // Check if user is super admin
+    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    
+    let adminUuidFilter = '';
+    let adminUuidParam = null;
+    
+    // If not super admin, filter by created_by (admin_uuid)
+    if (!isSuperAdmin && req.user) {
+      const adminUuid = getAdminUuid(req.user);
+      if (adminUuid) {
+        adminUuidFilter = ' AND a.created_by = ?';
+        adminUuidParam = adminUuid;
+      }
+    }
 
     // Improved query to get names from either users or staff
     let sql = `
@@ -43,6 +62,12 @@ async function getAttendance(req, res) {
     // 🔒 memberOnly=true → exclude trainer/staff/admin records (Member Attendance page)
     if (memberOnly === 'true') {
       sql += " AND (u.role IS NULL OR (LOWER(u.role) NOT IN ('trainer', 'staff', 'admin')))";
+    }
+
+    // Apply admin_uuid filter
+    if (adminUuidFilter) {
+      sql += adminUuidFilter;
+      params.push(adminUuidParam);
     }
 
     sql += " GROUP BY a.id ORDER BY a.check_in DESC";

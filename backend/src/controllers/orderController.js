@@ -1,6 +1,10 @@
 const pool = require('../config/db');
 const { getActorUuid } = require('../utils/auditTrail');
 
+// Extract admin UUID from request user
+const getAdminUuid = (user) =>
+  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+
 // Helper function to parse JSON fields
 const parseOrder = (order) => {
   if (!order) return order;
@@ -15,8 +19,26 @@ const parseOrder = (order) => {
 // fetch all orders (most recent first) with their items
 async function getAllOrders(req, res) {
   try {
+    // Check if user is super admin
+    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    
+    let whereClauses = [];
+    let params = [];
+    
+    // If not super admin, filter by created_by (admin_uuid)
+    if (!isSuperAdmin && req.user) {
+      const adminUuid = getAdminUuid(req.user);
+      if (adminUuid) {
+        whereClauses.push('created_by = ?');
+        params.push(adminUuid);
+      }
+    }
+
+    const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
     const [orders] = await pool.query(
-      'SELECT * FROM orders ORDER BY created_at DESC'
+      `SELECT * FROM orders ${whereClause} ORDER BY created_at DESC`,
+      params
     );
     
     if (orders.length === 0) {

@@ -1,28 +1,22 @@
 const db = require('../config/db');
 
 async function generateEmployeeId(req, res) {
-  const connection = await db.getConnection();
   try {
-    await connection.beginTransaction();
-    const [select] = await connection.query("SELECT current FROM counters WHERE name = ? FOR UPDATE", ['employees']);
+    // Get current counter or initialize at 0
+    const [rows] = await db.query("SELECT current FROM counters WHERE name = ?", ['employees']);
     
-    if (select.length === 0) {
-      await connection.query("INSERT INTO counters(name, current) VALUES (?, ?)", ['employees', 1]);
-      await connection.commit();
-      return res.json({ employeeId: `EMP${String(1).padStart(3, '0')}` });
+    let nextNumber = 1;
+    if (rows.length > 0) {
+      nextNumber = (rows[0].current || 0) + 1;
+      await db.query('UPDATE counters SET current = ? WHERE name = ?', [nextNumber, 'employees']);
+    } else {
+      await db.query("INSERT INTO counters(name, current) VALUES (?, ?)", ['employees', 1]);
     }
 
-    const current = select[0].current || 0;
-    const next = current + 1;
-    await connection.query('UPDATE counters SET current = ? WHERE name = ?', [next, 'employees']);
-    await connection.commit();
-    return res.json({ employeeId: `EMP${String(next).padStart(3, '0')}` });
+    res.json({ employeeId: `EMP${String(nextNumber).padStart(3, '0')}` });
   } catch (err) {
-    await connection.rollback();
-    console.error('generateEmployeeId error', err);
-    res.status(500).json({ error: 'Failed to generate employee id' });
-  } finally {
-    connection.release();
+    console.error('generateEmployeeId error', err.message);
+    res.status(500).json({ error: 'Failed to generate employee id', details: err.message });
   }
 }
 
@@ -60,20 +54,15 @@ async function getStaffById(req, res) {
   }
 }
 
-const bcrypt = require('bcryptjs');
 const { getActorUuid } = require('../utils/auditTrail');
 
 async function createStaff(req, res) {
-  // create staff record and also add a user entry for login (trainer role)
-  const connection = await db.getConnection();
   try {
-    await connection.beginTransaction();
-
     const body = req.body;
 
-    // For admin creating staff, use their UUID as the audit trail
-    // req.user comes from JWT which has adminUuid and userUuid
+    // For admin creating staff, extract UUID and user ID
     const adminUuid = req.user?.adminUuid || req.user?.userUuid || null;
+    const userId = req.user?.userId || null;
 
     const query = `INSERT INTO staff
       (employee_id, username, name, email, phone, role, department, gender, blood_group,
@@ -109,39 +98,13 @@ async function createStaff(req, res) {
       body.id_doc || null,
       body.certificate_doc || null,
       adminUuid,
-      adminUuid,  // created_by = admin UUID
-      adminUuid,  // updated_by = admin UUID
+      userId,
+      userId,
       new Date(),
       new Date(),
     ];
 
-    const [result] = await connection.query(query, params);
-
-    // create corresponding user entry (trainer role)
-    try {
-      const passwordToHash = body.password || body.phone || '';
-      const hashed = passwordToHash ? await bcrypt.hash(passwordToHash, 10) : null;
-      const userRole = 'trainer';
-      const userAdminId = req.user?.role === 'admin' ? req.user.userId : null;
-      
-      await connection.query(
-        `INSERT INTO users (email, password_hash, role, username, mobile, admin_id, admin_uuid, subscription_status, user_uuid, created_by, updated_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, UUID(), ?, ?)`,
-        [body.email || null, hashed, userRole, body.username || null, body.phone || null, userAdminId, adminUuid, 'active', adminUuid, adminUuid]
-      );
-    } catch (userErr) {
-      // duplicate user entries should not block staff creation,
-      // just log warning and continue
-      if (userErr.code === 'ER_DUP_ENTRY') {
-        console.warn('createStaff: user already exists, skipping user insert');
-      } else {
-        console.error('createStaff user insert error', userErr);
-        // rollback entire transaction because something unexpected happened
-        throw userErr;
-      }
-    }
-
-    await connection.commit();
+    const [result] = await db.query(query, params);
 
     // Fetch the created staff record
     let fetchQuery;
@@ -157,31 +120,24 @@ async function createStaff(req, res) {
     const [rows] = await db.query(fetchQuery, fetchParams);
     res.status(201).json(rows[0]);
   } catch (err) {
-    await connection.rollback();
-    console.error('createStaff error', err);
-    res.status(500).json({ error: 'Failed to create staff' });
-  } finally {
-    connection.release();
+    console.error('[createStaff] ERROR:', err.message, 'Code:', err.code, 'SQL:', err.sqlMessage);
+    res.status(500).json({ error: 'Failed to create staff', details: err.message });
   }
 }
 
 async function updateStaff(req, res) {
-  const connection = await db.getConnection();
   try {
-    await connection.beginTransaction();
-
     const { id } = req.params;
     const idNum = parseInt(id, 10);
     const isNum = !isNaN(idNum);
-    
     const body = req.body;
 
+    // Check if staff exists first
     const [existingRows] = isNum
-      ? await connection.query('SELECT * FROM staff WHERE id = ?', [idNum])
-      : await connection.query('SELECT * FROM staff WHERE employee_id = ?', [id]);
+      ? await db.query('SELECT * FROM staff WHERE id = ?', [idNum])
+      : await db.query('SELECT * FROM staff WHERE employee_id = ?', [id]);
 
     if (existingRows.length === 0) {
-      await connection.rollback();
       return res.status(404).json({ error: 'Staff not found' });
     }
 
@@ -189,16 +145,12 @@ async function updateStaff(req, res) {
     if (req.user?.role === 'admin') {
       const adminUuid = req.user?.adminUuid || req.user?.userUuid;
       if (adminUuid && existingRows[0].admin_uuid !== adminUuid) {
-        await connection.rollback();
         return res.status(403).json({ error: 'Not authorized to update this staff member' });
       }
     }
 
-    let query;
-    let params;
-    
-    // Use admin's UUID for audit trail
-    const adminUuid = req.user?.adminUuid || req.user?.userUuid || null;
+    // Extract user ID for audit trail
+    const userId = req.user?.userId || null;
 
     const baseParams = [
       body.employee_id || null,
@@ -226,9 +178,12 @@ async function updateStaff(req, res) {
       body.aadhar_doc || null,
       body.id_doc || null,
       body.certificate_doc || null,
-      adminUuid,  // updated_by = admin UUID
+      userId,
     ];
 
+    let query;
+    let params;
+    
     if (isNum) {
       query = `UPDATE staff SET
         employee_id = ?, username = ?, name = ?, email = ?, phone = ?, role = ?,
@@ -249,53 +204,9 @@ async function updateStaff(req, res) {
       params = [...baseParams, id];
     }
 
-    const [result] = await connection.query(query, params);
-    if (result.affectedRows === 0) {
-      await connection.rollback();
-      return res.status(404).json({ error: 'Staff not found' });
-    }
+    await db.query(query, params);
 
-    // try to update user entry if it exists
-    try {
-      const userUpdateFields = [];
-      const userParams = [];
-      if (body.email !== undefined) {
-        userUpdateFields.push('email = ?');
-        userParams.push(body.email);
-      }
-      if (body.username !== undefined) {
-        userUpdateFields.push('username = ?');
-        userParams.push(body.username);
-      }
-      if (body.phone !== undefined) {
-        userUpdateFields.push('mobile = ?');
-        userParams.push(body.phone);
-      }
-      // we do not update role here; users created from staff are always trainers
-      if (userUpdateFields.length > 0) {
-        // identify user by email or username before update
-        // we cannot guarantee unique id, so use existing email/username from body
-        const whereClause = [];
-        const whereParams = [];
-        if (body.email) {
-          whereClause.push('email = ?');
-          whereParams.push(body.email);
-        }
-        if (body.username) {
-          whereClause.push('username = ?');
-          whereParams.push(body.username);
-        }
-        if (whereClause.length > 0) {
-          const updateSql = `UPDATE users SET ${userUpdateFields.join(', ')} WHERE ${whereClause.join(' OR ')}`;
-          await connection.query(updateSql, [...userParams, ...whereParams]);
-        }
-      }
-    } catch (userErr) {
-      console.warn('updateStaff: failed to sync user record', userErr.message);
-      // not fatal; continue
-    }
-
-    // Fetch the updated staff record
+    // Fetch and return updated record
     let fetchQuery;
     let fetchParams;
     if (isNum) {
@@ -305,17 +216,12 @@ async function updateStaff(req, res) {
       fetchQuery = `SELECT * FROM staff WHERE employee_id = ?`;
       fetchParams = [id];
     }
-    
-    const [rows] = await db.query(fetchQuery, fetchParams);
 
-    await connection.commit();
+    const [rows] = await db.query(fetchQuery, fetchParams);
     res.json(rows[0]);
   } catch (err) {
-    await connection.rollback();
-    console.error('updateStaff error', err);
-    res.status(500).json({ error: 'Failed to update staff' });
-  } finally {
-    connection.release();
+    console.error('updateStaff error', err.message, err.code, err.sqlMessage);
+    res.status(500).json({ error: 'Failed to update staff', details: err.message });
   }
 }
 
@@ -325,18 +231,24 @@ async function getAllStaff(req, res) {
     let sql = 'SELECT * FROM staff';
     const params = [];
     const conditions = [];
+    
     if (role) {
       conditions.push('role = ?');
       params.push(role);
     }
-    // Filter by admin's UUID if user is an admin
-    if (req.user?.role === 'admin') {
-      const adminUuid = req.user?.adminUuid || req.user?.userUuid;
+    
+    // Check if user is super admin
+    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    
+    // Filter by admin's UUID if user is an admin (not super admin)
+    if (!isSuperAdmin && req.user?.role === 'admin') {
+      const adminUuid = req.user?.adminUuid || req.user?.userUuid || req.user?.admin_uuid || req.user?.user_uuid;
       if (adminUuid) {
         conditions.push('admin_uuid = ?');
         params.push(adminUuid);
       }
     }
+    
     if (conditions.length) {
       sql += ` WHERE ${conditions.join(' AND ')}`;
     }

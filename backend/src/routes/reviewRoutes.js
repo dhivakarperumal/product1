@@ -6,10 +6,11 @@ const {
   updateReview,
   deleteReview,
 } = require('../controllers/reviewController');
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/', getAllReviews);
+router.get('/', authenticateToken, requireAdmin, getAllReviews);
 router.get('/:id', getReviewById);
 router.post('/', createReview);
 router.put('/:id', updateReview);

@@ -1,5 +1,9 @@
 const db = require('../config/db');
 
+// Extract admin UUID from request user
+const getAdminUuid = (user) =>
+  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+
 let memberTableName = null;
 
 async function resolveMemberTable() {
@@ -28,6 +32,23 @@ async function getAllMembers(req, res) {
   try {
     const membersTable = await resolveMemberTable();
 
+    // Check if user is super admin
+    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    const adminUuid = getAdminUuid(req.user);
+    
+    let whereClauses = [];
+    let params = [];
+    
+    // If not super admin, filter by created_by (admin_uuid)
+    if (!isSuperAdmin && req.user) {
+      if (adminUuid) {
+        whereClauses.push('gm.created_by = ?');
+        params.push(adminUuid);
+      }
+    }
+
+    const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
     const sql = `
       SELECT 
         gm.id, 
@@ -46,9 +67,10 @@ async function getAllMembers(req, res) {
         gm.created_at,
         'members' AS source
       FROM ${membersTable} gm
+      ${whereClause}
       ORDER BY gm.created_at DESC
     `;
-    const [rows] = await db.query(sql);
+    const [rows] = await db.query(sql, params);
     res.json(rows);
   } catch (err) {
     console.error('getAllMembers query failed:', err.code, err.sqlMessage || err.message);
@@ -129,7 +151,9 @@ async function createMember(req, res) {
       return res.status(400).json({ message: "Phone already exists" });
     }
 
-    const currentUserUuid = req.user?.userUuid || req.user?.user_uuid || null;
+    // Get admin UUID - prioritize adminUuid, then userUuid
+    const adminUuid = req.user?.adminUuid || req.user?.userUuid || req.user?.admin_uuid || req.user?.user_uuid || null;
+    const currentUserUuid = adminUuid;
 
     // Parse numeric fields early so they can be used in insert loop
     const numHeight = height != null && !isNaN(height) ? Number(height) : null;
@@ -214,7 +238,9 @@ async function updateMember(req, res) {
     await connection.beginTransaction();
     const membersTable = await resolveMemberTable();
 
-    const currentUserUuid = req.user?.userUuid || req.user?.user_uuid || null;
+    // Get admin UUID - prioritize adminUuid, then userUuid
+    const adminUuid = req.user?.adminUuid || req.user?.userUuid || req.user?.admin_uuid || req.user?.user_uuid || null;
+    const currentUserUuid = adminUuid;
     const { id } = req.params;
     const idNum = parseInt(id, 10);
     const isNum = !isNaN(idNum);

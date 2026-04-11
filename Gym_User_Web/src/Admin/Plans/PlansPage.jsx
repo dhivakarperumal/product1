@@ -9,6 +9,7 @@ import {
   FaDollarSign,
   FaUsers,
   FaCheckCircle,
+  FaTrash,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -70,6 +71,28 @@ const PlansAll = () => {
       }
 
       toast.success("Plan status updated ✅");
+      loadPlans();
+    } catch (err) {
+      console.error(err);
+      toast.error("Server error");
+    }
+  };
+
+  /* ================= DELETE PLAN ================= */
+  const deletePlan = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const res = await api.delete(`${API}/${id}`);
+      
+      if (res.status !== 200) {
+        toast.error("Failed to delete plan");
+        return;
+      }
+
+      toast.success("Plan deleted successfully ✅");
       loadPlans();
     } catch (err) {
       console.error(err);
@@ -189,69 +212,86 @@ const PlansAll = () => {
                 </div>
               </div>
             </div>
-          {filteredPlans.map((p) => (
-            <div key={p.id} className={`${glassCard} p-6 space-y-3`}>
 
-              <div className="flex justify-between items-center">
-                <h3 className="text-xl font-semibold">{p.name}</h3>
+            <div className="space-y-4 p-6">
+              {filteredPlans.length > 0 ? (
+                filteredPlans.map((p) => (
+                  <div key={p.id} className={`${glassCard} p-6 space-y-3`}>
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-xl font-semibold">{p.name}</h3>
 
-                <span
-                  className={`px-3 py-1 text-xs rounded-full font-semibold
-                    ${p.active
-                      ? "bg-emerald-500/20 text-emerald-400"
-                      : "bg-gray-500/20 text-gray-400"
-                    }`}
-                >
-                  {p.active ? "Active" : "Inactive"}
-                </span>
-              </div>
+                      <span
+                        className={`px-3 py-1 text-xs rounded-full font-semibold
+                          ${p.active
+                            ? "bg-emerald-500/20 text-emerald-400"
+                            : "bg-gray-500/20 text-gray-400"
+                          }`}
+                      >
+                        {p.active ? "Active" : "Inactive"}
+                      </span>
+                    </div>
 
-              <p className="text-gray-300 text-sm">
-                Duration: <span className="font-medium">{p.duration}</span>
-              </p>
+                    <p className="text-gray-300 text-sm">
+                      Duration: <span className="font-medium">{p.duration}</span>
+                    </p>
 
-              <p className="text-gray-300 text-sm">
-                Price: ₹{p.finalPrice ?? p.final_price ?? p.price}{" "}
-                {p.discount > 0 && (
-                  <span className="text-xs text-emerald-400">
-                    ({p.discount}% OFF)
-                  </span>
-                )}
-              </p>
+                    <p className="text-gray-300 text-sm">
+                      Price: ₹{p.finalPrice ?? p.final_price ?? p.price}{" "}
+                      {p.discount > 0 && (
+                        <span className="text-xs text-emerald-400">
+                          ({p.discount}% OFF)
+                        </span>
+                      )}
+                    </p>
 
-              <div className="flex flex-wrap gap-2 text-xs text-gray-300">
-                {p.facilities?.map((f) => (
-                  <span
-                    key={f}
-                    className="px-2 py-1 rounded bg-white/10"
-                  >
-                    {f}
-                  </span>
-                ))}
-              </div>
+                    <div className="flex flex-wrap gap-2 text-xs text-gray-300">
+                      {p.facilities?.map((f) => (
+                        <span
+                          key={f}
+                          className="px-2 py-1 rounded bg-white/10"
+                        >
+                          {f}
+                        </span>
+                      ))}
+                    </div>
 
-              {/* ACTIONS */}
-              <div className="flex justify-end gap-3 pt-3">
-                <button
-                  onClick={() => navigate(`/admin/addplan/${p.id}`)}
-                  className="p-2 rounded-lg bg-yellow-500/80 hover:bg-yellow-500"
-                >
-                  <FaEdit />
-                </button>
+                    {/* ACTIONS */}
+                    <div className="flex justify-end gap-3 pt-3">
+                      <button
+                        onClick={() => navigate(`/admin/addplan/${p.id}`)}
+                        className="p-2 rounded-lg bg-yellow-500/80 hover:bg-yellow-500"
+                        title="Edit plan"
+                      >
+                        <FaEdit />
+                      </button>
 
-                <button
-                  onClick={() => toggleStatus(p.id, p.active)}
-                  className={`p-2 rounded-lg ${p.active
-                      ? "bg-red-500/80 hover:bg-red-500"
-                      : "bg-emerald-500/80 hover:bg-emerald-500"
-                    }`}
-                >
-                  {p.active ? <FaToggleOff /> : <FaToggleOn />}
-                </button>
-              </div>
+                      <button
+                        onClick={() => toggleStatus(p.id, p.active)}
+                        className={`p-2 rounded-lg ${p.active
+                            ? "bg-red-500/80 hover:bg-red-500"
+                            : "bg-emerald-500/80 hover:bg-emerald-500"
+                          }`}
+                        title={p.active ? "Deactivate plan" : "Activate plan"}
+                      >
+                        {p.active ? <FaToggleOff /> : <FaToggleOn />}
+                      </button>
 
+                      <button
+                        onClick={() => deletePlan(p.id, p.name)}
+                        className="p-2 rounded-lg bg-pink-500/80 hover:bg-pink-500"
+                        title="Delete plan"
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-400 text-lg">No plans found</p>
+                </div>
+              )}
             </div>
-          ))}
           </section>
         </div>
       </div>

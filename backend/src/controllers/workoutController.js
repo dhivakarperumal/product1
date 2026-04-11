@@ -1,5 +1,9 @@
 const db = require('../config/db');
 
+// Extract admin UUID from request user
+const getAdminUuid = (user) =>
+  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+
 // helper to parse JSON columns
 function parseWorkout(row) {
   if (!row) return row;
@@ -15,10 +19,23 @@ async function getAllWorkouts(req, res) {
     let sql = 'SELECT * FROM workout_programs WHERE 1=1';
     const params = [];
 
-    // If requester is admin, filter by admin_id
-    if (req.user?.role === 'admin') {
-      sql += ' AND admin_id = ?';
-      params.push(req.user.userId);
+    // Check if user is super admin
+    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+
+    // If requester is super admin, shows all
+    if (isSuperAdmin) {
+      // No filter for super admin
+    }
+    // If requester is admin, filter by admin_uuid or admin_id
+    else if (req.user?.role === 'admin') {
+      const adminUuid = getAdminUuid(req.user);
+      if (adminUuid) {
+        sql += ' AND (created_by = ? OR admin_id = ?)';
+        params.push(adminUuid, req.user.userId);
+      } else {
+        sql += ' AND admin_id = ?';
+        params.push(req.user.userId);
+      }
     }
     // If requester is a member, show only workouts assigned to them
     else if (req.user?.role === 'user' || req.user?.role === 'member') {

@@ -1,6 +1,10 @@
 const db = require('../config/db');
 const { getActorUuid } = require('../utils/auditTrail');
 
+// Extract admin UUID from request user
+const getAdminUuid = (user) =>
+  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+
 // Helper function to parse JSON fields
 const parseFacility = (facility) => {
   if (!facility) return facility;
@@ -17,9 +21,25 @@ const parseFacility = (facility) => {
 
 async function getAllFacilities(req, res) {
   try {
+    // Check if user is super admin
+    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    
+    let whereClause = '';
+    let params = [];
+    
+    // If not super admin, filter by created_by (admin_uuid)
+    if (!isSuperAdmin && req.user) {
+      const adminUuid = getAdminUuid(req.user);
+      if (adminUuid) {
+        whereClause = ' WHERE created_by = ?';
+        params.push(adminUuid);
+      }
+    }
+
     // ensure active column exists, fallback to true for older rows
     const [rows] = await db.query(
-      'SELECT *, COALESCE(active, TRUE) AS active FROM gym_facilities ORDER BY created_at DESC'
+      `SELECT *, COALESCE(active, TRUE) AS active FROM gym_facilities ${whereClause} ORDER BY created_at DESC`,
+      params
     );
     res.json(rows.map(parseFacility));
   } catch (err) {

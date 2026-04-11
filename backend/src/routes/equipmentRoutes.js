@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const equipmentController = require('../controllers/equipmentController');
 
 // Get all equipment
-router.get('/', equipmentController.getAllEquipment);
+router.get('/', authenticateToken, requireAdmin, equipmentController.getAllEquipment);
 
 // Get equipment by status
 router.get('/status/:status', equipmentController.getEquipmentByStatus);

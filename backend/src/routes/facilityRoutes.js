@@ -1,4 +1,5 @@
 const express = require("express");
+const { authenticateToken, requireAdmin } = require("../middleware/auth");
 const {
   getAllFacilities,
   getFacilityById,
@@ -14,7 +15,7 @@ const router = express.Router();
  * @route   GET /api/facilities
  * @desc    Get all facilities
  */
-router.get("/", getAllFacilities);
+router.get("/", authenticateToken, requireAdmin, getAllFacilities);
 
 /**
  * @route   GET /api/facilities/:id

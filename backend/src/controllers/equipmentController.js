@@ -1,10 +1,30 @@
 const db = require('../config/db');
 const { getActorUuid } = require('../utils/auditTrail');
 
+// Extract admin UUID from request user
+const getAdminUuid = (user) =>
+  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+
 async function getAllEquipment(req, res) {
   try {
+    // Check if user is super admin
+    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    
+    let whereClause = '';
+    let params = [];
+    
+    // If not super admin, filter by created_by (admin_uuid)
+    if (!isSuperAdmin && req.user) {
+      const adminUuid = getAdminUuid(req.user);
+      if (adminUuid) {
+        whereClause = ' WHERE created_by = ?';
+        params.push(adminUuid);
+      }
+    }
+
     const [rows] = await db.query(
-      'SELECT * FROM gym_equipment ORDER BY created_at DESC'
+      `SELECT * FROM gym_equipment ${whereClause} ORDER BY created_at DESC`,
+      params
     );
     res.json(rows);
   } catch (err) {

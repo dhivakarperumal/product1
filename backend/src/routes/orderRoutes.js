@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const {
   getAllOrders,
   getOrder,
@@ -10,7 +11,7 @@ const {
   getTodayOrders
 } = require('../controllers/orderController');
 
-router.get('/', getAllOrders);
+router.get('/', authenticateToken, requireAdmin, getAllOrders);
 router.get('/today', getTodayOrders);
 router.get('/user/:userId', getUserOrders);
 router.get('/:id', getOrder);

@@ -1,4 +1,5 @@
 const express = require('express');
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const {
   getAllDiets,
   getDietById,
@@ -9,7 +10,7 @@ const {
 
 const router = express.Router();
 
-router.get('/', getAllDiets);
+router.get('/', authenticateToken, requireAdmin, getAllDiets);
 router.get('/:id', getDietById);
 router.post('/', createDiet);
 router.put('/:id', updateDiet);

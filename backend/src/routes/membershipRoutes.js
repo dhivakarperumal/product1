@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 const {
   createMembership,
@@ -13,7 +14,7 @@ const {
 } = require("../controllers/membershipController");
 
 /* GET ALL MEMBERSHIPS */
-router.get("/", getAllMemberships);
+router.get("/", authenticateToken, requireAdmin, getAllMemberships);
 
 /* GET TODAY NEW MEMBERS */
 router.get("/today", getTodayRegistrations);

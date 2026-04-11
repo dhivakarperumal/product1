@@ -1,4 +1,5 @@
 const express = require("express");
+const { authenticateToken, requireAdmin } = require("../middleware/auth");
 const {
   getAllPlans,
   getPlanById,
@@ -13,7 +14,7 @@ const router = express.Router();
  * @route   GET /api/plans
  * @desc    Get all plans
  */
-router.get("/", getAllPlans);
+router.get("/", authenticateToken, requireAdmin, getAllPlans);
 
 /**
  * @route   GET /api/plans/:id
@@ -25,18 +26,18 @@ router.get("/:id", getPlanById);
  * @route   POST /api/plans
  * @desc    Create new plan
  */
-router.post("/", createPlan);
+router.post("/", authenticateToken, requireAdmin, createPlan);
 
 /**
  * @route   PUT /api/plans/:id
  * @desc    Update plan
  */
-router.put("/:id", updatePlan);
+router.put("/:id", authenticateToken, requireAdmin, updatePlan);
 
 /**
  * @route   DELETE /api/plans/:id
  * @desc    Delete plan
  */
-router.delete("/:id", deletePlan);
+router.delete("/:id", authenticateToken, requireAdmin, deletePlan);
 
 module.exports = router;

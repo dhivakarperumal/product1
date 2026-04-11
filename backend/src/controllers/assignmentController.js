@@ -1,6 +1,10 @@
 const db = require('../config/db');
 const { getActorUuid } = require('../utils/auditTrail');
 
+// Extract admin UUID from request user
+const getAdminUuid = (user) =>
+  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+
 function normalizeAssignment(row) {
   return {
     id: row.id,
@@ -79,9 +83,30 @@ async function getAllAssignments(req, res) {
       LEFT JOIN staff s ON s.id = a.trainer_id
     `;
     const params = [];
-
-    if (staffId) {
+    
+    // Check if user is super admin
+    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    
+    // If not super admin, filter by created_by (admin_uuid)
+    if (!isSuperAdmin && req.user) {
+      const adminUuid = getAdminUuid(req.user);
+      if (adminUuid) {
+        sql += ' WHERE a.created_by = ?';
+        params.push(adminUuid);
+      }
+    } else if (staffId) {
       sql += ' WHERE a.trainer_id = ?';
+      params.push(staffId);
+    } else if (staffId && (!isSuperAdmin && req.user && getAdminUuid(req.user))) {
+      const adminUuid = getAdminUuid(req.user);
+      sql += ' WHERE a.trainer_id = ? AND a.created_by = ?';
+      params.push(staffId, adminUuid);
+    }
+
+    if (staffId && (!isSuperAdmin && req.user && getAdminUuid(req.user))) {
+      // Already added above
+    } else if (staffId) {
+      sql += sql.includes('WHERE') ? ' AND a.trainer_id = ?' : ' WHERE a.trainer_id = ?';
       params.push(staffId);
     }
 

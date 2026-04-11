@@ -1,6 +1,10 @@
 const db = require('../config/db');
 const { getActorUuid } = require('../utils/auditTrail');
 
+// Extract admin UUID from request user
+const getAdminUuid = (user) =>
+  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+
 // Helper to safely parse JSON
 const safeParsePoints = (pointsStr) => {
   try {
@@ -39,7 +43,22 @@ async function generateServiceId(req, res) {
 
 async function getAllServices(req, res) {
   try {
-    const [rows] = await db.query('SELECT * FROM services ORDER BY created_at DESC');
+    // Check if user is super admin
+    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    
+    let whereClause = '';
+    let params = [];
+    
+    // If not super admin, filter by created_by (admin_uuid)
+    if (!isSuperAdmin && req.user) {
+      const adminUuid = getAdminUuid(req.user);
+      if (adminUuid) {
+        whereClause = ' WHERE created_by = ?';
+        params.push(adminUuid);
+      }
+    }
+
+    const [rows] = await db.query(`SELECT * FROM services ${whereClause} ORDER BY created_at DESC`, params);
     const services = rows.map(r => ({
       id: r.id,
       service_id: r.service_id,

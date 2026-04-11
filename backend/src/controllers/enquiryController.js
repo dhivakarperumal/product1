@@ -5,10 +5,27 @@ const getAdminUuid = (user) =>
   user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
 
 const enquiryController = {
-    // Get all enquiries
+    // Get all enquiries - filtered by admin_uuid if not a super admin
     getAllEnquiries: async (req, res) => {
         try {
-            const [rows] = await pool.query('SELECT * FROM enquiries ORDER BY created_at DESC');
+            // Check if user is super admin
+            const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+            
+            let query = 'SELECT * FROM enquiries';
+            let params = [];
+            
+            // If not super admin, filter by created_by (admin_uuid)
+            if (!isSuperAdmin && req.user) {
+                const adminUuid = getAdminUuid(req.user);
+                if (adminUuid) {
+                    query += ' WHERE created_by = ?';
+                    params.push(adminUuid);
+                }
+            }
+            
+            query += ' ORDER BY created_at DESC';
+            
+            const [rows] = await pool.query(query, params);
             res.json(rows);
         } catch (error) {
             console.error('Error fetching enquiries:', error);

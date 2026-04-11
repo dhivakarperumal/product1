@@ -1,8 +1,27 @@
 const db = require('../config/db');
 
+// Extract admin UUID from request user
+const getAdminUuid = (user) =>
+  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+
 /* ================= GET ALL MEMBERSHIPS ================= */
 async function getAllMemberships(req, res) {
   try {
+    // Check if user is super admin
+    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    
+    let whereClause = '';
+    let params = [];
+    
+    // If not super admin, filter by created_by (admin_uuid)
+    if (!isSuperAdmin && req.user) {
+      const adminUuid = getAdminUuid(req.user);
+      if (adminUuid) {
+        whereClause = ' WHERE m.created_by = ?';
+        params.push(adminUuid);
+      }
+    }
+
     const [rows] = await db.query(`
       SELECT m.*, 
              u.username, 
@@ -11,8 +30,9 @@ async function getAllMemberships(req, res) {
              u.role
       FROM memberships m
       LEFT JOIN users u ON m.userId = u.id
+      ${whereClause}
       ORDER BY m.createdAt DESC
-    `);
+    `, params);
     res.json(rows);
   } catch (error) {
     console.error("Error fetching all memberships:", error);

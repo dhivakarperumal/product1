@@ -5,11 +5,12 @@ const {
   updateCartItem,
   removeCartItem,
 } = require('../controllers/cartController');
+const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
 // GET /api/cart?userId=...
-router.get('/', listCart);
+router.get('/', authenticateToken, listCart);
 // POST /api/cart
 router.post('/', addToCart);
 // PUT /api/cart/:id

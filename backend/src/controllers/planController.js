@@ -1,5 +1,9 @@
 const db = require('../config/db');
 
+// Extract admin UUID from request user
+const getAdminUuid = (user) =>
+  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+
 // Helper function to parse JSON fields
 const parsePlan = (plan) => {
   if (!plan) return plan;
@@ -17,7 +21,22 @@ const parsePlan = (plan) => {
 
 async function getAllPlans(req, res) {
   try {
-    const [rows] = await db.query('SELECT * FROM gym_plans ORDER BY created_at DESC');
+    // Check if user is super admin
+    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    
+    let whereClause = '';
+    let params = [];
+    
+    // If not super admin, filter by created_by (admin_uuid)
+    if (!isSuperAdmin && req.user) {
+      const adminUuid = getAdminUuid(req.user);
+      if (adminUuid) {
+        whereClause = ' WHERE created_by = ?';
+        params.push(adminUuid);
+      }
+    }
+
+    const [rows] = await db.query(`SELECT * FROM gym_plans ${whereClause} ORDER BY created_at DESC`, params);
     res.json(rows.map(parsePlan));
   } catch (err) {
     console.error('getAllPlans error', err);
@@ -60,16 +79,15 @@ async function createPlan(req, res) {
     facilities, trainerIncluded, dietPlans, active
   } = req.body;
 
-  console.log('createPlan received:', {
-    name, description, duration, price, discount, finalPrice,
-    facilities: facilities?.length || 0, trainerIncluded, dietPlans: dietPlans?.length || 0, active
-  });
-
   try {
     // Validate required fields
     if (!name || !duration || !price) {
       return res.status(400).json({ message: "Name, duration, and price are required" });
     }
+
+    // Extract admin UUID and user ID from JWT
+    const adminUuid = req.user?.adminUuid || req.user?.userUuid || null;
+    const userId = req.user?.userId || null;
 
     // generate plan_id
     const [countResult] = await db.query("SELECT COUNT(*) as count FROM gym_plans");
@@ -79,12 +97,13 @@ async function createPlan(req, res) {
     const [result] = await db.query(
       `INSERT INTO gym_plans
       (plan_id, name, description, duration, price, discount, final_price, 
-       facilities, trainer_included, diet_plans, active)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+       facilities, trainer_included, diet_plans, active, admin_uuid, created_by, updated_by, created_at, updated_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         planId, name, description, duration, Number(price), Number(discount),
         Number(finalPrice), JSON.stringify(facilities || []), trainerIncluded ? 1 : 0,
-        JSON.stringify(dietPlans || []), active !== false ? 1 : 0
+        JSON.stringify(dietPlans || []), active !== false ? 1 : 0,
+        adminUuid, userId, userId, new Date(), new Date()
       ]
     );
 
@@ -93,7 +112,7 @@ async function createPlan(req, res) {
     res.json(parsePlan(rows[0]));
 
   } catch (err) {
-    console.error('createPlan error:', err.message);
+    console.error('createPlan error:', err.message, err.code, err.sqlMessage);
     res.status(500).json({ message: "Server error", error: err.message });
   }
 }

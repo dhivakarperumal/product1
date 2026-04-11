@@ -25,6 +25,8 @@ const pageTitles = {
 
 const SuperAdminHeader = ({ onMenuClick }) => {
   const [activeDropdown, setActiveDropdown] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { userProfile, logout } = useAuth();
@@ -33,8 +35,22 @@ const SuperAdminHeader = ({ onMenuClick }) => {
   const userEmail = userProfile?.email || "superadmin@gmail.com";
   const userRole = userProfile?.role === "super admin" ? "Super Admin" : userProfile?.role || "Admin";
 
+  useEffect(() => {
+    // Load sample notifications
+    setNotifications([
+      { id: 1, message: "New payment received", time: "2 mins ago", type: "success" },
+      { id: 2, message: "User registration pending", time: "1 hour ago", type: "warning" },
+      { id: 3, message: "System update available", time: "3 hours ago", type: "info" },
+    ]);
+  }, []);
+
   const toggleDropdown = (name) => {
     setActiveDropdown(prev => (prev === name ? null : name));
+  };
+
+  const clearNotifications = () => {
+    setNotifications([]);
+    setShowNotifications(false);
   };
 
   const getPageTitle = () => {
@@ -73,7 +89,95 @@ const SuperAdminHeader = ({ onMenuClick }) => {
         </div>
 
         {/* RIGHT */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 sm:gap-3">
+
+          {/* SEARCH & UTILITIES */}
+          <div className="hidden md:flex items-center gap-2">
+            {/* Search */}
+            <button
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 
+              text-white/70 hover:text-white transition"
+              title="Search"
+            >
+              <Search className="w-5 h-5" />
+            </button>
+
+            {/* Notifications */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative p-2 rounded-xl bg-white/10 hover:bg-white/20 
+                text-white/70 hover:text-white transition"
+                title="Notifications"
+              >
+                <Bell className="w-5 h-5" />
+                {notifications.length > 0 && (
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                )}
+              </button>
+
+              {showNotifications && (
+                <>
+                  <div
+                    onClick={() => setShowNotifications(false)}
+                    className="fixed inset-0 z-40"
+                  />
+                  <div className="absolute right-0 mt-4 w-80
+                    bg-gray-900 backdrop-blur-xl
+                    border border-white/20
+                    rounded-2xl shadow-2xl z-50 max-h-96 overflow-y-auto">
+                    
+                    <div className="sticky top-0 px-4 py-3 border-b border-white/10 bg-gray-900/50">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-white">Notifications</p>
+                        {notifications.length > 0 && (
+                          <button
+                            onClick={clearNotifications}
+                            className="text-xs text-white/50 hover:text-white/70 transition"
+                          >
+                            Clear All
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {notifications.length > 0 ? (
+                      <div className="divide-y divide-white/10">
+                        {notifications.map((notif) => (
+                          <div key={notif.id} className="px-4 py-3 hover:bg-white/5 transition">
+                            <div className="flex items-start gap-3">
+                              <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                                notif.type === 'success' ? 'bg-green-500' :
+                                notif.type === 'warning' ? 'bg-yellow-500' :
+                                'bg-blue-500'
+                              }`} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-white/90">{notif.message}</p>
+                                <p className="text-xs text-white/50">{notif.time}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="px-4 py-8 text-center text-white/50">
+                        <p className="text-sm">No notifications</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Settings */}
+            <button
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 
+              text-white/70 hover:text-white transition"
+              title="Settings"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+          </div>
 
           {/* PROFILE */}
           <div className="relative">

@@ -41,6 +41,8 @@
   "scripts": {
     "backend": "cd backend && npm start",
     "frontend": "cd Gym_User_Web && npm run dev",
+
+    
     "dev": "concurrently \"cd backend && npm start\" \"cd Gym_User_Web && npm run dev\""
   },
   "keywords": [],

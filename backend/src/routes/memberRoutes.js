@@ -15,7 +15,7 @@ const router = express.Router();
  * @route   GET /api/members
  * @desc    Get all members
  */
-router.get("/", getAllMembers);
+router.get("/", authenticateToken, requireAdmin, getAllMembers);
 
 /**
  * @route   GET /api/members/:id

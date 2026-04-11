@@ -4,14 +4,18 @@ const jwt = require('jsonwebtoken');
 const logger = require('../config/logger');
 
 function buildAuthPayload(user) {
+  // For admins, adminUuid should be their own userUuid/user_uuid
+  // For super admins, it might be stored as admin_uuid
+  const adminUuid = user.admin_uuid || user.user_uuid || user.userUuid || null;
+  
   return {
     userId: user.id || null,
     user_id: user.user_id || null,
-    userUuid: user.user_uuid || user.user_id || null,
+    userUuid: user.user_uuid || user.user_id || user.userUuid || null,
     role: user.role,
     email: user.email,
     adminId: user.admin_id || null,
-    adminUuid: user.admin_uuid || null,
+    adminUuid: adminUuid,  // For filtering - admin's own UUID
     subscriptionStatus: user.subscription_status || null,
   };
 }

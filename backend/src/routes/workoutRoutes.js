@@ -1,4 +1,5 @@
 const express = require('express');
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const {
   getAllWorkouts,
   getWorkoutById,
@@ -9,7 +10,7 @@ const {
 
 const router = express.Router();
 
-router.get('/', getAllWorkouts);
+router.get('/', authenticateToken, requireAdmin, getAllWorkouts);
 router.get('/:id', getWorkoutById);
 router.post('/', createWorkout);
 router.put('/:id', updateWorkout);
