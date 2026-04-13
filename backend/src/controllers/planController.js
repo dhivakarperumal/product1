@@ -85,9 +85,9 @@ async function createPlan(req, res) {
       return res.status(400).json({ message: "Name, duration, and price are required" });
     }
 
-    // Extract admin UUID and user ID from JWT
-    const adminUuid = req.user?.adminUuid || req.user?.userUuid || null;
-    const userId = req.user?.userId || null;
+    // Extract admin UUID from JWT for audit fields
+    const adminUuid = getAdminUuid(req.user);
+    const createdBy = adminUuid;
 
     // generate plan_id
     const [countResult] = await db.query("SELECT COUNT(*) as count FROM gym_plans");
@@ -97,13 +97,13 @@ async function createPlan(req, res) {
     const [result] = await db.query(
       `INSERT INTO gym_plans
       (plan_id, name, description, duration, price, discount, final_price, 
-       facilities, trainer_included, diet_plans, active, admin_uuid, created_by, updated_by, created_at, updated_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       facilities, trainer_included, diet_plans, active, created_by, updated_by, created_at, updated_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         planId, name, description, duration, Number(price), Number(discount),
         Number(finalPrice), JSON.stringify(facilities || []), trainerIncluded ? 1 : 0,
         JSON.stringify(dietPlans || []), active !== false ? 1 : 0,
-        adminUuid, userId, userId, new Date(), new Date()
+        createdBy, createdBy, new Date(), new Date()
       ]
     );
 
@@ -124,6 +124,8 @@ async function updatePlan(req, res) {
     facilities, trainerIncluded, dietPlans, active
   } = req.body;
 
+  const adminUuid = getAdminUuid(req.user);
+
   try {
     // Try to parse as integer, otherwise use as string
     const idNum = parseInt(id, 10);
@@ -142,16 +144,16 @@ async function updatePlan(req, res) {
       query = `UPDATE gym_plans SET
         name=?, description=?, duration=?, price=?, discount=?,
         final_price=?, facilities=?, trainer_included=?, diet_plans=?,
-        active=?, updated_at=CURRENT_TIMESTAMP
+        active=?, updated_by=?, updated_at=CURRENT_TIMESTAMP
        WHERE id=?`;
-      params = [...baseParams, idNum];
+      params = [...baseParams, adminUuid, idNum];
     } else {
       query = `UPDATE gym_plans SET
         name=?, description=?, duration=?, price=?, discount=?,
         final_price=?, facilities=?, trainer_included=?, diet_plans=?,
-        active=?, updated_at=CURRENT_TIMESTAMP
+        active=?, updated_by=?, updated_at=CURRENT_TIMESTAMP
        WHERE plan_id=?`;
-      params = [...baseParams, id];
+      params = [...baseParams, adminUuid, id];
     }
 
     const [result] = await db.query(query, params);

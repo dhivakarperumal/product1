@@ -60,6 +60,7 @@ async function getAllMembers(req, res) {
         gm.height,
         gm.weight,
         gm.bmi,
+        gm.address,
         gm.plan,
         gm.status,
         (SELECT COUNT(*) FROM workout_programs wp WHERE wp.member_id = gm.id) AS workout_count,
@@ -122,9 +123,11 @@ async function getMemberById(req, res) {
 async function createMember(req, res) {
   const {
     name, phone, email, gender, height, weight, bmi,
-    plan, duration, joinDate, expiryDate, status,
+    plan, duration, status,
     photo, notes, address
   } = req.body;
+  const joinDate = req.body.joinDate || req.body.join_date || new Date().toISOString().split('T')[0];
+  const expiryDate = req.body.expiryDate || req.body.expiry_date || null;
 
   console.log('createMember received:', { name, phone, email, gender, height, weight, bmi, plan, duration, joinDate, expiryDate, status, photo: photo ? 'base64...' : null, notes, address });
 
@@ -140,20 +143,32 @@ async function createMember(req, res) {
 
     const membersTable = await resolveMemberTable();
 
-    // duplicate phone check
-    const [existing] = await connection.query(
-      `SELECT * FROM ${membersTable} WHERE phone = ?`,
-      [phone]
-    );
-
-    if (existing.length > 0) {
-      await connection.rollback();
-      return res.status(400).json({ message: "Phone already exists" });
-    }
-
     // Get admin UUID - prioritize adminUuid, then userUuid
     const adminUuid = req.user?.adminUuid || req.user?.userUuid || req.user?.admin_uuid || req.user?.user_uuid || null;
     const currentUserUuid = adminUuid;
+
+    // duplicate phone/email check within the same admin
+    if (phone) {
+      const [existingPhone] = await connection.query(
+        `SELECT * FROM ${membersTable} WHERE phone = ?${currentUserUuid ? ' AND created_by = ?' : ''}`,
+        currentUserUuid ? [phone, currentUserUuid] : [phone]
+      );
+      if (existingPhone.length > 0) {
+        await connection.rollback();
+        return res.status(400).json({ message: "Phone already exists for this admin" });
+      }
+    }
+
+    if (email) {
+      const [existingEmail] = await connection.query(
+        `SELECT * FROM ${membersTable} WHERE email = ?${currentUserUuid ? ' AND created_by = ?' : ''}`,
+        currentUserUuid ? [email, currentUserUuid] : [email]
+      );
+      if (existingEmail.length > 0) {
+        await connection.rollback();
+        return res.status(400).json({ message: "Email already exists for this admin" });
+      }
+    }
 
     // Parse numeric fields early so they can be used in insert loop
     const numHeight = height != null && !isNaN(height) ? Number(height) : null;
@@ -254,22 +269,55 @@ async function updateMember(req, res) {
     const numBmi = bmi != null && !isNaN(bmi) ? Number(bmi) : null;
     const numDuration = duration != null && !isNaN(duration) ? Number(duration) : null;
 
+    // Determine the member owner so uniqueness is enforced per admin
+    let ownerUuid = currentUserUuid;
+    const selectOwnerQuery = isNum
+      ? `SELECT created_by FROM ${membersTable} WHERE id = ?`
+      : `SELECT created_by FROM ${membersTable} WHERE member_id = ?`;
+    const [ownerRows] = await connection.query(selectOwnerQuery, [isNum ? idNum : id]);
+    if (ownerRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ message: 'Member not found' });
+    }
+    if (ownerRows[0].created_by) {
+      ownerUuid = ownerRows[0].created_by;
+    }
+
     // Check for duplicate phone if phone is being updated
     if (phone) {
       let dupQuery;
       let dupParams;
       if (isNum) {
-        dupQuery = `SELECT * FROM ${membersTable} WHERE phone = ? AND id != ?`;
-        dupParams = [phone, idNum];
+        dupQuery = `SELECT * FROM ${membersTable} WHERE phone = ? AND created_by = ? AND id != ?`;
+        dupParams = [phone, ownerUuid, idNum];
       } else {
-        dupQuery = `SELECT * FROM ${membersTable} WHERE phone = ? AND member_id != ?`;
-        dupParams = [phone, id];
+        dupQuery = `SELECT * FROM ${membersTable} WHERE phone = ? AND created_by = ? AND member_id != ?`;
+        dupParams = [phone, ownerUuid, id];
       }
 
       const [existing] = await connection.query(dupQuery, dupParams);
       if (existing.length > 0) {
         await connection.rollback();
-        return res.status(400).json({ message: "Phone already exists" });
+        return res.status(400).json({ message: "Phone already exists for this admin" });
+      }
+    }
+
+    // Check for duplicate email if email is being updated
+    if (email) {
+      let dupEmailQuery;
+      let dupEmailParams;
+      if (isNum) {
+        dupEmailQuery = `SELECT * FROM ${membersTable} WHERE email = ? AND created_by = ? AND id != ?`;
+        dupEmailParams = [email, ownerUuid, idNum];
+      } else {
+        dupEmailQuery = `SELECT * FROM ${membersTable} WHERE email = ? AND created_by = ? AND member_id != ?`;
+        dupEmailParams = [email, ownerUuid, id];
+      }
+
+      const [existingEmail] = await connection.query(dupEmailQuery, dupEmailParams);
+      if (existingEmail.length > 0) {
+        await connection.rollback();
+        return res.status(400).json({ message: "Email already exists for this admin" });
       }
     }
 

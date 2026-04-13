@@ -12,6 +12,9 @@ router.get('/:id', authenticateToken, enquiryController.getEnquiryById);
 // POST /api/enquiries - Create new enquiry (admin auth required to track creator)
 router.post('/', authenticateToken, enquiryController.createEnquiry);
 
+// PUT /api/enquiries/:id - Update enquiry details (admin auth required)
+router.put('/:id', authenticateToken, enquiryController.updateEnquiry);
+
 // PUT /api/enquiries/:id/status - Update enquiry status (admin auth required)
 router.put('/:id/status', authenticateToken, enquiryController.updateEnquiryStatus);
 

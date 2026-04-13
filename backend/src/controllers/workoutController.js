@@ -91,7 +91,7 @@ async function createWorkout(req, res) {
     } = req.body;
 
     const adminId = req.user?.role === 'admin' ? req.user.userId : null;
-    const createdBy = req.user?.userId || null;
+    const createdBy = getAdminUuid(req.user) || null;
 
     const [result] = await db.query(
       `INSERT INTO workout_programs

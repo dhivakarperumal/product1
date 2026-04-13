@@ -39,6 +39,8 @@ const BuyPlanadmin = () => {
     const fetchMembers = async () => {
       try {
         const res = await api.get(MEMBERS_API);
+        console.log('Fetched members from API:', res.data);
+        console.log('Sample member fields:', res.data?.[0] ? Object.keys(res.data[0]) : 'No members');
         setMembers(res.data || []);
       } catch (err) {
         console.error(err);
@@ -274,6 +276,8 @@ Thank you for joining 💪
               setSelectedUser(user);
 
               if (user) {
+                console.log('Selected member object:', user);
+                console.log('Address value:', user.address);
                 setForm((prev) => ({
                   ...prev,
                   phone: user.phone || "",

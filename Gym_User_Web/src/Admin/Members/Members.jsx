@@ -149,54 +149,78 @@ const Members = () => {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
+        let successCount = 0;
+        let errorCount = 0;
+
         for (const row of jsonData) {
           const email = row.Email || row.email;
           if (!email) continue;
 
-          const joinDate = excelDateToJSDate(row["Join Date"] || row.joinDate || row["JoinDate"]);
-          const duration = Number(row.Duration || row.duration || 0);
+          try {
+            const joinDate = excelDateToJSDate(row["Join Date"] || row.joinDate || row["JoinDate"]);
+            const duration = Number(row.Duration || row.duration || 0);
 
-          // Calculate Expiry Date
-          let expiryDate = row["Expiry Date"] || row.expiryDate || row["ExpiryDate"];
-          if (!expiryDate && joinDate && duration) {
-            const d = new Date(joinDate);
-            d.setMonth(d.getMonth() + duration);
-            expiryDate = d.toISOString().split("T")[0];
-          } else if (expiryDate) {
-            expiryDate = excelDateToJSDate(expiryDate);
+            // Calculate Expiry Date
+            let expiryDate = row["Expiry Date"] || row.expiryDate || row["ExpiryDate"];
+            if (!expiryDate && joinDate && duration) {
+              const d = new Date(joinDate);
+              d.setMonth(d.getMonth() + duration);
+              expiryDate = d.toISOString().split("T")[0];
+            } else if (expiryDate) {
+              expiryDate = excelDateToJSDate(expiryDate);
+            }
+
+            // Calculate BMI
+            const height = row.Height || row.height || "";
+            const weight = row.Weight || row.weight || "";
+            let bmi = row.BMI || row.bmi || "";
+            if (!bmi && height && weight) {
+              const h = Number(height) / 100;
+              const w = Number(weight);
+              if (h > 0) bmi = (w / (h * h)).toFixed(1);
+            }
+
+            const payload = {
+              name: row.Name || row.name,
+              phone: String(row.Phone || row.phone || row.Mobile || ""),
+              email: email,
+              gender: row.Gender || row.gender || "",
+              height: height,
+              weight: weight,
+              bmi: bmi,
+              plan: row.Plan || row.plan || "",
+              duration: duration,
+              joinDate: joinDate,
+              expiryDate: expiryDate,
+              status: row.Status || row.status || "active",
+              address: row.Address || row.address || "",
+              notes: row.Notes || row.notes || "",
+            };
+
+            await api.post("/members", payload);
+            successCount++;
+          } catch (err) {
+            errorCount++;
+            const errorMessage = err.response?.data?.message || err.response?.data?.error || "Import failed for this member";
+
+            // Show specific toast errors for duplicate contacts during import
+            if (errorMessage.includes('Phone already exists for this admin')) {
+              toast.error(`Phone number already exists for ${row.Name || row.name || 'this member'}`);
+            } else if (errorMessage.includes('Email already exists for this admin')) {
+              toast.error(`Email address already exists for ${row.Name || row.name || 'this member'}`);
+            } else {
+              toast.error(`Failed to import ${row.Name || row.name || 'member'}: ${errorMessage}`);
+            }
           }
-
-          // Calculate BMI
-          const height = row.Height || row.height || "";
-          const weight = row.Weight || row.weight || "";
-          let bmi = row.BMI || row.bmi || "";
-          if (!bmi && height && weight) {
-            const h = Number(height) / 100;
-            const w = Number(weight);
-            if (h > 0) bmi = (w / (h * h)).toFixed(1);
-          }
-
-          const payload = {
-            name: row.Name || row.name,
-            phone: String(row.Phone || row.phone || row.Mobile || ""),
-            email: email,
-            gender: row.Gender || row.gender || "",
-            height: height,
-            weight: weight,
-            bmi: bmi,
-            plan: row.Plan || row.plan || "",
-            duration: duration,
-            joinDate: joinDate,
-            expiryDate: expiryDate,
-            status: row.Status || row.status || "active",
-            address: row.Address || row.address || "",
-            notes: row.Notes || row.notes || "",
-          };
-
-          await api.post("/members", payload);
         }
 
-        toast.success("Imported successfully");
+        if (successCount > 0) {
+          toast.success(`Imported ${successCount} member${successCount > 1 ? 's' : ''} successfully`);
+        }
+        if (errorCount > 0) {
+          toast.error(`${errorCount} member${errorCount > 1 ? 's' : ''} failed to import`);
+        }
+
         fetchMembers();
       } catch (err) {
         console.error(err);

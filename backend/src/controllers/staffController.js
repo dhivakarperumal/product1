@@ -38,7 +38,7 @@ async function getStaffById(req, res) {
 
     // Filter by admin's UUID if user is an admin
     if (req.user?.role === 'admin') {
-      const adminUuid = req.user?.adminUuid || req.user?.userUuid;
+      const adminUuid = req.user?.adminUuid || req.user?.admin_uuid || req.user?.userUuid || req.user?.user_uuid || null;
       if (adminUuid) {
         query += ' AND admin_uuid = ?';
         params.push(adminUuid);
@@ -60,9 +60,9 @@ async function createStaff(req, res) {
   try {
     const body = req.body;
 
-    // For admin creating staff, extract UUID and user ID
-    const adminUuid = req.user?.adminUuid || req.user?.userUuid || null;
-    const userId = req.user?.userId || null;
+    // For admin creating staff, extract admin UUID for audit trail
+    const adminUuid = req.user?.adminUuid || req.user?.admin_uuid || req.user?.userUuid || req.user?.user_uuid || null;
+    const createdBy = adminUuid;
 
     const query = `INSERT INTO staff
       (employee_id, username, name, email, phone, role, department, gender, blood_group,
@@ -98,8 +98,8 @@ async function createStaff(req, res) {
       body.id_doc || null,
       body.certificate_doc || null,
       adminUuid,
-      userId,
-      userId,
+      createdBy,
+      createdBy,
       new Date(),
       new Date(),
     ];
@@ -143,14 +143,14 @@ async function updateStaff(req, res) {
 
     // Check authorization - admin can only update their own staff
     if (req.user?.role === 'admin') {
-      const adminUuid = req.user?.adminUuid || req.user?.userUuid;
+      const adminUuid = req.user?.adminUuid || req.user?.admin_uuid || req.user?.userUuid || req.user?.user_uuid || null;
       if (adminUuid && existingRows[0].admin_uuid !== adminUuid) {
         return res.status(403).json({ error: 'Not authorized to update this staff member' });
       }
     }
 
-    // Extract user ID for audit trail
-    const userId = req.user?.userId || null;
+    // Extract admin UUID for audit trail
+    const updatedBy = req.user?.adminUuid || req.user?.admin_uuid || req.user?.userUuid || req.user?.user_uuid || null;
 
     const baseParams = [
       body.employee_id || null,
@@ -178,7 +178,7 @@ async function updateStaff(req, res) {
       body.aadhar_doc || null,
       body.id_doc || null,
       body.certificate_doc || null,
-      userId,
+      updatedBy,
     ];
 
     let query;
@@ -192,7 +192,7 @@ async function updateStaff(req, res) {
         emergency_name = ?, emergency_phone = ?, status = ?, time_in = ?, time_out = ?,
         photo = ?, aadhar_doc = ?, id_doc = ?, certificate_doc = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?`;
-      params = [...baseParams, idNum];
+      params = [...baseParams, updatedBy, idNum];
     } else {
       query = `UPDATE staff SET
         employee_id = ?, username = ?, name = ?, email = ?, phone = ?, role = ?,
@@ -201,7 +201,7 @@ async function updateStaff(req, res) {
         emergency_name = ?, emergency_phone = ?, status = ?, time_in = ?, time_out = ?,
         photo = ?, aadhar_doc = ?, id_doc = ?, certificate_doc = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
         WHERE employee_id = ?`;
-      params = [...baseParams, id];
+      params = [...baseParams, updatedBy, id];
     }
 
     await db.query(query, params);
@@ -242,7 +242,7 @@ async function getAllStaff(req, res) {
     
     // Filter by admin's UUID if user is an admin (not super admin)
     if (!isSuperAdmin && req.user?.role === 'admin') {
-      const adminUuid = req.user?.adminUuid || req.user?.userUuid || req.user?.admin_uuid || req.user?.user_uuid;
+      const adminUuid = req.user?.adminUuid || req.user?.admin_uuid || req.user?.userUuid || req.user?.user_uuid || null;
       if (adminUuid) {
         conditions.push('admin_uuid = ?');
         params.push(adminUuid);
@@ -282,7 +282,7 @@ async function deleteStaff(req, res) {
     
     // Check authorization - admin can only delete their own staff
     if (req.user?.role === 'admin') {
-      const adminUuid = req.user?.adminUuid || req.user?.userUuid;
+      const adminUuid = req.user?.adminUuid || req.user?.admin_uuid || req.user?.userUuid || req.user?.user_uuid || null;
       if (adminUuid && existingRows[0].admin_uuid !== adminUuid) {
         return res.status(403).json({ error: 'Not authorized to delete this staff member' });
       }

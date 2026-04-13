@@ -204,6 +204,7 @@ const router = createHashRouter([
       // Members routes
       { path: "members", element: <AdminMembers /> },
       { path: "addmembers", element: <AddMembers /> },
+      { path: "addmembers/:id", element: <AddMembers /> },
 
       // Enquiry route
       { path: "enquiry", element: <AdminEnquiry /> },
@@ -230,6 +231,7 @@ const router = createHashRouter([
       // Plans routes
       { path: "plansall", element: <AdminPlans /> },
       { path: "addplan", element: <AddPlan /> },
+      { path: "addplan/:id", element: <AddPlan /> },
       { path: "buyplanadmin", element: <BuyPlanAdmin /> },
 
       // Facilities routes

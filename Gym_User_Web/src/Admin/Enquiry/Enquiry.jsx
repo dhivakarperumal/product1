@@ -5,6 +5,7 @@ import DateRangeFilter from "../DateRangeFilter";
 import { filterByDateRange } from "../utils/dateUtils";
 import dayjs from "dayjs";
 import { createPortal } from "react-dom";
+import toast from "react-hot-toast";
 
 const CustomDropdown = ({ label, options, value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -152,11 +153,11 @@ const Enquiry = () => {
     e.preventDefault();
     try {
       if (selectedEnquiry) {
-        // Update status
-        await api.put(`/enquiries/${selectedEnquiry.id}/status`, { status: formData.status });
+        await api.put(`/enquiries/${selectedEnquiry.id}`, formData);
+        toast.success("Enquiry updated successfully");
       } else {
-        // Create new enquiry
         await api.post('/enquiries', formData);
+        toast.success("Enquiry created successfully");
       }
       fetchEnquiries();
       setShowForm(false);
@@ -164,6 +165,16 @@ const Enquiry = () => {
       setFormData({ name: "", email: "", phone: "", subject: "", message: "", location: "", height: "", weight: "", bmi: "" });
     } catch (error) {
       console.error('Error saving enquiry:', error);
+      const errorMessage = error.response?.data?.error || 'Failed to save enquiry';
+
+      // Show specific toast errors for duplicate contacts
+      if (errorMessage.includes('Phone already exists for this admin')) {
+        toast.error("Phone number already exists for this admin");
+      } else if (errorMessage.includes('Email already exists for this admin')) {
+        toast.error("Email address already exists for this admin");
+      } else {
+        toast.error(errorMessage);
+      }
     }
   };
 
@@ -189,8 +200,10 @@ const Enquiry = () => {
       try {
         await api.delete(`/enquiries/${id}`);
         fetchEnquiries();
+        toast.success("Enquiry deleted successfully");
       } catch (error) {
         console.error('Error deleting enquiry:', error);
+        toast.error("Failed to delete enquiry");
       }
     }
   };
@@ -199,35 +212,64 @@ const Enquiry = () => {
     try {
       await api.put(`/enquiries/${id}/status`, { status });
       fetchEnquiries();
+      toast.success(`Enquiry status updated to ${status}`);
     } catch (error) {
       console.error('Error updating status:', error);
+      toast.error("Failed to update enquiry status");
     }
+  };
+
+  const parseMetric = (value) => {
+    if (value === null || value === undefined || value === "") return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const computeBmi = (height, weight) => {
+    if (height == null || weight == null) return null;
+    const h = Number(height) / 100;
+    const w = Number(weight);
+    if (!h || !w) return null;
+    return Number.isFinite(w / (h * h)) ? Number((w / (h * h)).toFixed(1)) : null;
   };
 
   const handleMoveToMembers = async (enquiry) => {
     if (!window.confirm('Convert this enquiry into a member?')) return;
+
     try {
+      const heightValue = parseMetric(enquiry.height);
+      const weightValue = parseMetric(enquiry.weight);
+      const bmiValue = parseMetric(enquiry.bmi) ?? computeBmi(heightValue, weightValue);
+
       const memberData = {
         name: enquiry.name,
         email: enquiry.email,
         phone: enquiry.phone || null,
         address: enquiry.location || null,
-        height: enquiry.height || null,
-        weight: enquiry.weight || null,
-        bmi: enquiry.bmi || null,
-        join_date: new Date().toISOString().split('T')[0],
+        height: heightValue,
+        weight: weightValue,
+        bmi: bmiValue,
+        joinDate: new Date().toISOString().split('T')[0],
         status: 'active',
         // supply password explicitly so frontend knows credentials
         password: enquiry.phone || ''
       };
-      // tell admin what the temporary password is
+
       await api.post('/members', memberData);
-      alert(`Member created successfully. Login using phone number as both identifier and password.`);
+      toast.success(`Member created successfully. Login using phone number as both identifier and password.`);
       await updateStatus(enquiry.id, 'completed');
     } catch (err) {
       console.error('Error moving to members:', err);
-      const msg = err.response?.data?.message || 'Failed to create member';
-      alert(msg);
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Failed to create member';
+
+      // Show specific toast errors for duplicate contacts
+      if (errorMessage.includes('Phone already exists for this admin')) {
+        toast.error("Phone number already exists for this admin");
+      } else if (errorMessage.includes('Email already exists for this admin')) {
+        toast.error("Email address already exists for this admin");
+      } else {
+        toast.error(errorMessage);
+      }
     }
   };
 

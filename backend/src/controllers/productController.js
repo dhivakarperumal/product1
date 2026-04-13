@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { getActorUuid } = require('../utils/auditTrail');
 
 const safeJsonParse = (value, fallback) => {
   if (typeof value === 'string') {
@@ -10,8 +11,6 @@ const safeJsonParse = (value, fallback) => {
   }
   return value ?? fallback;
 };
-
-const getUserUuid = (user) => user?.userUuid || user?.user_uuid || null;
 
 // Helper function to parse JSON fields
 const parseProduct = (product) => {
@@ -35,9 +34,9 @@ const buildProductFilter = (user) => {
     return { sql: '', params: [] };
   }
 
-  const userUuid = getUserUuid(user);
-  if (userUuid) {
-    return { sql: ' WHERE created_by = ?', params: [userUuid] };
+  const adminUuid = getActorUuid(user);
+  if (adminUuid) {
+    return { sql: ' WHERE created_by = ?', params: [adminUuid] };
   }
 
   return { sql: ' WHERE 1=0', params: [] };
@@ -50,7 +49,7 @@ async function createProduct(req, res) {
       weight, size, gender, mrp, offer, offerPrice, stock, images
     } = req.body;
 
-    const userUuid = getUserUuid(req.user);
+    const createdBy = getActorUuid(req.user);
 
     const [result] = await db.query(
       `INSERT INTO products
@@ -71,8 +70,8 @@ async function createProduct(req, res) {
         offerPrice,
         JSON.stringify(stock || {}),
         JSON.stringify(images || []),
-        userUuid,
-        userUuid,
+        createdBy,
+        createdBy,
       ]
     );
 
@@ -106,12 +105,12 @@ async function getProduct(req, res) {
     const queryParams = [idNum];
 
     if (user && user.role !== 'super admin') {
-      const userUuid = getUserUuid(user);
-      if (!userUuid) {
+      const adminUuid = getActorUuid(user);
+      if (!adminUuid) {
         return res.status(403).json({ error: 'Not authorized' });
       }
       query += ' AND created_by = ?';
-      queryParams.push(userUuid);
+      queryParams.push(adminUuid);
     }
 
     const [rows] = await db.query(query, queryParams);
@@ -140,9 +139,11 @@ async function deleteProduct(req, res) {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    if (user.role !== 'super admin'
-      && existing[0].created_by !== getUserUuid(user)) {
-      return res.status(403).json({ error: 'Not authorized to delete this product' });
+    if (user.role !== 'super admin') {
+      const adminUuid = getActorUuid(user);
+      if (!adminUuid || existing[0].created_by !== adminUuid) {
+        return res.status(403).json({ error: 'Not authorized to delete this product' });
+      }
     }
 
     await db.query('DELETE FROM products WHERE id = ?', [idNum]);
@@ -164,9 +165,11 @@ async function updateProduct(req, res) {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    if (user.role !== 'super admin'
-      && existing[0].created_by !== getUserUuid(user)) {
-      return res.status(403).json({ error: 'Not authorized to update this product' });
+    if (user.role !== 'super admin') {
+      const adminUuid = getActorUuid(user);
+      if (!adminUuid || existing[0].created_by !== adminUuid) {
+        return res.status(403).json({ error: 'Not authorized to update this product' });
+      }
     }
 
     const data = req.body;
@@ -194,7 +197,7 @@ async function updateProduct(req, res) {
     if (!fields.length) return res.status(400).json({ error: 'No fields to update' });
 
     fields.push('updated_by = ?');
-    values.push(getUserUuid(req.user));
+    values.push(getActorUuid(req.user));
     values.push(idNum);
     const query = `UPDATE products SET ${fields.join(', ')} WHERE id = ?`;
     const [result] = await db.query(query, values);

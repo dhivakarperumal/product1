@@ -83,7 +83,7 @@ const AddEditGymPlan = () => {
         const res = await api.get(`/plans/${id}`);
         const data = res.data;
 
-        if (!res.ok) {
+        if (res.status >= 400) {
           toast.error("Plan not found");
           navigate(-1);
           return;
@@ -198,7 +198,7 @@ const AddEditGymPlan = () => {
 
       const data = res.data;
 
-      if (!res.ok) {
+      if (res.status >= 400) {
         toast.error(data.message || data.error || "Save failed");
         setSaving(false);
         return;
@@ -265,7 +265,7 @@ const AddEditGymPlan = () => {
                       : "bg-white/10 text-slate-400 border border-white/10"
                   }`}
                 >
-                  {idx < currentStep ? "✓" : step.number}
+                  {idx < currentStep ? "✓" : idx + 1}
                 </button>
                 {idx < steps.length - 1 && (
                   <div className={`flex-1 h-1 mx-2 rounded-full transition-all ${
@@ -306,9 +306,9 @@ const AddEditGymPlan = () => {
                   className={glassSelect}
                   required
                 >
-                  <option value="">Select Duration</option>
+                  <option value="" className="bg-slate-900 text-white">Select Duration</option>
                   {DURATIONS.map((d) => (
-                    <option key={d} value={d}>{d}</option>
+                    <option key={d} value={d} className="bg-slate-900 text-white">{d}</option>
                   ))}
                 </select>
               </div>

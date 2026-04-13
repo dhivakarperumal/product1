@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
+const { getActorUuid } = require('../utils/auditTrail');
 
 const validRoles = ['admin', 'super admin', 'trainer', 'staff', 'member'];
 
@@ -44,9 +45,9 @@ async function createUser(req, res) {
     const subscriptionStatus = normalizedRole === 'admin'
       ? (req.body.subscription_status === 'active' ? 'active' : 'pending')
       : 'active';
-    // Store user_uuid in created_by and updated_by for audit trail
-    const createdByUuid = req.user.userUuid || null;
-    const updatedByUuid = req.user.userUuid || null;
+    // Store admin UUID in created_by and updated_by for audit trail
+    const createdByUuid = getActorUuid(req.user);
+    const updatedByUuid = getActorUuid(req.user);
 
     const [result] = await db.query(
       `INSERT INTO users
@@ -207,8 +208,8 @@ async function updateUserRole(req, res) {
     let updatedBy = null;
     const requesterRole = String(req.user?.role || '').toLowerCase();
     if (['admin', 'super admin'].includes(requesterRole)) {
-      // Store user_uuid in updated_by for audit trail
-      updatedBy = req.user?.userUuid || null;
+      // Store admin UUID in updated_by for audit trail
+      updatedBy = getActorUuid(req.user);
     }
 
     if (updatedBy !== null) {

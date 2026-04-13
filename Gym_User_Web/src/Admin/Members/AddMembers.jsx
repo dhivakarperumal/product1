@@ -127,7 +127,7 @@ const AddMember = () => {
 
       console.log('Submitting payload:', payload);
 
-      const res = isEdit 
+      const res = isEdit
         ? await api.put(`${API}/${id}`, payload)
         : await api.post(API, payload);
 
@@ -135,7 +135,17 @@ const AddMember = () => {
       console.log('Response:', data);
 
       if (res.status !== 200 && res.status !== 201) {
-        toast.error(data.message || data.error || "Error saving member");
+        const errorMessage = data.message || data.error || "Error saving member";
+
+        // Show specific toast errors for duplicate contacts
+        if (errorMessage.includes('Phone already exists for this admin')) {
+          toast.error("Phone number already exists for this admin");
+        } else if (errorMessage.includes('Email already exists for this admin')) {
+          toast.error("Email address already exists for this admin");
+        } else {
+          toast.error(errorMessage);
+        }
+
         setLoading(false);
         return;
       }
@@ -144,7 +154,16 @@ const AddMember = () => {
       navigate("/admin/members");
     } catch (err) {
       console.error(err);
-      toast.error("Server error");
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || "Server error";
+
+      // Show specific toast errors for duplicate contacts
+      if (errorMessage.includes('Phone already exists for this admin')) {
+        toast.error("Phone number already exists for this admin");
+      } else if (errorMessage.includes('Email already exists for this admin')) {
+        toast.error("Email address already exists for this admin");
+      } else {
+        toast.error(errorMessage);
+      }
     }
 
     setLoading(false);
