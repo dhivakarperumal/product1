@@ -119,37 +119,48 @@ const BuyPlanadmin = () => {
   }, []);
 
   // ================= WHATSAPP =================
-  const sendWhatsApp = () => {
-    if (!selectedUser || !selectedPlan) return;
+  const getWhatsAppUrl = () => {
+    if (!selectedUser || !selectedPlan) return null;
 
     const phone = selectedUser.phone?.replace(/\D/g, "");
+    if (!phone) return null;
 
-    const message = `
-🏋️ Gym Membership Activated
+    const messageLines = [
+      "Gym Membership Activated",
+      "",
+      `Name: ${selectedUser.name}`,
+      `Phone: ${form.phone}`,
+      "",
+      `Plan: ${selectedPlan.name}`,
+      `Duration: ${selectedPlan.duration} Months`,
+      "",
+      `Start Date: ${form.startDate}`,
+      `End Date: ${form.endDate}`,
+      "",
+      `Paid: ₹${selectedPlan.finalPrice ?? selectedPlan.final_price}`,
+      `Mode: ${form.paymentMode}`,
+      "",
+      `Height: ${form.height}`,
+      `Weight: ${form.weight}`,
+      `BMI: ${form.bmi}`,
+      "",
+      "Status: Active",
+      "",
+      "Thank you for joining",
+    ];
 
-👤 Name: ${selectedUser.name}
-📞 Phone: ${form.phone}
+    const message = messageLines.join("\n");
+    return `https://api.whatsapp.com/send?phone=91${phone}&text=${encodeURIComponent(message)}`;
+  };
 
-📦 Plan: ${selectedPlan.name}
-⏳ Duration: ${selectedPlan.duration} Months
-
-📅 Start Date: ${form.startDate}
-📅 End Date: ${form.endDate}
-
-💰 Paid: ₹${selectedPlan.finalPrice ?? selectedPlan.final_price}
-💳 Mode: ${form.paymentMode}
-
-📏 Height: ${form.height}
-⚖️ Weight: ${form.weight}
-🧮 BMI: ${form.bmi}
-
-✅ Status: Active
-
-Thank you for joining 💪
-`;
-
-    const url = `https://wa.me/91${phone}?text=${encodeURIComponent(message)}`;
-    window.open(url, "_blank");
+  const openWhatsAppChat = (url) => {
+    if (!url) return;
+    const newWindow = window.open("about:blank", "_blank");
+    if (newWindow) {
+      newWindow.location.href = url;
+      return;
+    }
+    window.location.href = url;
   };
 
   // ================= ASSIGN PLAN =================
@@ -172,22 +183,12 @@ Thank you for joining 💪
 
     try {
       // ===== SAVE MEMBERSHIP HISTORY =====
-      // Use member id and plan id from selected objects
-      const memberId = parseInt(selectedUser.id, 10);
-      const planId = parseInt(selectedPlan.id, 10);
-
-      console.log('=== MEMBERSHIP DATA ===');
-      console.log('Member ID (integer):', memberId);
-      console.log('Member member_id (UUID from object):', selectedUser.member_id);
-      console.log('Plan ID (integer):', planId);
-      console.log('Plan plan_id (UUID from object):', selectedPlan.plan_id);
-
       const membershipData = {
-        userId: memberId,         // Backend will lookup member_id UUID and store IN userId column
-        memberId: memberId,       // Also send as memberId for backend to lookup
-        memberName: selectedUser.name,
-        memberEmail: form.email,
-        planId: planId,           // Backend will lookup plan_id UUID and store IN planId column
+        userId: selectedUser.u_id || selectedUser.user_id || selectedUser.id,
+        userName: selectedUser.name || selectedUser.username,
+        userEmail: form.email,
+        userPhone: form.phone,
+        planId: selectedPlan.id,
         planName: selectedPlan.name,
         price: parseFloat(selectedPlan.finalPrice ?? selectedPlan.final_price),
         pricePaid: parseFloat(selectedPlan.finalPrice ?? selectedPlan.final_price),
@@ -198,21 +199,7 @@ Thank you for joining 💪
         status: "active",
       };
 
-      console.log('=== SENDING TO BACKEND ===');
-      console.log('userId will store the member_id (UUID)');
-      console.log('planId will store the plan_id (UUID)');
-      console.log('Sending membership data:', membershipData);
-      
-      const membershipRes = await api.post("/memberships", membershipData);
-      
-      if (membershipRes.status < 200 || membershipRes.status >= 300) {
-        const errorMsg = membershipRes.data?.message || "Failed to create membership";
-        console.error('Membership creation failed:', errorMsg);
-        alert(errorMsg);
-        return;
-      }
-      
-      console.log('Membership created:', membershipRes.data);
+      await api.post("/memberships", membershipData);
 
       // ===== UPDATE MEMBER =====
       const updatedMember = {

@@ -64,11 +64,14 @@ async function getAllMembers(req, res) {
         gm.address,
         gm.plan,
         gm.status,
+        u.id AS user_id,
+        u.user_uuid AS u_id,
         (SELECT COUNT(*) FROM workout_programs wp WHERE wp.member_id = gm.id) AS workout_count,
         (SELECT COUNT(*) FROM diet_plans dp WHERE dp.member_id = gm.id) AS diet_count,
         gm.created_at,
         'members' AS source
       FROM ${membersTable} gm
+      LEFT JOIN users u ON (u.email = gm.email OR u.mobile = gm.phone)
       ${whereClause}
       ORDER BY gm.created_at DESC
     `;
