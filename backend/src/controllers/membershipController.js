@@ -26,11 +26,15 @@ async function getAllMemberships(req, res) {
     const [rows] = await db.query(`
       SELECT m.*, 
              u.username, 
-             u.email, 
-             u.mobile, 
-             u.role
+             u.email AS user_email, 
+             u.mobile AS user_mobile, 
+             u.role,
+             gm.name AS member_name,
+             gm.phone AS member_phone,
+             gm.email AS member_email
       FROM memberships m
       LEFT JOIN users u ON m.userId = u.id
+      LEFT JOIN members gm ON m.memberId = gm.id
       ${whereClause}
       ORDER BY m.createdAt DESC
     `, params);
@@ -79,6 +83,7 @@ async function createMembership(req, res) {
   try {
     const {
       userId,
+      memberId,
       planId,
       planName,
       pricePaid,
@@ -92,18 +97,45 @@ async function createMembership(req, res) {
     } = req.body;
 
     const actualPricePaid = pricePaid !== undefined ? pricePaid : price;
-    
+    const resolvedUserId = userId || null;
+    const resolvedMemberId = memberId || null;
+
+    if (!resolvedUserId && !resolvedMemberId) {
+      return res.status(400).json({ success: false, message: "userId or memberId is required to create membership" });
+    }
+
+    if (resolvedUserId) {
+      const [validUser] = await db.query(
+        "SELECT id FROM users WHERE id = ?",
+        [resolvedUserId]
+      );
+      if (validUser.length === 0) {
+        return res.status(400).json({ success: false, message: "Invalid userId for membership" });
+      }
+    }
+
+    if (resolvedMemberId) {
+      const [validMember] = await db.query(
+        "SELECT id FROM members WHERE id = ?",
+        [resolvedMemberId]
+      );
+      if (validMember.length === 0) {
+        return res.status(400).json({ success: false, message: "Invalid memberId for membership" });
+      }
+    }
+
     // Get audit trail data (created_by and updated_by with admin UUID)
     const auditTrail = createAuditTrail(req.user);
 
     const query = `
       INSERT INTO memberships
-      (userId, planId, planName, pricePaid, duration, startDate, endDate, paymentId, paymentMode, status, created_by, updated_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (userId, memberId, planId, planName, pricePaid, duration, startDate, endDate, paymentId, paymentMode, status, created_by, updated_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const values = [
-      userId,
+      resolvedUserId,
+      resolvedMemberId,
       planId,
       planName,
       actualPricePaid,

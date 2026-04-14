@@ -1,8 +1,5 @@
 const db = require('../config/db');
-
-// Extract admin UUID from request user
-const getAdminUuid = (user) =>
-  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+const { getActorUuid } = require('../utils/auditTrail');
 
 // Helper function to parse JSON fields
 const parsePlan = (plan) => {
@@ -24,22 +21,25 @@ async function getAllPlans(req, res) {
     // Check if user is super admin
     const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
     
-    let whereClause = '';
+    let query = 'SELECT * FROM gym_plans';
     let params = [];
     
-    // If not super admin, filter by created_by (admin_uuid)
+    // If not super admin, filter plans by created_by (admin_uuid)
     if (!isSuperAdmin && req.user) {
-      const adminUuid = getAdminUuid(req.user);
+      const adminUuid = getActorUuid(req.user);
       if (adminUuid) {
-        whereClause = ' WHERE created_by = ?';
-        params.push(adminUuid);
+        // Include plans created by this admin OR plans with no creator (legacy)
+        query += ' WHERE (created_by = ? OR created_by IS NULL)';
+        params = [adminUuid];
       }
     }
-
-    const [rows] = await db.query(`SELECT * FROM gym_plans ${whereClause} ORDER BY created_at DESC`, params);
+    
+    query += ' ORDER BY created_at DESC';
+    const [rows] = await db.query(query, params);
+    // Parse JSON fields and return
     res.json(rows.map(parsePlan));
   } catch (err) {
-    console.error('getAllPlans error', err);
+    console.error('getAllPlans error:', err.message, err.code, err.sqlState);
     res.status(500).json({ error: 'Query failed' });
   }
 }
@@ -85,14 +85,16 @@ async function createPlan(req, res) {
       return res.status(400).json({ message: "Name, duration, and price are required" });
     }
 
-    // Extract admin UUID from JWT for audit fields
-    const adminUuid = getAdminUuid(req.user);
-    const createdBy = adminUuid;
+    // Extract actor UUID from authenticated user for audit fields
+    const createdBy = getActorUuid(req.user);
 
-    // generate plan_id
-    const [countResult] = await db.query("SELECT COUNT(*) as count FROM gym_plans");
-    const nextNumber = Number(countResult[0].count) + 1;
+    // Generate plan_id by finding the highest number in existing plan_ids
+    const [maxResult] = await db.query(
+      `SELECT COALESCE(MAX(CAST(SUBSTRING(plan_id, 3) AS UNSIGNED)), 0) as maxNum FROM gym_plans`
+    );
+    const nextNumber = maxResult[0].maxNum + 1;
     const planId = `PL${String(nextNumber).padStart(3, "0")}`;
+
 
     const [result] = await db.query(
       `INSERT INTO gym_plans
@@ -124,7 +126,7 @@ async function updatePlan(req, res) {
     facilities, trainerIncluded, dietPlans, active
   } = req.body;
 
-  const adminUuid = getAdminUuid(req.user);
+  const updatedBy = getActorUuid(req.user);
 
   try {
     // Try to parse as integer, otherwise use as string
@@ -146,14 +148,14 @@ async function updatePlan(req, res) {
         final_price=?, facilities=?, trainer_included=?, diet_plans=?,
         active=?, updated_by=?, updated_at=CURRENT_TIMESTAMP
        WHERE id=?`;
-      params = [...baseParams, adminUuid, idNum];
+      params = [...baseParams, updatedBy, idNum];
     } else {
       query = `UPDATE gym_plans SET
         name=?, description=?, duration=?, price=?, discount=?,
         final_price=?, facilities=?, trainer_included=?, diet_plans=?,
         active=?, updated_by=?, updated_at=CURRENT_TIMESTAMP
        WHERE plan_id=?`;
-      params = [...baseParams, adminUuid, id];
+      params = [...baseParams, updatedBy, id];
     }
 
     const [result] = await db.query(query, params);

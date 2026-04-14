@@ -119,37 +119,48 @@ const BuyPlanadmin = () => {
   }, []);
 
   // ================= WHATSAPP =================
-  const sendWhatsApp = () => {
-    if (!selectedUser || !selectedPlan) return;
+  const getWhatsAppUrl = () => {
+    if (!selectedUser || !selectedPlan) return null;
 
     const phone = selectedUser.phone?.replace(/\D/g, "");
+    if (!phone) return null;
 
-    const message = `
-🏋️ Gym Membership Activated
+    const messageLines = [
+      "Gym Membership Activated",
+      "",
+      `Name: ${selectedUser.name}`,
+      `Phone: ${form.phone}`,
+      "",
+      `Plan: ${selectedPlan.name}`,
+      `Duration: ${selectedPlan.duration} Months`,
+      "",
+      `Start Date: ${form.startDate}`,
+      `End Date: ${form.endDate}`,
+      "",
+      `Paid: ₹${selectedPlan.finalPrice ?? selectedPlan.final_price}`,
+      `Mode: ${form.paymentMode}`,
+      "",
+      `Height: ${form.height}`,
+      `Weight: ${form.weight}`,
+      `BMI: ${form.bmi}`,
+      "",
+      "Status: Active",
+      "",
+      "Thank you for joining",
+    ];
 
-👤 Name: ${selectedUser.name}
-📞 Phone: ${form.phone}
+    const message = messageLines.join("\n");
+    return `https://api.whatsapp.com/send?phone=91${phone}&text=${encodeURIComponent(message)}`;
+  };
 
-📦 Plan: ${selectedPlan.name}
-⏳ Duration: ${selectedPlan.duration} Months
-
-📅 Start Date: ${form.startDate}
-📅 End Date: ${form.endDate}
-
-💰 Paid: ₹${selectedPlan.finalPrice ?? selectedPlan.final_price}
-💳 Mode: ${form.paymentMode}
-
-📏 Height: ${form.height}
-⚖️ Weight: ${form.weight}
-🧮 BMI: ${form.bmi}
-
-✅ Status: Active
-
-Thank you for joining 💪
-`;
-
-    const url = `https://wa.me/91${phone}?text=${encodeURIComponent(message)}`;
-    window.open(url, "_blank");
+  const openWhatsAppChat = (url) => {
+    if (!url) return;
+    const newWindow = window.open("about:blank", "_blank");
+    if (newWindow) {
+      newWindow.location.href = url;
+      return;
+    }
+    window.location.href = url;
   };
 
   // ================= ASSIGN PLAN =================
@@ -166,8 +177,16 @@ Thank you for joining 💪
 
     try {
       // ===== SAVE MEMBERSHIP HISTORY =====
+      const membershipUserId = selectedUser.user_id || null;
+      const membershipMemberId = selectedUser.id || null;
+      if (!membershipUserId && !membershipMemberId) {
+        alert("Selected member is not linked to a valid member or user account. Please choose a valid member.");
+        return;
+      }
+
       const membershipData = {
-        userId: selectedUser.u_id || selectedUser.user_id || selectedUser.id,
+        memberId: membershipMemberId,
+        userId: membershipUserId,
         userName: selectedUser.name || selectedUser.username,
         userEmail: form.email,
         userPhone: form.phone,
@@ -181,7 +200,16 @@ Thank you for joining 💪
         status: "active",
       };
 
+      const whatsAppUrl = getWhatsAppUrl();
+      const whatsappPopup = whatsAppUrl ? window.open("about:blank", "_blank") : null;
       await api.post("/memberships", membershipData);
+
+      // ===== OPEN WHATSAPP CHAT =====
+      if (whatsappPopup && whatsAppUrl) {
+        whatsappPopup.location.href = whatsAppUrl;
+      } else {
+        openWhatsAppChat(whatsAppUrl);
+      }
 
       // ===== UPDATE MEMBER =====
       const updatedMember = {
