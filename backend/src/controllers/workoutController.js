@@ -148,13 +148,16 @@ async function updateWorkout(req, res) {
       status,
     } = req.body;
 
+    // Get admin UUID for updated_by field
+    const updatedBy = getAdminUuid(req.user) || null;
+
     const [result] = await db.query(
       `UPDATE workout_programs SET
         trainer_id=?, trainer_name=?, trainer_source=?,
         member_id=?, member_name=?, member_email=?, member_mobile=?,
         category=?, level=?, goal=?,
         duration_weeks=?, days=?, status=?, user_id=?,
-        updated_at=CURRENT_TIMESTAMP
+        updated_by=?, updated_at=CURRENT_TIMESTAMP
        WHERE id=?`,
       [
         trainerId,
@@ -171,6 +174,7 @@ async function updateWorkout(req, res) {
         JSON.stringify(days || {}),
         status || 'active',
         memberId || null,
+        updatedBy,
         id,
       ]
     );

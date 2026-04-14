@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { getActorUuid, updateAuditTrail } = require('../utils/auditTrail');
 
 // CREATE ADDRESS
 const createAddress = async (req, res) => {
@@ -32,11 +33,14 @@ const createAddress = async (req, res) => {
       });
     }
 
+    // Get audit trail data (created_by and updated_by with admin/user UUID)
+    const createdBy = getActorUuid(req.user) || null;
+
     const [result] = await db.query(
       `INSERT INTO user_addresses
-        (user_id, name, email, phone, address, city, state, zip, country)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [user_id, name, email, phone, address, city, state, zip, country || "India"]
+        (user_id, name, email, phone, address, city, state, zip, country, created_by, updated_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [user_id, name, email, phone, address, city, state, zip, country || "India", createdBy, createdBy]
     );
 
     res.status(201).json({
@@ -86,11 +90,14 @@ const updateAddress = async (req, res) => {
       country,
     } = req.body;
 
+    // Get audit trail data (updated_by with user UUID)
+    const auditTrail = updateAuditTrail(req.user);
+
     const [result] = await db.query(
       `UPDATE user_addresses
-        SET name=?, email=?, phone=?, address=?, city=?, state=?, zip=?, country=?
+        SET name=?, email=?, phone=?, address=?, city=?, state=?, zip=?, country=?, updated_by=?
         WHERE id = ?`,
-      [name, email, phone, address, city, state, zip, country || "India", id]
+      [name, email, phone, address, city, state, zip, country || "India", auditTrail.updated_by, id]
     );
 
     if (result.affectedRows === 0) {

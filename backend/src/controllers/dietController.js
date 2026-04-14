@@ -146,12 +146,15 @@ async function updateDiet(req, res) {
       status,
     } = req.body;
 
+    // Get admin UUID for updated_by field
+    const updatedBy = getAdminUuid(req.user) || null;
+
     const [result] = await db.query(
       `UPDATE diet_plans SET
         trainer_id=?, trainer_name=?, trainer_source=?,
         member_id=?, member_name=?, member_email=?, member_mobile=?, member_weight=?,
         title=?, total_calories=?, duration=?, days=?, status=?, user_id=?,
-        updated_at=CURRENT_TIMESTAMP
+        updated_by=?, updated_at=CURRENT_TIMESTAMP
        WHERE id=?`,
       [
         trainerId,
@@ -168,6 +171,7 @@ async function updateDiet(req, res) {
         JSON.stringify(days || {}),
         status || 'active',
         memberId || null,
+        updatedBy,
         id,
       ]
     );

@@ -1,6 +1,7 @@
 const db = require('../config/db');
+const { getActorUuid, createAuditTrail, updateAuditTrail } = require('../utils/auditTrail');
 
-// Extract admin UUID from request user
+// Extract admin UUID from request user (fallback for compatibility)
 const getAdminUuid = (user) =>
   user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
 
@@ -91,11 +92,14 @@ async function createMembership(req, res) {
     } = req.body;
 
     const actualPricePaid = pricePaid !== undefined ? pricePaid : price;
+    
+    // Get audit trail data (created_by and updated_by with admin UUID)
+    const auditTrail = createAuditTrail(req.user);
 
     const query = `
       INSERT INTO memberships
-      (userId, planId, planName, pricePaid, duration, startDate, endDate, paymentId, paymentMode, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (userId, planId, planName, pricePaid, duration, startDate, endDate, paymentId, paymentMode, status, created_by, updated_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const values = [
@@ -109,6 +113,8 @@ async function createMembership(req, res) {
       paymentId || null,
       paymentMode || null,
       status || 'active',
+      auditTrail.created_by,
+      auditTrail.updated_by,
     ];
 
     const [result] = await db.query(query, values);
@@ -182,9 +188,12 @@ async function updateMembership(req, res) {
     const { id } = req.params;
     const { status } = req.body;
 
+    // Get audit trail data (updated_by with admin UUID)
+    const auditTrail = updateAuditTrail(req.user);
+
     const [result] = await db.query(
-      "UPDATE memberships SET status = ? WHERE id = ?",
-      [status, id]
+      "UPDATE memberships SET status = ?, updated_by = ? WHERE id = ?",
+      [status, auditTrail.updated_by, id]
     );
 
     if (result.affectedRows === 0) {
