@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { randomUUID } = require('crypto');
 
 // Extract admin UUID from request user
 const getAdminUuid = (user) =>
@@ -89,10 +90,8 @@ async function createPlan(req, res) {
     const adminUuid = getAdminUuid(req.user);
     const createdBy = adminUuid;
 
-    // generate plan_id
-    const [countResult] = await db.query("SELECT COUNT(*) as count FROM gym_plans");
-    const nextNumber = Number(countResult[0].count) + 1;
-    const planId = `PL${String(nextNumber).padStart(3, "0")}`;
+    // Generate UUID for plan_id
+    const planId = randomUUID();
 
     const [result] = await db.query(
       `INSERT INTO gym_plans

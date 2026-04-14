@@ -5,6 +5,31 @@ const { getActorUuid, createAuditTrail, updateAuditTrail } = require('../utils/a
 const getAdminUuid = (user) =>
   user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
 
+// Resolve members table name (could be 'members' or 'gym_members')
+let memberTableName = null;
+
+async function resolveMemberTable() {
+  if (memberTableName) return memberTableName;
+
+  const [memberRows] = await db.query("SHOW TABLES LIKE 'members'");
+  if (memberRows.length > 0) {
+    const [cols] = await db.query("SHOW COLUMNS FROM members LIKE 'member_id'");
+    if (cols.length > 0) {
+      memberTableName = 'members';
+      return memberTableName;
+    }
+  }
+
+  const [gymRows] = await db.query("SHOW TABLES LIKE 'gym_members'");
+  if (gymRows.length > 0) {
+    memberTableName = 'gym_members';
+    return memberTableName;
+  }
+
+  memberTableName = 'members';
+  return memberTableName;
+}
+
 /* ================= GET ALL MEMBERSHIPS ================= */
 async function getAllMemberships(req, res) {
   try {
@@ -77,8 +102,13 @@ async function deleteMembership(req, res) {
 
 async function createMembership(req, res) {
   try {
+    const membersTable = await resolveMemberTable();
+
     const {
       userId,
+      memberId,
+      memberName,
+      memberEmail,
       planId,
       planName,
       pricePaid,
@@ -91,33 +121,109 @@ async function createMembership(req, res) {
       status,
     } = req.body;
 
+    // Validate required fields - accept integer ID and fetch the UUID
+    if ((!userId && !memberId) || !planId || !startDate || !endDate) {
+      console.error('Missing required fields:', { userId, memberId, planId, startDate, endDate });
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields: (userId OR memberId), planId, startDate, endDate",
+      });
+    }
+
+    let member_uuid = null;
+    let plan_uuid = null;
+
+    // Fetch member_id (UUID) from members table using the integer id
+    if (memberId || userId) {
+      const membId = memberId || userId;
+      const selectQuery = `SELECT id, member_id FROM ${membersTable} WHERE id = ? LIMIT 1`;
+      const [memberRows] = await db.query(selectQuery, [membId]);
+      
+      if (memberRows.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Member with ID ${membId} does not exist in ${membersTable}`,
+        });
+      }
+      member_uuid = memberRows[0].member_id;
+      console.log('Fetched member_id (UUID):', member_uuid, 'from table:', membersTable);
+    }
+
+    // Fetch plan_id (UUID) from gym_plans table using the integer id
+    if (planId) {
+      const [planRows] = await db.query(
+        'SELECT id, plan_id FROM gym_plans WHERE id = ? LIMIT 1',
+        [planId]
+      );
+      
+      if (planRows.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Plan with ID ${planId} does not exist`,
+        });
+      }
+      plan_uuid = planRows[0].plan_id;
+      console.log('Fetched plan_id (UUID):', plan_uuid);
+    }
+
     const actualPricePaid = pricePaid !== undefined ? pricePaid : price;
     
     // Get audit trail data (created_by and updated_by with admin UUID)
     const auditTrail = createAuditTrail(req.user);
 
-    const query = `
-      INSERT INTO memberships
-      (userId, planId, planName, pricePaid, duration, startDate, endDate, paymentId, paymentMode, status, created_by, updated_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+    // Store membership with proper UUID mapping
+    // After migration 0059:
+    // - userId column stores member_id (UUID)
+    // - planId column stores plan_id (UUID)
+    let result;
+    try {
+      const query = `
+        INSERT INTO memberships
+        (userId, member_id, member_name, member_email, planId, plan_id, planName, pricePaid, duration, startDate, endDate, paymentId, paymentMode, status, created_by, updated_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
 
-    const values = [
-      userId,
-      planId,
-      planName,
-      actualPricePaid,
-      duration,
-      startDate,
-      endDate,
-      paymentId || null,
-      paymentMode || null,
-      status || 'active',
-      auditTrail.created_by,
-      auditTrail.updated_by,
-    ];
+      const values = [
+        member_uuid,                  // userId column stores member_id (UUID)
+        member_uuid,                  // member_id column (UUID)
+        memberName || null,
+        memberEmail || null,
+        plan_uuid,                    // planId column stores plan_id (UUID)
+        plan_uuid,                    // plan_id column (UUID)
+        planName,
+        actualPricePaid,
+        duration,
+        startDate,
+        endDate,
+        paymentId || null,
+        paymentMode || null,
+        status || 'active',
+        auditTrail.created_by,
+        auditTrail.updated_by,
+      ];
 
-    const [result] = await db.query(query, values);
+      console.log('Creating membership with UUID values:');
+      console.log('  userId column = member_id (UUID):', member_uuid);
+      console.log('  planId column = plan_id (UUID):', plan_uuid);
+      console.log('  All values:', values);
+      
+      [result] = await db.query(query, values);
+      
+    } catch (insertErr) {
+      // If column type is wrong, provide helpful error
+      if (insertErr.code === 'ER_TRUNCATED_WRONG_VALUE' || 
+          insertErr.code === 'ER_DATA_TOO_LONG' ||
+          insertErr.sqlMessage?.includes('Data truncated')) {
+        console.error('Column type mismatch - userId/planId columns may still be INT instead of CHAR(36)');
+        console.error('Error:', insertErr.sqlMessage);
+        return res.status(500).json({
+          success: false,
+          message: 'Database schema needs update. Run migration 0059 to convert userId/planId columns to CHAR(36).',
+          error: insertErr.message
+        });
+      }
+      throw insertErr;
+    }
 
     res.status(201).json({
       success: true,
@@ -125,10 +231,30 @@ async function createMembership(req, res) {
     });
 
   } catch (error) {
-    console.error("Create membership error:", error);
+    console.error("Create membership error:", error.message, error.code, error.sqlMessage);
+    
+    // Handle specific MySQL errors
+    if (error.code === 'ER_NO_REFERENCED_ROW_2' || error.code === 'ER_NO_REFERENCED_ROW') {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid plan ID or member ID. Plan or member does not exist.",
+        error: error.message
+      });
+    }
+    
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({
+        success: false,
+        message: "This membership combination already exists.",
+        error: error.message
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: "Failed to create membership",
+      error: error.message,
+      code: error.code
     });
   }
 }

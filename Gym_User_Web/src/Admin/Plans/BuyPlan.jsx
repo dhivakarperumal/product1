@@ -159,6 +159,12 @@ Thank you for joining 💪
       return;
     }
 
+    console.log('=== ASSIGN PLAN DEBUG ===');
+    console.log('selectedUser:', selectedUser);
+    console.log('selectedPlan:', selectedPlan);
+    console.log('selectedUser.id:', selectedUser.id, 'type:', typeof selectedUser.id);
+    console.log('selectedPlan.id:', selectedPlan.id, 'type:', typeof selectedPlan.id);
+
     if (selectedUser.status === "active" && selectedUser.plan) {
       alert("Member already has active plan");
       return;
@@ -166,29 +172,54 @@ Thank you for joining 💪
 
     try {
       // ===== SAVE MEMBERSHIP HISTORY =====
+      // Use member id and plan id from selected objects
+      const memberId = parseInt(selectedUser.id, 10);
+      const planId = parseInt(selectedPlan.id, 10);
+
+      console.log('=== MEMBERSHIP DATA ===');
+      console.log('Member ID (integer):', memberId);
+      console.log('Member member_id (UUID from object):', selectedUser.member_id);
+      console.log('Plan ID (integer):', planId);
+      console.log('Plan plan_id (UUID from object):', selectedPlan.plan_id);
+
       const membershipData = {
-        userId: selectedUser.u_id || selectedUser.user_id || selectedUser.id,
-        userName: selectedUser.name || selectedUser.username,
-        userEmail: form.email,
-        userPhone: form.phone,
-        planId: selectedPlan.id,
+        userId: memberId,         // Backend will lookup member_id UUID and store IN userId column
+        memberId: memberId,       // Also send as memberId for backend to lookup
+        memberName: selectedUser.name,
+        memberEmail: form.email,
+        planId: planId,           // Backend will lookup plan_id UUID and store IN planId column
         planName: selectedPlan.name,
-        price: selectedPlan.finalPrice ?? selectedPlan.final_price,
-        duration: selectedPlan.duration,
+        price: parseFloat(selectedPlan.finalPrice ?? selectedPlan.final_price),
+        pricePaid: parseFloat(selectedPlan.finalPrice ?? selectedPlan.final_price),
+        duration: parseInt(selectedPlan.duration, 10),
         startDate: form.startDate,
         endDate: form.endDate,
         paymentMode: form.paymentMode,
         status: "active",
       };
 
-      await api.post("/memberships", membershipData);
+      console.log('=== SENDING TO BACKEND ===');
+      console.log('userId will store the member_id (UUID)');
+      console.log('planId will store the plan_id (UUID)');
+      console.log('Sending membership data:', membershipData);
+      
+      const membershipRes = await api.post("/memberships", membershipData);
+      
+      if (membershipRes.status < 200 || membershipRes.status >= 300) {
+        const errorMsg = membershipRes.data?.message || "Failed to create membership";
+        console.error('Membership creation failed:', errorMsg);
+        alert(errorMsg);
+        return;
+      }
+      
+      console.log('Membership created:', membershipRes.data);
 
       // ===== UPDATE MEMBER =====
       const updatedMember = {
-        ...selectedUser,
+        name: selectedUser.name,
         phone: form.phone,
         email: form.email,
-        address: form.address,
+        gender: selectedUser.gender || "",
         height: form.height,
         weight: form.weight,
         bmi: form.bmi,
@@ -197,29 +228,48 @@ Thank you for joining 💪
         joinDate: form.startDate,
         expiryDate: form.endDate,
         status: "active",
+        photo: selectedUser.photo || "",
+        notes: selectedUser.notes || "",
+        address: form.address,
       };
 
       // ===== OPTIONAL ASSIGN TRAINER =====
       if (selectedTrainer) {
-        const assignPayload = {
-          userId: selectedUser.u_id || selectedUser.id,
-          username: selectedUser.username || selectedUser.name || "",
-          userEmail: selectedUser.userEmail || selectedUser.email || "",
-          planId: selectedPlan.id,
-          planName: selectedPlan.name,
-          planDuration: selectedPlan.duration,
-          planStartDate: form.startDate,
-          planEndDate: form.endDate,
-          planPrice: selectedPlan.finalPrice ?? selectedPlan.final_price,
-          trainerId: selectedTrainer,
-          trainerName:
-            trainers.find((t) => t.id === selectedTrainer)?.name || "",
-          trainerSource: "staff",
-          status: "active",
-          updatedAt: new Date().toISOString(),
-          sessionTime: sessionTime || null,
-        };
-        await api.post("/assignments", { assignments: [assignPayload] });
+        // Validate IDs before creating assignment
+        if (isNaN(memberId) || isNaN(planId)) {
+          console.warn("Invalid memberId or planId for assignment", { 
+            memberId, 
+            planId, 
+            selectedUser, 
+            selectedPlan 
+          });
+          console.warn("Skipping trainer assignment due to invalid IDs");
+        } else {
+          const assignPayload = {
+            userId: memberId,     // Use the member integer ID (backend will handle lookup)
+            username: selectedUser.username || selectedUser.name || "",
+            userEmail: selectedUser.userEmail || selectedUser.email || "",
+            planId: planId,       // Use the plan integer ID
+            planName: selectedPlan.name,
+            planDuration: selectedPlan.duration,
+            planStartDate: form.startDate,
+            planEndDate: form.endDate,
+            planPrice: selectedPlan.finalPrice ?? selectedPlan.final_price,
+            trainerId: selectedTrainer,
+            trainerName:
+              trainers.find((t) => t.id === selectedTrainer)?.name || "",
+            trainerSource: "staff",
+            status: "active",
+            sessionTime: sessionTime || null,
+          };
+          console.log('Sending assignment payload:', assignPayload);
+          try {
+            await api.post("/assignments", { assignments: [assignPayload] });
+          } catch (assignErr) {
+            console.error('Trainer assignment failed:', assignErr);
+            alert(`Trainer assignment warning: ${assignErr?.response?.data?.error || assignErr?.message}`);
+          }
+        }
       }
 
       // create or update member with assigned plan
@@ -232,9 +282,10 @@ Thank you for joining 💪
         }
       } catch (error) {
         const errMsg =
-          error?.response?.data?.message || error?.message || "Plan assign failed";
-        alert(errMsg);
-        return;
+          error?.response?.data?.message || error?.response?.data?.error || error?.message || "Plan assign failed";
+        console.error('Member update error:', errMsg);
+        alert(`Member update error: ${errMsg}`);
+        // Continue anyway - membership is already created
       }
 
       alert("Plan assigned successfully");
@@ -243,8 +294,9 @@ Thank you for joining 💪
 
       navigate("/admin/members");
     } catch (err) {
-      console.error(err);
-      alert("Plan save failed");
+      console.error('Assign plan error:', err);
+      const errorMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message || "Plan save failed";
+      alert(`Error: ${errorMsg}`);
     }
   };
 

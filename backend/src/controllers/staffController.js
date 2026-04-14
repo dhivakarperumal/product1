@@ -1,19 +1,11 @@
 const db = require('../config/db');
+const { randomUUID } = require('crypto');
 
 async function generateEmployeeId(req, res) {
   try {
-    // Get current counter or initialize at 0
-    const [rows] = await db.query("SELECT current FROM counters WHERE name = ?", ['employees']);
-    
-    let nextNumber = 1;
-    if (rows.length > 0) {
-      nextNumber = (rows[0].current || 0) + 1;
-      await db.query('UPDATE counters SET current = ? WHERE name = ?', [nextNumber, 'employees']);
-    } else {
-      await db.query("INSERT INTO counters(name, current) VALUES (?, ?)", ['employees', 1]);
-    }
-
-    res.json({ employeeId: `EMP${String(nextNumber).padStart(3, '0')}` });
+    // Generate and return UUID for employee_id
+    const employeeId = randomUUID();
+    res.json({ employeeId });
   } catch (err) {
     console.error('generateEmployeeId error', err.message);
     res.status(500).json({ error: 'Failed to generate employee id', details: err.message });
@@ -64,6 +56,9 @@ async function createStaff(req, res) {
     const adminUuid = req.user?.adminUuid || req.user?.admin_uuid || req.user?.userUuid || req.user?.user_uuid || null;
     const createdBy = adminUuid;
 
+    // Auto-generate employee_id if not provided
+    let employeeId = body.employee_id || randomUUID();
+
     const query = `INSERT INTO staff
       (employee_id, username, name, email, phone, role, department, gender, blood_group,
        dob, joining_date, qualification, experience, shift, salary, address,
@@ -72,7 +67,7 @@ async function createStaff(req, res) {
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
 
     const params = [
-      body.employee_id || null,
+      employeeId,
       body.username || null,
       body.name || null,
       body.email || null,
@@ -109,9 +104,9 @@ async function createStaff(req, res) {
     // Fetch the created staff record
     let fetchQuery;
     let fetchParams;
-    if (body.employee_id) {
+    if (employeeId) {
       fetchQuery = `SELECT * FROM staff WHERE employee_id = ?`;
-      fetchParams = [body.employee_id];
+      fetchParams = [employeeId];
     } else {
       fetchQuery = `SELECT * FROM staff WHERE id = ?`;
       fetchParams = [result.insertId];
@@ -178,7 +173,6 @@ async function updateStaff(req, res) {
       body.aadhar_doc || null,
       body.id_doc || null,
       body.certificate_doc || null,
-      updatedBy,
     ];
 
     let query;

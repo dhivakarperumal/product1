@@ -23,7 +23,7 @@ router.get("/today", getTodayRegistrations);
 router.get("/alerts/expiring-soon", getExpiringSoon);
 
 /* CREATE MEMBERSHIP */
-router.post("/", createMembership);
+router.post("/", authenticateToken, requireAdmin, createMembership);
 
 /* GET USER MEMBERSHIPS */
 router.get("/user/:userId", getUserMemberships);
