@@ -52,21 +52,31 @@ const Payments = () => {
           if (!usersMap.has(uId)) {
             usersMap.set(uId, {
               uid: uId,
-              username: m.username || m.userName || "No Name",
-              email: m.email || m.userEmail || "",
+              username:
+                m.username ||
+                m.userName ||
+                m.member_name ||
+                m.memberName ||
+                "No Name",
+              email:
+                m.email ||
+                m.userEmail ||
+                m.member_email ||
+                m.memberEmail ||
+                "",
               plans: [],
             });
           }
 
           usersMap.get(uId).plans.push({
             id: m.id,
-            planName: m.planName,
-            pricePaid: m.pricePaid || 0,
-            startDate: m.startDate,
-            endDate: m.endDate,
-            createdAt: m.createdAt,
+            planName: m.planName || m.plan_name || m.planName || "Unknown Plan",
+            pricePaid: Number(m.pricePaid ?? m.price ?? 0),
+            startDate: m.startDate || m.start_date || m.joinDate || m.join_date,
+            endDate: m.endDate || m.end_date || m.expiryDate || m.expiry_date,
+            createdAt: m.createdAt || m.created_at || m.startDate || m.start_date,
             status: m.status || "active",
-            paymentStatus: m.paymentId ? "Paid" : "Paid",
+            paymentStatus: m.paymentId ? "Paid" : "Unpaid",
           });
         });
 
@@ -664,7 +674,7 @@ const Payments = () => {
                       <p className="text-white whitespace-nowrap">{formatDate(plan.endDate)}</p>
                     </div>
                     <div>
-                      <p className="text-gray-400 text-xs uppercase tracking-wide mb-1">Days Left</p>
+                      <p className="text-gray-400 text-xs uppercase tracking-wide mb-1">Days</p>
                       <span
                         className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
                           getRemainingDays(plan.endDate) === "Expired"
@@ -732,7 +742,7 @@ const Payments = () => {
                     <th className="px-6 py-4 text-gray-300 font-medium">Amount</th>
                     <th className="px-6 py-4 text-gray-300 font-medium">Start Date</th>
                     <th className="px-6 py-4 text-gray-300 font-medium">End Date</th>
-                    <th className="px-6 py-4 text-gray-300 font-medium">Days Left</th>
+                    <th className="px-6 py-4 text-gray-300 font-medium text-center">Days</th>
                     <th className="px-6 py-4 text-gray-300 font-medium">Status</th>
                     <th className="px-6 py-4 text-gray-300 font-medium">Action</th>
                     <th className="px-6 py-4 text-gray-300 font-medium">Print</th>
@@ -763,9 +773,9 @@ const Payments = () => {
                       <td className="px-6 py-4 text-white font-medium">₹ {plan.pricePaid}</td>
                       <td className="px-6 py-4 text-white whitespace-nowrap">{formatDate(plan.startDate)}</td>
                       <td className="px-6 py-4 text-white whitespace-nowrap">{formatDate(plan.endDate)}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 text-center">
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-medium ${
                             getRemainingDays(plan.endDate) === "Expired"
                               ? "bg-red-500/20 text-red-400 border border-red-500/30"
                               : isExpiringPlan(plan.endDate)

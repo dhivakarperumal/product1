@@ -34,24 +34,44 @@ const AssingnedTrainers = () => {
         const res = await api.get("/memberships");
         const membershipsData = Array.isArray(res.data) ? res.data : [];
  
-        const usersData = membershipsData.map((m) => ({
-          uid: m.userId || `m_${m.id}`,
-          membershipId: m.id,
-          username: m.username || m.userName || "No Name",
-          email: m.email || m.userEmail || "",
-          userEmail: m.userEmail || m.email || "",
-          workoutCount: 0, 
-          dietCount: 0,
-          plans: [{
-            id: m.id.toString(),
-            planName: m.planName,
-            duration: m.duration,
-            startDate: m.startDate,
-            endDate: m.endDate,
-            pricePaid: m.pricePaid,
-          }],
-          source: "memberships",
-        }));
+        const usersData = membershipsData.map((m) => {
+          const resolvedUserId = m.userId || m.user_id || null;
+          const resolvedPlanId = m.planId || m.plan_id || m.id;
+          const resolvedUsername =
+            m.username ||
+            m.userName ||
+            m.member_name ||
+            m.memberName ||
+            m.name ||
+            "No Name";
+          const resolvedEmail =
+            m.user_email ||
+            m.userEmail ||
+            m.email ||
+            m.member_email ||
+            m.memberEmail ||
+            "";
+
+          return {
+            uid: resolvedUserId ? String(resolvedUserId) : `membership_${m.id}`,
+            userId: resolvedUserId ? String(resolvedUserId) : null,
+            membershipId: m.id,
+            username: resolvedUsername,
+            email: resolvedEmail,
+            userEmail: resolvedEmail,
+            workoutCount: 0,
+            dietCount: 0,
+            plans: [{
+              id: String(resolvedPlanId),
+              planName: m.planName || m.plan_name || "Unknown Plan",
+              duration: m.duration || m.planDuration || m.plan_duration || "N/A",
+              startDate: m.startDate || m.start_date || null,
+              endDate: m.endDate || m.end_date || null,
+              pricePaid: Number(m.pricePaid ?? m.price ?? 0),
+            }],
+            source: "memberships",
+          };
+        });
 
         setMembers(usersData);
         cache.adminAssignmentsMembers = usersData;
@@ -191,11 +211,10 @@ const AssingnedTrainers = () => {
     const searchLower = search.toLowerCase();
     const matchesSearch =
       m.username?.toLowerCase().includes(searchLower) ||
-      m.email?.toLowerCase().includes(searchLower);
-
+      m.email?.toLowerCase().includes(searchLower) ||
+      m.userEmail?.toLowerCase().includes(searchLower);
     if (!matchesSearch) return false;
 
-    // Filter type
     let matchesType = true;
     if (filterType === "assigned") {
       matchesType = assignments[m.uid] && assignments[m.uid].length > 0;

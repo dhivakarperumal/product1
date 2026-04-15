@@ -106,11 +106,13 @@ async function deleteMembership(req, res) {
 
 async function createMembership(req, res) {
   try {
-    const membersTable = await resolveMemberTable();
-
     const {
       userId,
+      user_id,
+      memberId,
+      member_id,
       planId,
+      plan_id,
       planName,
       pricePaid,
       price,
@@ -122,59 +124,55 @@ async function createMembership(req, res) {
       status,
     } = req.body;
 
-    // Validate required fields - accept integer ID and fetch the UUID
-    if ((!userId && !memberId) || !planId || !startDate || !endDate) {
-      console.error('Missing required fields:', { userId, memberId, planId, startDate, endDate });
-      return res.status(400).json({
-        success: false,
-        message: "Missing required fields: (userId OR memberId), planId, startDate, endDate",
-      });
-    }
-
-    let member_uuid = null;
-    let plan_uuid = null;
-
-    // Fetch member_id (UUID) from members table using the integer id
-    if (memberId || userId) {
-      const membId = memberId || userId;
-      const selectQuery = `SELECT id, member_id FROM ${membersTable} WHERE id = ? LIMIT 1`;
-      const [memberRows] = await db.query(selectQuery, [membId]);
-      
-      if (memberRows.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: `Member with ID ${membId} does not exist in ${membersTable}`,
-        });
-      }
-      member_uuid = memberRows[0].member_id;
-      console.log('Fetched member_id (UUID):', member_uuid, 'from table:', membersTable);
-    }
-
-    // Fetch plan_id (UUID) from gym_plans table using the integer id
-    if (planId) {
-      const [planRows] = await db.query(
-        'SELECT id, plan_id FROM gym_plans WHERE id = ? LIMIT 1',
-        [planId]
-      );
-      
-      if (planRows.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: `Plan with ID ${planId} does not exist`,
-        });
-      }
-      plan_uuid = planRows[0].plan_id;
-      console.log('Fetched plan_id (UUID):', plan_uuid);
-    }
-
     const actualPricePaid = pricePaid !== undefined ? pricePaid : price;
-    const resolvedUserId = userId || null;
-    const resolvedMemberId = memberId || null;
+    const resolvedUserId = userId || user_id || null;
+    const requestedMemberId = memberId || member_id || null;
+    const requestedPlanId = planId || plan_id || null;
+    const membersTable = await resolveMemberTable();
 
-    if (!resolvedUserId && !resolvedMemberId) {
+    if (!resolvedUserId && !requestedMemberId) {
       return res.status(400).json({ success: false, message: "userId or memberId is required to create membership" });
     }
 
+    let resolvedMemberId = null;
+    let resolvedMemberExternalId = null;
+    let resolvedMemberName = null;
+    let resolvedMemberEmail = null;
+    let resolvedMemberPhone = null;
+    if (requestedMemberId) {
+      const [validMember] = await db.query(
+        `SELECT id, member_id, name, email, phone FROM ${membersTable} WHERE id = ? OR member_id = ?`,
+        [requestedMemberId, requestedMemberId]
+      );
+      if (validMember.length === 0) {
+        return res.status(400).json({ success: false, message: "Invalid memberId for membership" });
+      }
+      resolvedMemberId = validMember[0].id;
+      resolvedMemberExternalId = validMember[0].member_id || null;
+      resolvedMemberName = validMember[0].name || null;
+      resolvedMemberEmail = validMember[0].email || null;
+      resolvedMemberPhone = validMember[0].phone || null;
+    }
+
+    if (!requestedPlanId) {
+      return res.status(400).json({ success: false, message: "planId or plan_id is required to create membership" });
+    }
+
+    let resolvedPlanExternalId = null;
+    let resolvedPlanInternalId = null;
+    let resolvedPlanName = planName || null;
+    const [validPlan] = await db.query(
+      "SELECT id, plan_id, name FROM gym_plans WHERE id = ? OR plan_id = ?",
+      [requestedPlanId, requestedPlanId]
+    );
+    if (validPlan.length === 0) {
+      return res.status(400).json({ success: false, message: "Invalid planId for membership" });
+    }
+    resolvedPlanInternalId = validPlan[0].id;
+    resolvedPlanExternalId = validPlan[0].plan_id || null;
+    resolvedPlanName = resolvedPlanName || validPlan[0].name || null;
+
+    let finalUserId = resolvedUserId;
     if (resolvedUserId) {
       const [validUser] = await db.query(
         "SELECT id FROM users WHERE id = ?",
@@ -183,15 +181,13 @@ async function createMembership(req, res) {
       if (validUser.length === 0) {
         return res.status(400).json({ success: false, message: "Invalid userId for membership" });
       }
-    }
-
-    if (resolvedMemberId) {
-      const [validMember] = await db.query(
-        "SELECT id FROM members WHERE id = ?",
-        [resolvedMemberId]
+    } else if (resolvedMemberId) {
+      const [linkedUser] = await db.query(
+        "SELECT id FROM users WHERE email = ? OR mobile = ? LIMIT 1",
+        [resolvedMemberEmail, resolvedMemberPhone]
       );
-      if (validMember.length === 0) {
-        return res.status(400).json({ success: false, message: "Invalid memberId for membership" });
+      if (linkedUser.length > 0) {
+        finalUserId = linkedUser[0].id;
       }
     }
 
@@ -200,14 +196,19 @@ async function createMembership(req, res) {
 
     const query = `
       INSERT INTO memberships
-      (userId, planId, planName, pricePaid, duration, startDate, endDate, paymentId, paymentMode, status, created_by, updated_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (userId, memberId, member_id, member_name, member_email, planId, plan_id, planName, pricePaid, duration, startDate, endDate, paymentId, paymentMode, status, created_by, updated_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const values = [
-      userId,
-      planId,
-      planName,
+      finalUserId,
+      resolvedMemberId,
+      resolvedMemberExternalId,
+      resolvedMemberName,
+      resolvedMemberEmail,
+      resolvedPlanInternalId,
+      resolvedPlanExternalId,
+      resolvedPlanName,
       actualPricePaid,
       duration,
       startDate,
@@ -219,28 +220,7 @@ async function createMembership(req, res) {
       auditTrail.updated_by,
     ];
 
-      console.log('Creating membership with UUID values:');
-      console.log('  userId column = member_id (UUID):', member_uuid);
-      console.log('  planId column = plan_id (UUID):', plan_uuid);
-      console.log('  All values:', values);
-      
-      [result] = await db.query(query, values);
-      
-    } catch (insertErr) {
-      // If column type is wrong, provide helpful error
-      if (insertErr.code === 'ER_TRUNCATED_WRONG_VALUE' || 
-          insertErr.code === 'ER_DATA_TOO_LONG' ||
-          insertErr.sqlMessage?.includes('Data truncated')) {
-        console.error('Column type mismatch - userId/planId columns may still be INT instead of CHAR(36)');
-        console.error('Error:', insertErr.sqlMessage);
-        return res.status(500).json({
-          success: false,
-          message: 'Database schema needs update. Run migration 0059 to convert userId/planId columns to CHAR(36).',
-          error: insertErr.message
-        });
-      }
-      throw insertErr;
-    }
+    const [result] = await db.query(query, values);
 
     res.status(201).json({
       success: true,
@@ -248,30 +228,10 @@ async function createMembership(req, res) {
     });
 
   } catch (error) {
-    console.error("Create membership error:", error.message, error.code, error.sqlMessage);
-    
-    // Handle specific MySQL errors
-    if (error.code === 'ER_NO_REFERENCED_ROW_2' || error.code === 'ER_NO_REFERENCED_ROW') {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid plan ID or member ID. Plan or member does not exist.",
-        error: error.message
-      });
-    }
-    
-    if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(400).json({
-        success: false,
-        message: "This membership combination already exists.",
-        error: error.message
-      });
-    }
-    
+    console.error("Create membership error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to create membership",
-      error: error.message,
-      code: error.code
     });
   }
 }

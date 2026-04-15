@@ -19,10 +19,11 @@ const BuyPlanadmin = () => {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [selectedTrainer, setSelectedTrainer] = useState(null);
   const [sessionTime, setSessionTime] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
 
-  const [form, setForm] = useState({
+  const createInitialForm = () => ({
     phone: "",
     email: "",
     address: "",
@@ -34,20 +35,30 @@ const BuyPlanadmin = () => {
     paymentMode: "cash",
   });
 
+  const [form, setForm] = useState(createInitialForm());
+
+  const resetBuyPlanForm = () => {
+    setSelectedUser(null);
+    setSelectedPlan(null);
+    setSelectedTrainer(null);
+    setSessionTime("");
+    setForm(createInitialForm());
+  };
+
+  const fetchMembers = async () => {
+    try {
+      const res = await api.get(MEMBERS_API);
+      console.log('Fetched members from API:', res.data);
+      console.log('Sample member fields:', res.data?.[0] ? Object.keys(res.data[0]) : 'No members');
+      setMembers(res.data || []);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to load members");
+    }
+  };
+
   // ================= FETCH MEMBERS =================
   useEffect(() => {
-    const fetchMembers = async () => {
-      try {
-        const res = await api.get(MEMBERS_API);
-        console.log('Fetched members from API:', res.data);
-        console.log('Sample member fields:', res.data?.[0] ? Object.keys(res.data[0]) : 'No members');
-        setMembers(res.data || []);
-      } catch (err) {
-        console.error(err);
-        alert("Failed to load members");
-      }
-    };
-
     fetchMembers();
   }, []);
 
@@ -119,11 +130,10 @@ const BuyPlanadmin = () => {
   }, []);
 
   // ================= WHATSAPP =================
-  const getWhatsAppUrl = () => {
-    if (!selectedUser || !selectedPlan) return null;
-
+  const sendWhatsApp = () => {
+    if (!selectedUser || !selectedPlan) return;
     const phone = selectedUser.phone?.replace(/\D/g, "");
-    if (!phone) return null;
+    if (!phone) return;
 
     const messageLines = [
       "Gym Membership Activated",
@@ -149,12 +159,7 @@ const BuyPlanadmin = () => {
       "Thank you for joining",
     ];
 
-    const message = messageLines.join("\n");
-    return `https://api.whatsapp.com/send?phone=91${phone}&text=${encodeURIComponent(message)}`;
-  };
-
-  const openWhatsAppChat = (url) => {
-    if (!url) return;
+    const url = `https://api.whatsapp.com/send?phone=91${phone}&text=${encodeURIComponent(messageLines.join("\n"))}`;
     const newWindow = window.open("about:blank", "_blank");
     if (newWindow) {
       newWindow.location.href = url;
@@ -170,6 +175,8 @@ const BuyPlanadmin = () => {
       return;
     }
 
+    setIsSubmitting(true);
+
     console.log('=== ASSIGN PLAN DEBUG ===');
     console.log('selectedUser:', selectedUser);
     console.log('selectedPlan:', selectedPlan);
@@ -184,11 +191,11 @@ const BuyPlanadmin = () => {
     try {
       // ===== SAVE MEMBERSHIP HISTORY =====
       const membershipData = {
-        userId: selectedUser.u_id || selectedUser.user_id || selectedUser.id,
-        userName: selectedUser.name || selectedUser.username,
-        userEmail: form.email,
-        userPhone: form.phone,
+        userId: selectedUser.user_id || selectedUser.u_id || null,
+        memberId: selectedUser.id,
+        member_id: selectedUser.member_id || null,
         planId: selectedPlan.id,
+        plan_id: selectedPlan.plan_id || null,
         planName: selectedPlan.name,
         price: parseFloat(selectedPlan.finalPrice ?? selectedPlan.final_price),
         pricePaid: parseFloat(selectedPlan.finalPrice ?? selectedPlan.final_price),
@@ -222,6 +229,9 @@ const BuyPlanadmin = () => {
 
       // ===== OPTIONAL ASSIGN TRAINER =====
       if (selectedTrainer) {
+        const memberId = selectedUser.id;
+        const planId = selectedPlan.id;
+
         // Validate IDs before creating assignment
         if (isNaN(memberId) || isNaN(planId)) {
           console.warn("Invalid memberId or planId for assignment", { 
@@ -233,10 +243,10 @@ const BuyPlanadmin = () => {
           console.warn("Skipping trainer assignment due to invalid IDs");
         } else {
           const assignPayload = {
-            userId: memberId,     // Use the member integer ID (backend will handle lookup)
+            userId: memberId,
             username: selectedUser.username || selectedUser.name || "",
             userEmail: selectedUser.userEmail || selectedUser.email || "",
-            planId: planId,       // Use the plan integer ID
+            planId: planId,
             planName: selectedPlan.name,
             planDuration: selectedPlan.duration,
             planStartDate: form.startDate,
@@ -277,11 +287,11 @@ const BuyPlanadmin = () => {
 
       alert("Plan assigned successfully");
 
+      resetBuyPlanForm();
+      fetchMembers();
       sendWhatsApp();
-
-      navigate("/admin/members");
     } catch (err) {
-      console.error('Assign plan error:', err);
+      setIsSubmitting(false);
       const errorMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message || "Plan save failed";
       alert(`Error: ${errorMsg}`);
     }
@@ -470,15 +480,26 @@ const BuyPlanadmin = () => {
             onChange={(e) => setSessionTime(e.target.value)}
           />
 
-          <button
-            onClick={handleAssignPlan}
-            className="mt-5 w-full py-3 bg-orange-500 rounded-lg hover:bg-orange-600"
-          >
-            Assign Plan ₹
-            {selectedPlan
-              ? selectedPlan.finalPrice ?? selectedPlan.final_price
-              : 0}
-          </button>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={handleAssignPlan}
+              disabled={isSubmitting || !selectedUser || !selectedPlan}
+              className={`mt-5 w-full py-3 rounded-lg text-white ${isSubmitting || !selectedUser || !selectedPlan ? 'bg-orange-300 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600'}`}
+            >
+              {isSubmitting ? 'Assigning...' : 'Assign Plan '}₹
+              {selectedPlan
+                ? selectedPlan.finalPrice ?? selectedPlan.final_price
+                : 0}
+            </button>
+
+            <button
+              type="button"
+              onClick={resetBuyPlanForm}
+              className="w-full py-3 border border-white/20 rounded-lg text-white bg-slate-800 hover:bg-slate-700"
+            >
+              Reset Form
+            </button>
+          </div>
         </div>
 
         {/* RIGHT PLAN SELECT */}

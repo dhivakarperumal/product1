@@ -99,7 +99,6 @@ const AddFacilities = lazy(() => import("./Admin/Fecilieties/Addfecilities.jsx")
 const AdminStaff = lazy(() => import("./Admin/Staff/Staffs.jsx"));
 const AddStaff = lazy(() => import("./Admin/Staff/AddStaff.jsx"));
 const ViewStaff = lazy(() => import("./Admin/Staff/ViewStaff.jsx"));
-const AssignedTrainers = lazy(() => import("./Admin/Staff/Memberattendance.jsx"));
 const OverallAttendance = lazy(() => import("./Admin/Attendance/OverallAttendance.jsx"));
 const MemberAttendance = lazy(() => import("./Admin/Staff/Memberattendance.jsx"));
 const AdminBilling = lazy(() => import("./Admin/Billing/Billing.jsx"));
@@ -118,7 +117,7 @@ const AllDietPlans = lazy(() => import("./TrainerAdminPanel/DietPlans/AllDietPla
 const TrainerOverallAttendance = lazy(() => import("./TrainerAdminPanel/TrainerAttendance/OverallAttendance.jsx"));
 const TrainerReports = lazy(() => import("./TrainerAdminPanel/TrainerReports/Reports.jsx"));
 const TrainerSendMessage = lazy(() => import("./TrainerAdminPanel/TrainerSendMessage/TrainerSendMessage.jsx"));
-const AssingnedTrainers = lazy(() => import("./Admin/Payments/AssingnedTrainers.jsx"));
+const AssignedTrainers = lazy(() => import("./Admin/Payments/AssingnedTrainers.jsx"));
 const GymWorkoutManager = lazy(() => import("./Admin/CommenWorkDiet/CommenWorkDiet.jsx"));
 const UpdateWeight = lazy(() => import("./TrainerAdminPanel/UpdateWeight/UpdateWeight.jsx"));
 const ProfileSettings = lazy(() => import("./TrainerAdminPanel/Settingss/ProfileSettings.jsx"));

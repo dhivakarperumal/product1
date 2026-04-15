@@ -29,7 +29,7 @@ async function getAllPlans(req, res) {
     
     // If not super admin, filter plans by created_by (admin_uuid)
     if (!isSuperAdmin && req.user) {
-      const adminUuid = getActorUuid(req.user);
+      const adminUuid = getAdminUuid(req.user);
       if (adminUuid) {
         // Include plans created by this admin OR plans with no creator (legacy)
         query += ' WHERE (created_by = ? OR created_by IS NULL)';
@@ -38,11 +38,12 @@ async function getAllPlans(req, res) {
     }
     
     query += ' ORDER BY created_at DESC';
+    console.log('getAllPlans query:', query, 'params:', params, 'user:', req.user);
     const [rows] = await db.query(query, params);
     // Parse JSON fields and return
     res.json(rows.map(parsePlan));
   } catch (err) {
-    console.error('getAllPlans error:', err.message, err.code, err.sqlState);
+    console.error('getAllPlans error:', err.stack || err);
     res.status(500).json({ error: 'Query failed' });
   }
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { Users } from "lucide-react";
+import { Users, Trash2 } from "lucide-react";
 
 import api, { API_URL } from "../../api";
 
@@ -17,6 +17,7 @@ const Billing = () => {
   const [orderType, setOrderType] = useState("OFFLINE");
   const [createdOrderId, setCreatedOrderId] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [orderSummary, setOrderSummary] = useState({ items: 0, total: 0 });
 
   /* ================= LOAD MEMBERS ================= */
   const [members, setMembers] = useState([]);
@@ -42,10 +43,6 @@ const Billing = () => {
         phone: "",
         email: "",
         address: "",
-        city: "",
-        state: "",
-        zip: "",
-        country: "India",
       });
       return;
     }
@@ -57,10 +54,6 @@ const Billing = () => {
         phone: m.phone || m.mobile || "",
         email: m.email || m.user_email || "",
         address: m.address || "",
-        city: m.city || "",
-        state: m.state || "",
-        zip: m.zip || m.pincode || "",
-        country: m.country || "India",
       });
       toast.success(`Details loaded for: ${m.name || m.displayName || m.username}`);
     }
@@ -72,10 +65,6 @@ const Billing = () => {
     phone: "",
     email: "",
     address: "",
-    city: "",
-    state: "",
-    zip: "",
-    country: "India",
   });
 
   /* ================= LOAD PRODUCTS ================= */
@@ -117,16 +106,21 @@ const Billing = () => {
     if (!variantData || qty > variantData.qty)
       return toast.error("Insufficient stock");
 
-    // Determine price: use offer_price if available and > 0, otherwise use mrp
-    let price = 0;
+    // Determine price from the selected variant first, then fallback to product-level values.
+    const price = Number(
+      variantData.offer_price ??
+      variantData.offerPrice ??
+      variantData.mrp ??
+      variantData.price ??
+      product.offer_price ??
+      product.offerPrice ??
+      product.mrp ??
+      product.price ??
+      0
+    );
 
-    if (product.offer_price && Number(product.offer_price) > 0) {
-      price = Number(product.offer_price);
-    } else if (product.offerPrice && Number(product.offerPrice) > 0) {
-      // Fallback to camelCase in case API returns it
-      price = Number(product.offerPrice);
-    } else if (product.mrp && Number(product.mrp) > 0) {
-      price = Number(product.mrp);
+    if (price <= 0) {
+      return toast.error("Unable to determine product price");
     }
 
     // Get product image and normalize URL
@@ -158,6 +152,30 @@ const Billing = () => {
   const removeItem = (index) => {
     setCart((prev) => prev.filter((_, i) => i !== index));
     toast.success("Removed from cart");
+  };
+
+  const updateCartQuantity = (index, newQty) => {
+    const qtyNumber = Number(newQty);
+    if (Number.isNaN(qtyNumber) || qtyNumber < 1) return;
+
+    setCart((prev) => {
+      return prev.map((item, idx) => {
+        if (idx !== index) return item;
+
+        const productData = products.find((p) => p.id === item.productId);
+        const variantStock = productData?.stock?.[item.variant]?.qty;
+        if (variantStock !== undefined && qtyNumber > variantStock) {
+          toast.error("Insufficient stock");
+          return item;
+        }
+
+        return {
+          ...item,
+          quantity: qtyNumber,
+          total: item.price * qtyNumber,
+        };
+      });
+    });
   };
 
   const subtotal = cart.reduce((s, i) => s + i.total, 0);
@@ -243,7 +261,8 @@ const Billing = () => {
 
       await api.post("/orders", orderPayload);
 
-      // ✅ Order created successfully - show order ID to user
+      // Save order summary before clearing the cart
+      setOrderSummary({ items: cart.length, total: subtotal });
       setCreatedOrderId(orderId);
       setShowSuccessModal(true);
 
@@ -256,10 +275,6 @@ const Billing = () => {
         phone: "",
         email: "",
         address: "",
-        city: "",
-        state: "",
-        zip: "",
-        country: "India",
       });
 
     } catch (err) {
@@ -297,6 +312,47 @@ const Billing = () => {
             ))}
           </select>
           <p className="text-xs text-gray-400 mt-2 italic">Selecting a member will autopopulate the shipping details and address below.</p>
+        </div>
+
+        {/* Shipping Details Section */}
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+          <h3 className="text-lg font-semibold mb-6 text-white">Shipping Details</h3>
+
+          <div className="grid md:grid-cols-2 gap-4 mb-6">
+            {Object.keys(shipping).map((key) => (
+              <div key={key}>
+                <label className="text-xs text-gray-400 uppercase block mb-2 font-medium">
+                  {key}
+                </label>
+                <input
+                  className={inputClass}
+                  value={shipping[key]}
+                  onChange={(e) =>
+                    setShipping((prev) => ({
+                      ...prev,
+                      [key]: e.target.value,
+                    }))
+                  }
+                  placeholder={key}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Order Type */}
+          <div>
+            <label className="text-xs text-gray-400 uppercase block mb-2 font-medium">
+              Order Type
+            </label>
+            <select
+              value={orderType}
+              onChange={(e) => setOrderType(e.target.value)}
+              className={inputClass}
+            >
+              <option value="OFFLINE" className="bg-slate-800 text-white">Offline (Cash)</option>
+              <option value="ONLINE" className="bg-slate-800 text-white">Online (Payment)</option>
+            </select>
+          </div>
         </div>
 
         {/* Product Selection Section */}
@@ -356,47 +412,6 @@ const Billing = () => {
           </div>
         </div>
 
-        {/* Shipping Details Section */}
-        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-          <h3 className="text-lg font-semibold mb-6 text-white">Shipping Details</h3>
-
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
-            {Object.keys(shipping).map((key) => (
-              <div key={key}>
-                <label className="text-xs text-gray-400 uppercase block mb-2 font-medium">
-                  {key}
-                </label>
-                <input
-                  className={inputClass}
-                  value={shipping[key]}
-                  onChange={(e) =>
-                    setShipping((prev) => ({
-                      ...prev,
-                      [key]: e.target.value,
-                    }))
-                  }
-                  placeholder={key}
-                />
-              </div>
-            ))}
-          </div>
-
-          {/* Order Type */}
-          <div>
-            <label className="text-xs text-gray-400 uppercase block mb-2 font-medium">
-              Order Type
-            </label>
-            <select
-              value={orderType}
-              onChange={(e) => setOrderType(e.target.value)}
-              className={inputClass}
-            >
-              <option value="OFFLINE" className="bg-slate-800 text-white">Offline (Cash)</option>
-              <option value="ONLINE" className="bg-slate-800 text-white">Online (Payment)</option>
-            </select>
-          </div>
-        </div>
-
         {/* Cart Section */}
         <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl overflow-hidden">
           <div className="hidden sm:block">
@@ -425,15 +440,24 @@ const Billing = () => {
                       <td className="px-6 py-4 text-white font-medium">{idx + 1}</td>
                       <td className="px-6 py-4 text-white">{i.name}</td>
                       <td className="px-6 py-4 text-gray-300">{i.variant}</td>
-                      <td className="px-6 py-4 text-white">{i.quantity}</td>
+                      <td className="px-6 py-4">
+                        <input
+                          type="number"
+                          min="1"
+                          value={i.quantity}
+                          onChange={(e) => updateCartQuantity(idx, e.target.value)}
+                          className="w-20 bg-slate-800/80 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                        />
+                      </td>
                       <td className="px-6 py-4 text-white">₹{i.price.toFixed(2)}</td>
                       <td className="px-6 py-4 text-white font-semibold">₹{i.total.toFixed(2)}</td>
                       <td className="px-6 py-4">
                         <button
                           onClick={() => removeItem(idx)}
-                          className="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg text-sm font-medium transition-colors border border-red-500/30"
+                          className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg transition-colors border border-red-500/30"
+                          aria-label="Remove item"
                         >
-                          Remove
+                          <Trash2 size={16} />
                         </button>
                       </td>
                     </tr>
@@ -464,9 +488,10 @@ const Billing = () => {
                   <div className="flex justify-end">
                     <button
                       onClick={() => removeItem(idx)}
-                      className="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg text-sm font-medium transition-colors border border-red-500/30"
+                      className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg transition-colors border border-red-500/30"
+                      aria-label="Remove item"
                     >
-                      Remove
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </div>
@@ -527,11 +552,11 @@ const Billing = () => {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Items:</span>
-                <span className="text-white font-semibold">{cart.length}</span>
+                <span className="text-white font-semibold">{orderSummary.items}</span>
               </div>
               <div className="flex justify-between text-sm border-t border-white/10 pt-3">
                 <span className="text-gray-400">Total Amount:</span>
-                <span className="text-green-400 font-bold">₹{subtotal.toFixed(2)}</span>
+                <span className="text-green-400 font-bold">₹{orderSummary.total.toFixed(2)}</span>
               </div>
             </div>
 
