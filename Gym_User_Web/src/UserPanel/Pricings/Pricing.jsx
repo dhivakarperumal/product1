@@ -9,6 +9,10 @@ const Pricing = () => {
   const [services, setServices] = useState([]);
   const [availableDurations, setAvailableDurations] = useState([]);
   const [selectedDuration, setSelectedDuration] = useState("ALL");
+  const [selectedCategory, setSelectedCategory] = useState("ALL");
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 10000 });
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [hasActivePlan, setHasActivePlan] = useState(false);
   const [checkingPlan, setCheckingPlan] = useState(true);
@@ -50,13 +54,41 @@ const Pricing = () => {
   }, []);
 
   /* ================= FILTER ================= */
-  const filtered =
-    selectedDuration === "ALL"
-      ? services
-      : services.filter(
-          (s) =>
-            (s.duration || s.duration_months) === selectedDuration
-        );
+  const filtered = services.filter((s) => {
+    // Duration filter
+    const duration = String(s.duration || s.duration_months || "");
+    const durationMatch = selectedDuration === "ALL" || duration === String(selectedDuration);
+    
+    // Price range filter
+    const price = Number(s.final_price ?? s.price ?? 0);
+    const priceMatch = price >= priceRange.min && price <= priceRange.max;
+    
+    // Category filter
+    const categoryMatch = selectedCategory === "ALL" || 
+      (s.category && String(s.category).toLowerCase().includes(selectedCategory.toLowerCase())) ||
+      (s.type && String(s.type).toLowerCase().includes(selectedCategory.toLowerCase()));
+    
+    // Search filter
+    const searchMatch = searchTerm === "" || 
+      (s.name && s.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (s.description && s.description.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    return durationMatch && priceMatch && categoryMatch && searchMatch;
+  }).sort((a, b) => {
+    const priceA = Number(a.final_price ?? a.price ?? 0);
+    const priceB = Number(b.final_price ?? b.price ?? 0);
+    return priceA - priceB;
+  });
+  
+  // Get unique categories
+  const availableCategories = [
+    ...new Set(
+      services
+        .map((s) => s.category || s.type)
+        .filter(Boolean)
+        .map(String)
+    ),
+  ];
 
   /* ================= ACTIVE PLAN ================= */
   useEffect(() => {
@@ -90,33 +122,117 @@ const Pricing = () => {
   return (
     <div className="min-h-screen text-white overflow-x-hidden">
 
-      {/* ================= FILTER ================= */}
-      <div className="my-10 overflow-x-auto">
-        <div className="flex gap-4 px-4 max-w-full overflow-x-auto scrollbar-hide">
-          <button
-            onClick={() => setSelectedDuration("ALL")}
-            className={`px-6 py-2 rounded-full text-sm transition ${
-              selectedDuration === "ALL"
-                ? "bg-orange-500 text-black "
-                : "border border-orange-500 text-orange-400"
-            }`}
-          >
-            ALL
-          </button>
+      {/* ================= FILTER SECTION ================= */}
+      <div className="my-10 space-y-4">
+        {/* Search Bar */}
+        <div className="px-4">
+          <input
+            type="text"
+            placeholder="Search plans by name or description..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2 rounded-full bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:border-orange-500"
+          />
+        </div>
 
-          {availableDurations.map((d) => (
+        {/* Duration Filter */}
+        <div className="overflow-x-auto">
+          <div className="flex gap-4 px-4 max-w-full overflow-x-auto scrollbar-hide">
             <button
-              key={d}
-              onClick={() => setSelectedDuration(d)}
-              className={`px-6 py-2 rounded-full text-sm transition ${
-                selectedDuration === d
-                  ? "bg-orange-500 text-black shadow-[0_0_15px_orange]"
-                  : "border border-orange-500 text-orange-400"
+              onClick={() => setSelectedDuration("ALL")}
+              className={`px-6 py-2 rounded-full text-sm transition whitespace-nowrap ${
+                selectedDuration === "ALL"
+                  ? "bg-orange-500 text-black"
+                  : "border border-orange-500 text-orange-400 hover:bg-orange-500/10"
               }`}
             >
-              {d}
+              All Duration
             </button>
-          ))}
+
+            {availableDurations.map((d) => (
+              <button
+                key={d}
+                onClick={() => setSelectedDuration(d)}
+                className={`px-6 py-2 rounded-full text-sm transition whitespace-nowrap ${
+                  selectedDuration === d
+                    ? "bg-orange-500 text-black shadow-[0_0_15px_orange]"
+                    : "border border-orange-500 text-orange-400 hover:bg-orange-500/10"
+                }`}
+              >
+                {d} months
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Advanced Filters Toggle */}
+        <div className="px-4 flex gap-4 items-center flex-wrap">
+          <button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="px-4 py-2 rounded-full text-sm border border-purple-500/50 text-purple-400 hover:bg-purple-500/10 transition"
+          >
+            {showAdvanced ? "Hide" : "Show"} Advanced Filters
+          </button>
+          
+          {showAdvanced && (
+            <>
+              {/* Category Filter */}
+              {availableCategories.length > 0 && (
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:border-orange-500"
+                >
+                  <option value="ALL">All Categories</option>
+                  {availableCategories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              )}
+              
+              {/* Price Range Filter */}
+              <div className="flex gap-2 items-center">
+                <input
+                  type="number"
+                  min="0"
+                  value={priceRange.min}
+                  onChange={(e) => setPriceRange({ ...priceRange, min: Number(e.target.value) })}
+                  className="w-24 px-2 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm"
+                  placeholder="Min price"
+                />
+                <span className="text-white/40">-</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={priceRange.max}
+                  onChange={(e) => setPriceRange({ ...priceRange, max: Number(e.target.value) })}
+                  className="w-24 px-2 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm"
+                  placeholder="Max price"
+                />
+              </div>
+
+              {/* Reset Button */}
+              <button
+                onClick={() => {
+                  setSelectedDuration("ALL");
+                  setSelectedCategory("ALL");
+                  setPriceRange({ min: 0, max: 10000 });
+                  setSearchTerm("");
+                }}
+                className="px-3 py-2 rounded-lg text-sm bg-red-500/20 border border-red-500/50 text-red-400 hover:bg-red-500/30 transition"
+              >
+                Reset All
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Results Count */}
+        <div className="px-4 text-sm text-white/60">
+          Showing <span className="text-orange-400 font-semibold">{filtered.length}</span> plan{filtered.length !== 1 ? "s" : ""}
+          {services.length > filtered.length && ` out of ${services.length}`}
         </div>
       </div>
 

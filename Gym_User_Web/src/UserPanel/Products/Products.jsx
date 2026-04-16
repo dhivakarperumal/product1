@@ -14,6 +14,11 @@ const Products = () => {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState("ALL");
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 50000 });
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [inStockOnly, setInStockOnly] = useState(false);
   const ITEMS_PER_PAGE = 20;
 
   // ✅ Image helper
@@ -136,6 +141,45 @@ const Products = () => {
     }
   };
 
+  // ✅ Get all available categories
+  const availableCategories = [
+    ...new Set(
+      products
+        .map((p) => p.category)
+        .filter(Boolean)
+        .map(String)
+    ),
+  ];
+
+  // ✅ Apply filtering to products
+  const filteredProducts = products.filter((product) => {
+    // Category filter
+    const categoryMatch = selectedCategory === "ALL" || 
+      (product.category && String(product.category).toLowerCase() === selectedCategory.toLowerCase());
+    
+    // Price filter
+    const pricing = getProductPricing(product);
+    const productPrice = Number(pricing?.offerPrice ?? pricing?.mrp ?? 0);
+    const priceMatch = productPrice >= priceRange.min && productPrice <= priceRange.max;
+    
+    // Stock filter
+    const stockCount = getProductStock(product);
+    const stockMatch = !inStockOnly || stockCount > 0;
+    
+    // Search filter
+    const searchMatch = searchTerm === "" ||
+      (product.name && product.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (product.category && product.category.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    return categoryMatch && priceMatch && stockMatch && searchMatch;
+  }).sort((a, b) => {
+    // Sort by price
+    const priceA = Number(getProductPricing(a)?.offerPrice ?? 0);
+    const priceB = Number(getProductPricing(b)?.offerPrice ?? 0);
+    return priceA - priceB;
+  });
+
   // ✅ Add to cart
   const addToCart = async (prod) => {
     if (!userId) {
@@ -203,8 +247,116 @@ const Products = () => {
         </div>
       ) : (
         <>
+          {/* ================= FILTER SECTION ================= */}
+          <div className="space-y-4 mb-8">
+            {/* Search Bar */}
+            <div>
+              <input
+                type="text"
+                placeholder="Search products by name or category..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-2 rounded-full bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:border-orange-500"
+              />
+            </div>
+
+            {/* Category Filter */}
+            {availableCategories.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2">
+                <button
+                  onClick={() => setSelectedCategory("ALL")}
+                  className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition ${
+                    selectedCategory === "ALL"
+                      ? "bg-orange-500 text-black"
+                      : "border border-orange-500 text-orange-400 hover:bg-orange-500/10"
+                  }`}
+                >
+                  All Categories
+                </button>
+                {availableCategories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition ${
+                      selectedCategory === cat
+                        ? "bg-orange-500 text-black"
+                        : "border border-white/20 text-white/70 hover:border-orange-500 hover:text-orange-400"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Advanced Filters */}
+            <div className="flex gap-3 flex-wrap items-center">
+              <button
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="px-4 py-2 rounded-full text-sm border border-purple-500/50 text-purple-400 hover:bg-purple-500/10 transition"
+              >
+                {showAdvanced ? "Hide" : "Show"} Advanced Filters
+              </button>
+
+              {showAdvanced && (
+                <>
+                  {/* In Stock Filter */}
+                  <label className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/10 border border-white/20 cursor-pointer hover:bg-white/20 transition">
+                    <input
+                      type="checkbox"
+                      checked={inStockOnly}
+                      onChange={(e) => setInStockOnly(e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm text-white">In Stock Only</span>
+                  </label>
+
+                  {/* Price Range */}
+                  <div className="flex gap-2 items-center px-3 py-2 rounded-full bg-white/10 border border-white/20">
+                    <input
+                      type="number"
+                      min="0"
+                      value={priceRange.min}
+                      onChange={(e) => setPriceRange({ ...priceRange, min: Number(e.target.value) })}
+                      className="w-20 px-2 bg-transparent text-white text-sm focus:outline-none"
+                      placeholder="Min"
+                    />
+                    <span className="text-white/40">-</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={priceRange.max}
+                      onChange={(e) => setPriceRange({ ...priceRange, max: Number(e.target.value) })}
+                      className="w-20 px-2 bg-transparent text-white text-sm focus:outline-none"
+                      placeholder="Max"
+                    />
+                  </div>
+
+                  {/* Reset Button */}
+                  <button
+                    onClick={() => {
+                      setSelectedCategory("ALL");
+                      setPriceRange({ min: 0, max: 50000 });
+                      setSearchTerm("");
+                      setInStockOnly(false);
+                    }}
+                    className="px-3 py-2 rounded-lg text-sm bg-red-500/20 border border-red-500/50 text-red-400 hover:bg-red-500/30 transition"
+                  >
+                    Reset All
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Results Count */}
+            <div className="text-sm text-white/60">
+              Showing <span className="text-orange-400 font-semibold">{filteredProducts.length}</span> product{filteredProducts.length !== 1 ? "s" : ""}
+              {products.length > filteredProducts.length && ` (filtered from ${products.length})`}
+            </div>
+          </div>
           <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
-            {products.map((product, index) => {
+            {filteredProducts.length > 0 ? (
+              filteredProducts.map((product, index) => {
               const productId =
                 product.id ??
                 product.product_id ??
@@ -297,7 +449,24 @@ const Products = () => {
                   </div>
                 </div>
               );
-            })}
+            })
+            ) : (
+              <div className="col-span-full text-center py-12">
+                <p className="text-xl text-white/70 mb-2">No products match your filters</p>
+                <p className="text-sm text-white/50 mb-4">Try adjusting your search criteria</p>
+                <button
+                  onClick={() => {
+                    setSelectedCategory("ALL");
+                    setPriceRange({ min: 0, max: 50000 });
+                    setSearchTerm("");
+                    setInStockOnly(false);
+                  }}
+                  className="px-4 py-2 rounded-full bg-orange-500/20 border border-orange-500/50 text-orange-400 hover:bg-orange-500/30 transition"
+                >
+                  Reset Filters
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Load More Button */}
