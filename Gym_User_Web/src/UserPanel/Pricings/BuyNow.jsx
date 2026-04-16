@@ -3,11 +3,13 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../PrivateRouter/AuthContext";
 import api from "../../api";
 import PricingCard from "../../Components/PricingCard";
+import { useAdminFilter } from "../../utils/useAdminFilter";
 
 const BuyNow = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
   const { user, profileName } = useAuth();
+  const { adminId, isFiltered } = useAdminFilter();
 
   const plan = state?.plan;
 
@@ -35,8 +37,16 @@ const BuyNow = () => {
 
     if (!plan) {
       navigate("/pricing");
+      return;
     }
-  }, [user, plan, navigate]);
+
+    // Verify plan belongs to user's admin (if user is a member)
+    if (isFiltered && adminId && plan.created_by !== adminId) {
+      navigate("/pricing", {
+        state: { message: "This plan is not available for you" },
+      });
+    }
+  }, [user, plan, navigate, isFiltered, adminId]);
 
   /* ================= FETCH USER PROFILE ================= */
 

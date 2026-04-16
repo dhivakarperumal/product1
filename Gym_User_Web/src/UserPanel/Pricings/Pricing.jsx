@@ -4,6 +4,7 @@ import api from "../../api";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../PrivateRouter/AuthContext";
 import cache from "../../cache";
+import { useAdminFilter, buildAdminFilteredUrl } from "../../utils/useAdminFilter";
 
 const Pricing = () => {
   const [services, setServices] = useState([]);
@@ -19,24 +20,30 @@ const Pricing = () => {
 
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { adminId, isFiltered } = useAdminFilter();
 
   /* ================= FETCH PLANS ================= */
   useEffect(() => {
     const abortController = new AbortController();
     
     const fetchPlans = async () => {
-      if (cache.plans) {
-        setServices(cache.plans);
+      const cacheKey = isFiltered ? `plans_admin_${adminId}` : "plans";
+      
+      if (cache[cacheKey]) {
+        setServices(cache[cacheKey]);
       }
 
       try {
-        const res = await api.get("/plans", {
+        // Build URL with admin filter if member
+        const url = buildAdminFilteredUrl("/plans", adminId);
+        
+        const res = await api.get(url, {
           signal: abortController.signal
         });
         const plans = Array.isArray(res.data) ? res.data : [];
 
         setServices(plans);
-        cache.plans = plans;
+        cache[cacheKey] = plans;
 
         const durations = [
           ...new Set(plans.map((p) => p.duration || p.duration_months)),
@@ -49,9 +56,13 @@ const Pricing = () => {
       }
     };
 
-    fetchPlans();
+    // Only fetch if adminId is available (for filtered view) or if not filtered (admin view)
+    if (!isFiltered || adminId) {
+      fetchPlans();
+    }
+    
     return () => abortController.abort();
-  }, []);
+  }, [adminId, isFiltered]);
 
   /* ================= FILTER ================= */
   const filtered = services.filter((s) => {

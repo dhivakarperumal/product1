@@ -76,6 +76,14 @@ export default function Checkout() {
     country: "India",
   });
 
+  // Check authentication and redirect if not logged in
+  useEffect(() => {
+    if (!userId) {
+      toast.error("⚠️ Please log in to checkout");
+      navigate("/login");
+    }
+  }, [userId, navigate]);
+
   // Fetch addresses once on mount
   useEffect(() => {
     if (!userId) return;
@@ -255,6 +263,12 @@ export default function Checkout() {
   }, [userId, items, orderType, shipping, paymentMethod, subtotal, total, clearCart]);
 
   const placeOrder = async () => {
+    if (!userId) {
+      toast.error("⚠️ Please log in to place an order");
+      navigate("/login");
+      return;
+    }
+
     if (orderType === "DELIVERY") {
       if (!shipping.name || shipping.name.trim() === "")
         return toast.error("❌ Enter your name");

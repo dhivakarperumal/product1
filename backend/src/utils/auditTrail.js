@@ -10,12 +10,13 @@
 const getActorUuid = (user) => {
   if (!user) return null;
   
-  // Check camelCase first (from JWT), then snake_case (legacy)
+  // Check camelCase first (from JWT), then snake_case (legacy), then created_by (for members)
   return (
     user.adminUuid ||
     user.userUuid ||
     user.admin_uuid ||
     user.user_uuid ||
+    user.created_by ||
     user.uuid ||
     null
   );

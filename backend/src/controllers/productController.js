@@ -26,20 +26,22 @@ const parseProduct = (product) => {
 };
 
 const buildProductFilter = (user) => {
-  if (!user) {
-    return { sql: ' WHERE 1=0', params: [] };
-  }
-
-  if (user.role === 'super admin') {
+  // Super admin sees all products
+  if (user && user.role === 'super admin') {
     return { sql: '', params: [] };
   }
 
-  const adminUuid = getActorUuid(user);
-  if (adminUuid) {
-    return { sql: ' WHERE created_by = ?', params: [adminUuid] };
+  // Admin/trainer with UUID sees their own products
+  if (user) {
+    const adminUuid = getActorUuid(user);
+    if (adminUuid) {
+      return { sql: ' WHERE created_by = ?', params: [adminUuid] };
+    }
   }
 
-  return { sql: ' WHERE 1=0', params: [] };
+  // Regular users, members, and unauthenticated users see all products
+  // (no restriction)
+  return { sql: '', params: [] };
 };
 
 async function createProduct(req, res) {

@@ -4,11 +4,13 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../../PrivateRouter/AuthContext";
 import cache from "../../cache";
+import { useAdminFilter, buildAdminFilteredUrl } from "../../utils/useAdminFilter";
 
 const Products = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const userId = user?.id;
+  const { adminId, isFiltered } = useAdminFilter();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -92,16 +94,21 @@ const Products = () => {
     const abortController = new AbortController();
     
     const load = async () => {
+      const cacheKey = isFiltered ? `products_admin_${adminId}_p${page}` : `products_p${page}`;
+      
       // Use cached data for first page only
-      if (page === 1 && cache.products) {
-        setProducts(cache.products);
+      if (page === 1 && cache[cacheKey]) {
+        setProducts(cache[cacheKey]);
         setLoading(false);
         return;
       }
 
       try {
         const offset = (page - 1) * ITEMS_PER_PAGE;
-        const res = await api.get(`/products?limit=${ITEMS_PER_PAGE}&offset=${offset}`, {
+        const baseUrl = `/products?limit=${ITEMS_PER_PAGE}&offset=${offset}`;
+        const url = buildAdminFilteredUrl(baseUrl, adminId);
+        
+        const res = await api.get(url, {
           signal: abortController.signal
         });
         const data = Array.isArray(res.data) ? res.data : [];
@@ -110,7 +117,7 @@ const Products = () => {
 
         if (page === 1) {
           setProducts(data);
-          cache.products = data;
+          cache[cacheKey] = data;
         } else {
           setProducts(prev => [...prev, ...data]);
         }
@@ -120,7 +127,7 @@ const Products = () => {
       } catch (err) {
         if (err.name !== 'CanceledError') {
           console.error("load products", err);
-          if (page === 1 && !cache.products) {
+          if (page === 1 && !cache[`products_p1`]) {
             toast.error("Failed to load products");
           }
         }
@@ -129,10 +136,13 @@ const Products = () => {
       }
     };
 
-    load();
+    // Only load if adminId is ready (for filtered) or not filtered (admin view)
+    if (!isFiltered || adminId) {
+      load();
+    }
     
     return () => abortController.abort();
-  }, [page]);
+  }, [page, adminId, isFiltered]);
 
   // ✅ Load more handler
   const handleLoadMore = () => {
@@ -218,9 +228,7 @@ const Products = () => {
           <div className="max-w-2xl space-y-3">
             <p className="text-sm uppercase tracking-[0.3em] text-orange-400/80">Gym & Nutrition Shop</p>
             <h1 className="text-4xl md:text-5xl font-semibold text-white">Premium products built for your workout routine</h1>
-            <p className="text-sm text-white/60 leading-7">
-              Browse a curated collection of gym supplements, fitness accessories, and recovery gear with fast delivery and visible offers.
-            </p>
+            
           </div>
 
           <div className="flex flex-wrap gap-3">

@@ -175,6 +175,22 @@ async function createOrder(req, res) {
     await connection.beginTransaction();
     console.log("Transaction started");
 
+    // Validate user_id if provided (foreign key check)
+    let validUserId = null;
+    if (data.user_id) {
+      console.log("Validating user_id:", data.user_id);
+      const [userExists] = await connection.query(
+        'SELECT id FROM users WHERE id = ?',
+        [data.user_id]
+      );
+      if (userExists.length === 0) {
+        console.warn(`User ID ${data.user_id} not found in database. Order will be created without user association.`);
+        validUserId = null;
+      } else {
+        validUserId = data.user_id;
+      }
+    }
+
     // Insert order
     const insertOrderQuery = `INSERT INTO orders 
       (order_id,user_id,status,payment_status,total,payment_method,payment_id,order_type,shipping,pickup,order_track,notes,created_by,updated_by)
@@ -184,7 +200,7 @@ async function createOrder(req, res) {
     
     const orderValues = [
       data.order_id,
-      data.user_id || null,
+      validUserId || null,
       data.status || "orderPlaced",
       data.payment_status || "pending",
       data.total || 0,

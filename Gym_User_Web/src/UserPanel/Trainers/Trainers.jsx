@@ -4,6 +4,7 @@ import TrainersCard from "../../Components/TrainersCard"; // adjust if needed
 import cache from "../../cache";
 import AOS from "aos";
 import "aos/dist/aos.css";
+import { useAdminFilter, buildAdminFilteredUrl } from "../../utils/useAdminFilter";
 
 /* ================= IMAGE HELPER ================= */
 const makeImageUrl = (img) => {
@@ -26,22 +27,31 @@ const Trainers = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("ALL");
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const { adminId, isFiltered } = useAdminFilter();
 
   /* ================= FETCH ================= */
   useEffect(() => {
     const abortController = new AbortController();
     
     const fetchTrainers = async () => {
+      const cacheKey = isFiltered ? `trainers_admin_${adminId}` : "trainers";
+      
       // ✅ cache first
-      if (cache.trainers) {
-        setTrainers(cache.trainers);
+      if (cache[cacheKey]) {
+        const mapped = (cache[cacheKey] || []).map((t) => ({
+          ...t,
+          photo: makeImageUrl(t.photo),
+        }));
+        setTrainers(mapped);
         setLoading(false);
       } else {
         setLoading(true);
       }
 
       try {
-        const res = await api.get("/staff", {
+        const url = buildAdminFilteredUrl("/staff", adminId);
+        
+        const res = await api.get(url, {
           signal: abortController.signal
         });
 
@@ -51,7 +61,7 @@ const Trainers = () => {
         }));
 
         setTrainers(mapped);
-        cache.trainers = mapped;
+        cache[cacheKey] = mapped;
       } catch (err) {
         if (err.name !== 'CanceledError') {
           console.error("Failed to load trainers:", err);
@@ -61,9 +71,13 @@ const Trainers = () => {
       }
     };
 
-    fetchTrainers();
+    // Only fetch if adminId is ready (for filtered) or not filtered (admin view)
+    if (!isFiltered || adminId) {
+      fetchTrainers();
+    }
+    
     return () => abortController.abort();
-  }, []);
+  }, [adminId, isFiltered]);
 
   /* ================= AOS ================= */
   useEffect(() => {

@@ -27,18 +27,27 @@ async function getAllPlans(req, res) {
     let query = 'SELECT * FROM gym_plans';
     let params = [];
     
-    // If not super admin, filter plans by created_by (admin_uuid)
-    if (!isSuperAdmin && req.user) {
+    // Admin filter logic:
+    // 1. Super admin: see all plans
+    // 2. Admin/trainer with adminUuid: see plans they created
+    // 3. Regular user/member: see all public/active plans
+    if (isSuperAdmin) {
+      // Super admin sees all plans
+      // No WHERE clause needed
+    } else if (req.user) {
       const adminUuid = getAdminUuid(req.user);
       if (adminUuid) {
-        // Include plans created by this admin OR plans with no creator (legacy)
-        query += ' WHERE (created_by = ? OR created_by IS NULL)';
+        // Admin/trainer sees their own plans
+        query += ' WHERE created_by = ?';
         params = [adminUuid];
       }
+      // Regular users/members see all plans (no restriction)
+      // Falls through without WHERE clause
     }
+    // Unauthenticated users also see all plans
     
     query += ' ORDER BY created_at DESC';
-    console.log('getAllPlans query:', query, 'params:', params, 'user:', req.user);
+    console.log('getAllPlans query:', query, 'params:', params, 'user:', req.user?.role);
     const [rows] = await db.query(query, params);
     // Parse JSON fields and return
     res.json(rows.map(parsePlan));
@@ -51,6 +60,9 @@ async function getAllPlans(req, res) {
 async function getPlanById(req, res) {
   try {
     const { id } = req.params;
+    
+    // Check if user is super admin
+    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
     
     // Try to parse as integer, otherwise use as string
     const idNum = parseInt(id, 10);
@@ -70,7 +82,21 @@ async function getPlanById(req, res) {
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Plan not found' });
     }
-    res.json(parsePlan(rows[0]));
+    
+    const plan = rows[0];
+    
+    // Authorization check: if not super admin, verify plan belongs to user's admin
+    if (!isSuperAdmin && req.user) {
+      const adminUuid = getAdminUuid(req.user);
+      if (!adminUuid || plan.created_by !== adminUuid) {
+        return res.status(403).json({ error: 'Not authorized to access this plan' });
+      }
+    } else if (!isSuperAdmin) {
+      // Unauthenticated user cannot access plans
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+    
+    res.json(parsePlan(plan));
   } catch (err) {
     console.error('getPlanById error', err);
     res.status(500).json({ error: 'Query failed' });
@@ -128,12 +154,37 @@ async function updatePlan(req, res) {
     facilities, trainerIncluded, dietPlans, active
   } = req.body;
 
-  const updatedBy = getActorUuid(req.user);
+  const updatedBy = getAdminUuid(req.user);
+  const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
 
   try {
-    // Try to parse as integer, otherwise use as string
+    // Fetch the plan first to verify ownership
     const idNum = parseInt(id, 10);
     const isNum = !isNaN(idNum);
+    
+    let fetchQuery;
+    let fetchParams;
+    if (isNum) {
+      fetchQuery = `SELECT * FROM gym_plans WHERE id = ?`;
+      fetchParams = [idNum];
+    } else {
+      fetchQuery = `SELECT * FROM gym_plans WHERE plan_id = ?`;
+      fetchParams = [id];
+    }
+    
+    const [planRows] = await db.query(fetchQuery, fetchParams);
+    if (planRows.length === 0) {
+      return res.status(404).json({ error: 'Plan not found' });
+    }
+    
+    const plan = planRows[0];
+    
+    // Authorization check: if not super admin, verify plan belongs to user's admin
+    if (!isSuperAdmin && updatedBy && plan.created_by !== updatedBy) {
+      return res.status(403).json({ error: 'Not authorized to update this plan' });
+    } else if (!isSuperAdmin && !updatedBy) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
     
     let query;
     let params;
@@ -167,17 +218,17 @@ async function updatePlan(req, res) {
     }
 
     // Fetch the updated plan
-    let fetchQuery;
-    let fetchParams;
+    let refetchQuery;
+    let refetchParams;
     if (isNum) {
-      fetchQuery = `SELECT * FROM gym_plans WHERE id = ?`;
-      fetchParams = [idNum];
+      refetchQuery = `SELECT * FROM gym_plans WHERE id = ?`;
+      refetchParams = [idNum];
     } else {
-      fetchQuery = `SELECT * FROM gym_plans WHERE plan_id = ?`;
-      fetchParams = [id];
+      refetchQuery = `SELECT * FROM gym_plans WHERE plan_id = ?`;
+      refetchParams = [id];
     }
 
-    const [rows] = await db.query(fetchQuery, fetchParams);
+    const [rows] = await db.query(refetchQuery, refetchParams);
     res.json(parsePlan(rows[0]));
 
   } catch (err) {
@@ -190,9 +241,37 @@ async function deletePlan(req, res) {
   try {
     const { id } = req.params;
     
+    // Check if user is super admin
+    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    const adminUuid = getAdminUuid(req.user);
+    
     // Try to parse as integer, otherwise use as string
     const idNum = parseInt(id, 10);
     const isNum = !isNaN(idNum);
+    
+    let fetchQuery;
+    let fetchParams;
+    if (isNum) {
+      fetchQuery = `SELECT * FROM gym_plans WHERE id = ?`;
+      fetchParams = [idNum];
+    } else {
+      fetchQuery = `SELECT * FROM gym_plans WHERE plan_id = ?`;
+      fetchParams = [id];
+    }
+    
+    const [planRows] = await db.query(fetchQuery, fetchParams);
+    if (planRows.length === 0) {
+      return res.status(404).json({ error: 'Plan not found' });
+    }
+    
+    const plan = planRows[0];
+    
+    // Authorization check: if not super admin, verify plan belongs to user's admin
+    if (!isSuperAdmin && adminUuid && plan.created_by !== adminUuid) {
+      return res.status(403).json({ error: 'Not authorized to delete this plan' });
+    } else if (!isSuperAdmin && !adminUuid) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
     
     let query;
     let params;

@@ -8,7 +8,8 @@ let membersIdentifierColumnsCache = null;
 function buildAuthPayload(user) {
   // For admins, adminUuid should be their own userUuid/user_uuid
   // For super admins, it might be stored as admin_uuid
-  const adminUuid = user.admin_uuid || user.user_uuid || user.userUuid || null;
+  // For members, it's stored in created_by field
+  const adminUuid = user.admin_uuid || user.user_uuid || user.userUuid || user.created_by || null;
   const contact = user.mobile || user.phone || null;
   
   return {
@@ -21,7 +22,7 @@ function buildAuthPayload(user) {
     mobile: user.mobile || contact,
     phone: user.phone || contact,
     adminId: user.admin_id || null,
-    adminUuid: adminUuid,  // For filtering - admin's own UUID
+    adminUuid: adminUuid,  // For filtering - admin's own UUID or member's admin UUID
     subscriptionStatus: user.subscription_status || null,
   };
 }
