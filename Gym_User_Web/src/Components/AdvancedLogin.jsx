@@ -67,7 +67,7 @@ const AdvancedLogin = ({ defaultRole = "member" }) => {
         } else if (role === "trainer") {
           navigate("/trainer");
         } else {
-          navigate("/user-panel");
+          navigate("/user");
         }
       }, 800);
     } catch (err) {
@@ -94,7 +94,7 @@ const AdvancedLogin = ({ defaultRole = "member" }) => {
         toast.success("Google Login Successful 🚀");
 
         setTimeout(() => {
-          navigate("/user-panel");
+          navigate("/user");
         }, 800);
       } catch (error) {
         console.error("Google Login Error:", error);

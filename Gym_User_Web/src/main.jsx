@@ -148,13 +148,14 @@ const router = createHashRouter([
       // { path: "/contact", element: <Contact /> },
       { path: "/login", element: <AdvancedLogin /> },
       { path: "/register", element: <Register /> },
+      { path: "/user-panel", element: <Navigate to="/user" replace /> },
     ]
   },
 
   {
     path: "/user",
     element: (
-      <PrivateRoute allowedRoles={["user"]}>
+      <PrivateRoute allowedRoles={["user", "member"]}>
         <UserPanel />
       </PrivateRoute>
     ),

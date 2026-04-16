@@ -44,26 +44,26 @@ const pool = mysql.createPool({
       console.log('⚠️ Admin:', err.message);
     }
 
-    // Test member user (in members_auth table)
+    // Test member user (in members table)
     try {
       await conn.query(`
-        INSERT INTO members_auth (email, username, password_hash, mobile, role, admin_id)
-        VALUES (?, ?, ?, ?, ?, NULL)
+        INSERT INTO members (username, email, phone, password_hash, role, name)
+        VALUES (?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE password_hash = ?, role = ?
-      `, ['member@gym.com', 'member', hashedPassword, '9876543212', 'member', hashedPassword, 'member']);
-      console.log('✅ Created/Updated member@gym.com in members_auth table with role=member');
+      `, ['member', 'member@gym.com', '9876543212', hashedPassword, 'member', 'Test Member', hashedPassword, 'member']);
+      console.log('✅ Created/Updated member@gym.com in members table with role=member');
     } catch (err) {
       console.log('⚠️ Member:', err.message);
     }
 
-    // Test trainer user (in members_auth table)
+    // Test trainer user (in members table)
     try {
       await conn.query(`
-        INSERT INTO members_auth (email, username, password_hash, mobile, role, admin_id)
-        VALUES (?, ?, ?, ?, ?, NULL)
+        INSERT INTO members (username, email, phone, password_hash, role, name)
+        VALUES (?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE password_hash = ?, role = ?
-      `, ['trainer@gym.com', 'trainer', hashedPassword, '9876543213', 'trainer', hashedPassword, 'trainer']);
-      console.log('✅ Created/Updated trainer@gym.com in members_auth table with role=trainer');
+      `, ['trainer', 'trainer@gym.com', '9876543213', hashedPassword, 'trainer', 'Test Trainer', hashedPassword, 'trainer']);
+      console.log('✅ Created/Updated trainer@gym.com in members table with role=trainer');
     } catch (err) {
       console.log('⚠️ Trainer:', err.message);
     }

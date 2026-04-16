@@ -13,18 +13,18 @@ async function testDirectAuthentication() {
   
   console.log('Testing direct authentication logic...\n');
   
-  // Test 1: Query members_auth table directly
+  // Test 1: Query members table directly
   const identifier = 'member@gym.com';
   const password = 'password123';
   
-  console.log('1. Querying members_auth for:', identifier);
+  console.log('1. Querying members for:', identifier);
   const [rows] = await conn.query(
-    'SELECT * FROM members_auth WHERE email = ? OR username = ? OR mobile = ?',
+    'SELECT * FROM members WHERE email = ? OR username = ? OR phone = ?',
     [identifier, identifier, identifier]
   );
   
   if (!rows[0]) {
-    console.log('❌ User not found in members_auth');
+    console.log('❌ User not found in members');
     conn.release();
     pool.end();
     return;

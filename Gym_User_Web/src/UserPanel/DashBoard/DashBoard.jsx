@@ -61,7 +61,7 @@ const Dashboard = () => {
       try {
         const [planRes, workoutRes, dietRes, orderRes] =
           await Promise.all([
-            api.get(`/memberships?userId=${user.id}`, { signal }),
+            api.get(`/memberships/user/${user.id}`, { signal }),
             api.get("/workouts", { signal }),
             api.get("/diet-plans", { signal }),
             api.get(`/orders/user/${user.id}`, { signal }),

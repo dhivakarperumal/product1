@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const bcrypt = require('bcryptjs');
 const { randomUUID } = require('crypto');
 
 // Extract admin UUID from request user
@@ -190,7 +191,7 @@ async function createMember(req, res) {
         `INSERT INTO ${membersTable}
       (member_id, name, phone, email, gender, height, weight, bmi, plan, duration,
        join_date, expiry_date, status, photo, notes, address, created_by, updated_by)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [
           memberId, name, phone, email, gender, numHeight, numWeight, numBmi,
           plan, numDuration, joinDate, expiryDate, status, photo, notes, address,
@@ -257,8 +258,8 @@ async function updateMember(req, res) {
     // Determine the member owner so uniqueness is enforced per admin
     let ownerUuid = currentUserUuid;
     const selectOwnerQuery = isNum
-      ? `SELECT created_by FROM ${membersTable} WHERE id = ?`
-      : `SELECT created_by FROM ${membersTable} WHERE member_id = ?`;
+      ? `SELECT created_by, phone, email FROM ${membersTable} WHERE id = ?`
+      : `SELECT created_by, phone, email FROM ${membersTable} WHERE member_id = ?`;
     const [ownerRows] = await connection.query(selectOwnerQuery, [isNum ? idNum : id]);
     if (ownerRows.length === 0) {
       await connection.rollback();
@@ -267,6 +268,10 @@ async function updateMember(req, res) {
     if (ownerRows[0].created_by) {
       ownerUuid = ownerRows[0].created_by;
     }
+
+    const existingPhone = ownerRows[0].phone;
+    const existingEmail = ownerRows[0].email;
+    const hasPhoneChanged = phone && existingPhone !== String(phone);
 
     // Check for duplicate phone if phone is being updated
     if (phone) {

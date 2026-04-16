@@ -45,13 +45,14 @@ const BuyNow = () => {
 
     const fetchUserProfile = async () => {
       try {
-        const res = await api.get(`/users/${user.id}`);
+        const url = user.role === "member" ? `/members/${user.id}` : `/users/${user.id}`;
+        const res = await api.get(url);
 
         if (res.data) {
           setForm((prev) => ({
             ...prev,
-            phone: res.data.mobile || "",
-            name: res.data.username || prev.name,
+            phone: res.data.phone || res.data.mobile || "",
+            name: res.data.name || res.data.username || prev.name,
           }));
         }
       } catch (err) {
@@ -124,18 +125,24 @@ const BuyNow = () => {
 
       handler: async (response) => {
         try {
-          await api.post("/memberships", {
-            userId: user.id,
-            planId: plan.id,
-            planName: plan.name,
-            pricePaid: price,
-            duration: plan.duration,
-            startDate: form.startDate,
-            endDate: form.endDate,
-            paymentId: response.razorpay_payment_id,
-            status: "active",
-          });
+        const payload = {
+          planId: plan.id,
+          planName: plan.name,
+          pricePaid: price,
+          duration: plan.duration,
+          startDate: form.startDate,
+          endDate: form.endDate,
+          paymentId: response.razorpay_payment_id,
+          status: "active",
+        };
 
+        if (user.role === "member") {
+          payload.memberId = user.id;
+        } else {
+          payload.userId = user.id;
+        }
+
+        await api.post("/memberships", payload);
           navigate("/account", {
             state: { tab: "plans" },
           });

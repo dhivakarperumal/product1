@@ -34,7 +34,7 @@ const Plans = () => {
       }
 
       try {
-        const res = await api.get(`/memberships?userId=${userId}`, {
+        const res = await api.get(`/memberships/user/${userId}`, {
           signal: abortController.signal
         });
         const fetchedPlans = Array.isArray(res.data)

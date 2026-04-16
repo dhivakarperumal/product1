@@ -19,17 +19,24 @@ const PersonalDetails = () => {
       }
 
       try {
-        const res = await api.get(`/users/${userId}`);
+        const url = user?.role === "member" ? `/members/${userId}` : `/users/${userId}`;
+        const res = await api.get(url);
         const data = res.data || {};
-        setUserInfo(data);
-        cache.userInfo = data;
+        const formatted = {
+          ...data,
+          username: data.username || data.name || "",
+          mobile: data.mobile || data.phone || "",
+          email: data.email || "",
+        };
+        setUserInfo(formatted);
+        cache.userInfo = formatted;
       } catch (err) {
         console.error("Failed to fetch user info", err);
       }
     };
 
     fetchUser();
-  }, [userId]);
+  }, [userId, user?.role]);
 
   return (
     <div className="min-h-screen bg-black text-white p-6">

@@ -242,21 +242,16 @@ const Enquiry = () => {
       const bmiValue = parseMetric(enquiry.bmi) ?? computeBmi(heightValue, weightValue);
 
       const memberData = {
-        name: enquiry.name,
+        username: enquiry.name.replace(/\s+/g, '').toLowerCase(), // create username from name
         email: enquiry.email,
-        phone: enquiry.phone || null,
-        address: enquiry.location || null,
-        height: heightValue,
-        weight: weightValue,
-        bmi: bmiValue,
-        joinDate: new Date().toISOString().split('T')[0],
-        status: 'active',
-        // supply password explicitly so frontend knows credentials
-        password: enquiry.phone || ''
+        mobile: enquiry.phone,
+        password: enquiry.phone || 'password123', // use phone as password or default
+        role: 'member',
+        admin_id: user?.id || null
       };
 
-      await api.post('/members', memberData);
-      toast.success(`Member created successfully. Login using phone number as both identifier and password.`);
+      await api.post('/auth/register-member', memberData);
+      toast.success(`Member created successfully. Login using email/username/phone and password.`);
       await updateStatus(enquiry.id, 'completed');
     } catch (err) {
       console.error('Error moving to members:', err);

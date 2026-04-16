@@ -125,8 +125,8 @@ async function createMembership(req, res) {
     } = req.body;
 
     const actualPricePaid = pricePaid !== undefined ? pricePaid : price;
-    const resolvedUserId = userId || user_id || null;
-    const requestedMemberId = memberId || member_id || null;
+    let resolvedUserId = userId || user_id || null;
+    let requestedMemberId = memberId || member_id || null;
     const requestedPlanId = planId || plan_id || null;
     const membersTable = await resolveMemberTable();
 
@@ -139,7 +139,32 @@ async function createMembership(req, res) {
     let resolvedMemberName = null;
     let resolvedMemberEmail = null;
     let resolvedMemberPhone = null;
-    if (requestedMemberId) {
+
+    if (resolvedUserId) {
+      const [validUser] = await db.query(
+        "SELECT id FROM users WHERE id = ?",
+        [resolvedUserId]
+      );
+      if (validUser.length === 0) {
+        const [memberRow] = await db.query(
+          `SELECT id, member_id, name, email, phone FROM ${membersTable} WHERE id = ? OR member_id = ?`,
+          [resolvedUserId, resolvedUserId]
+        );
+        if (memberRow.length > 0) {
+          requestedMemberId = resolvedUserId;
+          resolvedMemberId = memberRow[0].id;
+          resolvedMemberExternalId = memberRow[0].member_id || null;
+          resolvedMemberName = memberRow[0].name || null;
+          resolvedMemberEmail = memberRow[0].email || null;
+          resolvedMemberPhone = memberRow[0].phone || null;
+          resolvedUserId = null;
+        } else {
+          return res.status(400).json({ success: false, message: "Invalid userId for membership" });
+        }
+      }
+    }
+
+    if (requestedMemberId && !resolvedMemberId) {
       const [validMember] = await db.query(
         `SELECT id, member_id, name, email, phone FROM ${membersTable} WHERE id = ? OR member_id = ?`,
         [requestedMemberId, requestedMemberId]
@@ -243,8 +268,8 @@ async function getUserMemberships(req, res) {
     const { userId } = req.params;
 
     const [rows] = await db.query(
-      "SELECT * FROM memberships WHERE userId = ? ORDER BY createdAt DESC",
-      [userId]
+      "SELECT * FROM memberships WHERE userId = ? OR memberId = ? ORDER BY createdAt DESC",
+      [userId, userId]
     );
 
     res.json(rows);
