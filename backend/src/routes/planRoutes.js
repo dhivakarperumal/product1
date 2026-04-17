@@ -12,9 +12,9 @@ const router = express.Router();
 
 /**
  * @route   GET /api/plans
- * @desc    Get all plans
+ * @desc    Get all plans (admins see all, members see filtered by created_by)
  */
-router.get("/", authenticateToken, requireAdmin, getAllPlans);
+router.get("/", authenticateToken, getAllPlans);
 
 /**
  * @route   GET /api/plans/:id
