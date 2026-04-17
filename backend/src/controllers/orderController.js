@@ -11,6 +11,7 @@ const parseOrder = (order) => {
   return {
     ...order,
     shipping: typeof order.shipping === 'string' ? JSON.parse(order.shipping || '{}') : (order.shipping || {}),
+    billing_address: typeof order.billing_address === 'string' ? JSON.parse(order.billing_address || '{}') : (order.billing_address || {}),
     pickup: typeof order.pickup === 'string' ? JSON.parse(order.pickup || '{}') : (order.pickup || {}),
     order_track: typeof order.order_track === 'string' ? JSON.parse(order.order_track || '[]') : (order.order_track || [])
   };
@@ -193,10 +194,16 @@ async function createOrder(req, res) {
 
     // Insert order
     const insertOrderQuery = `INSERT INTO orders 
-      (order_id,user_id,status,payment_status,total,payment_method,payment_id,order_type,shipping,pickup,order_track,notes,created_by,updated_by)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+      (order_id,user_id,status,payment_status,total,payment_method,payment_id,order_type,shipping,billing_address,billing_name,billing_email,billing_phone,pickup,order_track,notes,created_by,updated_by)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
     
     const createdBy = getActorUuid(req.user) || null;
+    
+    // Use shipping address as billing address if not provided separately
+    const billingAddress = data.billing_address || data.shipping;
+    const billingName = data.billing_name || data.shipping?.name || null;
+    const billingEmail = data.billing_email || data.shipping?.email || null;
+    const billingPhone = data.billing_phone || data.shipping?.phone || null;
     
     const orderValues = [
       data.order_id,
@@ -208,6 +215,10 @@ async function createOrder(req, res) {
       data.payment_id || null,
       data.order_type || null,
       data.shipping ? JSON.stringify(data.shipping) : null,
+      billingAddress ? JSON.stringify(billingAddress) : null,
+      billingName,
+      billingEmail,
+      billingPhone,
       data.pickup ? JSON.stringify(data.pickup) : null,
       JSON.stringify(data.order_track || []),
       data.notes || null,

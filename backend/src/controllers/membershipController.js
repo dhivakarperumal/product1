@@ -124,13 +124,32 @@ async function createMembership(req, res) {
       status,
     } = req.body;
 
+    // Authorization check
+    // Allow admins to create memberships for anyone
+    // Allow regular users to create memberships only for themselves
+    const isAdmin = req.user && ['admin', 'super admin', 'superadmin'].includes(String(req.user.role || '').toLowerCase());
+    const currentUserId = req.user?.id;
+
+    const requestedUserId = userId || user_id || null;
+    const requestedMemberId = memberId || member_id || null;
+
+    // If not admin, user can only create membership for themselves
+    if (!isAdmin && (requestedUserId || requestedMemberId)) {
+      if (requestedUserId && requestedUserId !== currentUserId) {
+        return res.status(403).json({ success: false, message: "You can only create memberships for yourself" });
+      }
+      if (requestedMemberId && requestedMemberId !== currentUserId) {
+        return res.status(403).json({ success: false, message: "You can only create memberships for yourself" });
+      }
+    }
+
     const actualPricePaid = pricePaid !== undefined ? pricePaid : price;
     let resolvedUserId = userId || user_id || null;
-    let requestedMemberId = memberId || member_id || null;
+    let requestedMembershipMemberId = memberId || member_id || null;
     const requestedPlanId = planId || plan_id || null;
     const membersTable = await resolveMemberTable();
 
-    if (!resolvedUserId && !requestedMemberId) {
+    if (!resolvedUserId && !requestedMembershipMemberId) {
       return res.status(400).json({ success: false, message: "userId or memberId is required to create membership" });
     }
 
@@ -151,7 +170,7 @@ async function createMembership(req, res) {
           [resolvedUserId, resolvedUserId]
         );
         if (memberRow.length > 0) {
-          requestedMemberId = resolvedUserId;
+          requestedMembershipMemberId = resolvedUserId;
           resolvedMemberId = memberRow[0].id;
           resolvedMemberExternalId = memberRow[0].member_id || null;
           resolvedMemberName = memberRow[0].name || null;
@@ -164,10 +183,10 @@ async function createMembership(req, res) {
       }
     }
 
-    if (requestedMemberId && !resolvedMemberId) {
+    if (requestedMembershipMemberId && !resolvedMemberId) {
       const [validMember] = await db.query(
         `SELECT id, member_id, name, email, phone FROM ${membersTable} WHERE id = ? OR member_id = ?`,
-        [requestedMemberId, requestedMemberId]
+        [requestedMembershipMemberId, requestedMembershipMemberId]
       );
       if (validMember.length === 0) {
         return res.status(400).json({ success: false, message: "Invalid memberId for membership" });

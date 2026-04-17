@@ -16,6 +16,8 @@ const createAddress = async (req, res) => {
       country,
     } = req.body;
 
+    console.log("createAddress received:", { user_id, name, email, phone, address, city, state, zip, country });
+
     if (!user_id) {
       return res.status(400).json({ error: "user_id is required" });
     }
@@ -34,14 +36,20 @@ const createAddress = async (req, res) => {
     }
 
     // Get audit trail data (created_by and updated_by with admin/user UUID)
-    const createdBy = getActorUuid(req.user) || null;
+    const createdBy = req.user?.userUuid || req.user?.user_uuid || req.user?.id || null;
+
+    const insertQuery = `INSERT INTO user_addresses
+      (user_id, name, email, phone, address, city, state, zip, country, created_by, updated_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    
+    console.log("Inserting address with createdBy:", createdBy);
 
     const [result] = await db.query(
-      `INSERT INTO user_addresses
-        (user_id, name, email, phone, address, city, state, zip, country, created_by, updated_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      insertQuery,
       [user_id, name, email, phone, address, city, state, zip, country || "India", createdBy, createdBy]
     );
+
+    console.log("Address created successfully:", result);
 
     res.status(201).json({
       success: true,
@@ -50,7 +58,8 @@ const createAddress = async (req, res) => {
     });
   } catch (err) {
     console.error("Create address error:", err);
-    res.status(500).json({ error: err.message || "Server error" });
+    console.error("Create address error details:", err.message, err.code, err.sqlMessage);
+    res.status(500).json({ error: err.message || "Server error", details: err.sqlMessage });
   }
 };
 

@@ -164,6 +164,10 @@ export default function Checkout() {
         order_type: orderType,
         items: formattedItems,
         shipping: orderType === "DELIVERY" ? shipping : null,
+        billing_address: shipping,
+        billing_name: shipping.name,
+        billing_email: shipping.email,
+        billing_phone: shipping.phone,
         pickup:
           orderType === "PICKUP"
             ? {
@@ -189,7 +193,9 @@ export default function Checkout() {
           zip: orderType === "PICKUP" ? "" : shipping.zip,
         });
       } catch (err) {
-        if (err.message !== "DUPLICATE_ADDRESS") throw err;
+        console.warn("saveUserAddress warning (not blocking order):", err.message);
+        // Don't throw - continue with order creation even if address save fails
+        // if (err.message !== "DUPLICATE_ADDRESS") throw err;
       }
 
       for (const item of items) {

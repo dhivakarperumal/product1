@@ -257,6 +257,20 @@ const Orders = () => {
                     </div>
                   </div>
 
+                  {/* BILLING ADDRESS */}
+                  {selectedOrder.billing_address && (
+                    <div className="bg-black/40 border border-white/10 rounded-xl p-6 mb-8">
+                      <h3 className="text-orange-500 font-bold text-lg mb-4">Billing Address</h3>
+                      <div className="text-white space-y-1">
+                        <p className="font-semibold">{selectedOrder.billing_name || selectedOrder.billing_address?.name || 'N/A'}</p>
+                        <p className="text-white/60">{selectedOrder.billing_email || selectedOrder.billing_address?.email || ''}</p>
+                        <p className="text-white/60">{selectedOrder.billing_phone || selectedOrder.billing_address?.phone || 'N/A'}</p>
+                        <p className="text-white/60">{selectedOrder.billing_address?.address || 'N/A'}</p>
+                        <p className="text-white/60">{selectedOrder.billing_address?.state} - {selectedOrder.billing_address?.zip}</p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* PRODUCTS TABLE */}
                   <div className="bg-black/40 border border-white/10 rounded-xl p-6 mb-8 overflow-x-auto">
                     <div className="grid grid-cols-12 gap-4 mb-4 pb-4 border-b border-white/20">

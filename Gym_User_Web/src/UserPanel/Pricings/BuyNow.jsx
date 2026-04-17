@@ -135,31 +135,42 @@ const BuyNow = () => {
 
       handler: async (response) => {
         try {
-        const payload = {
-          planId: plan.id,
-          planName: plan.name,
-          pricePaid: price,
-          duration: plan.duration,
-          startDate: form.startDate,
-          endDate: form.endDate,
-          paymentId: response.razorpay_payment_id,
-          status: "active",
-        };
+          console.log("Payment successful, saving plan...", response);
+          console.log("Plan object:", plan);
+          console.log("User:", user);
+          
+          const payload = {
+            planId: plan.id,
+            planName: plan.name,
+            pricePaid: price,
+            duration: plan.duration,
+            startDate: form.startDate,
+            endDate: form.endDate,
+            paymentId: response.razorpay_payment_id,
+            status: "active",
+          };
 
-        if (user.role === "member") {
-          payload.memberId = user.id;
-        } else {
-          payload.userId = user.id;
-        }
+          // Ensure we have either userId or memberId
+          if (user.role === "member") {
+            payload.memberId = user.id;
+          } else {
+            payload.userId = user.id;
+          }
 
-        await api.post("/memberships", payload);
-          navigate("/account", {
-            state: { tab: "plans" },
+          console.log("Membership payload:", payload);
+          
+          const res = await api.post("/memberships", payload);
+          console.log("Membership created successfully:", res.data);
+          
+          navigate("/user/plans", {
+            state: { success: true, message: "Plan purchased successfully!" }
           });
 
         } catch (err) {
           console.error("Plan save error:", err);
-          alert("Payment successful but failed to save plan.");
+          console.error("Error response:", err.response?.data);
+          const errorMsg = err.response?.data?.message || err.message || "Payment successful but failed to save plan.";
+          alert(errorMsg);
         }
       },
 

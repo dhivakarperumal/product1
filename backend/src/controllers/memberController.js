@@ -191,7 +191,7 @@ async function createMember(req, res) {
         `INSERT INTO ${membersTable}
       (member_id, name, phone, email, gender, height, weight, bmi, plan, duration,
        join_date, expiry_date, status, photo, notes, address, created_by, updated_by)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [
           memberId, name, phone, email, gender, numHeight, numWeight, numBmi,
           plan, numDuration, joinDate, expiryDate, status, photo, notes, address,
