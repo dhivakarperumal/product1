@@ -184,6 +184,8 @@ export default function Checkout() {
         payment_id: paymentId,
       };
 
+      console.log('📦 Sending order data:', JSON.stringify(orderData, null, 2));
+
       try {
         await saveUserAddress(userId, {
           ...shipping,

@@ -288,14 +288,19 @@ async function createOrder(req, res) {
   } catch (err) {
     console.error("Order creation error:", err);
     console.error("Error message:", err.message);
+    console.error("Error code:", err.code);
+    console.error("Error SQL:", err.sqlMessage);
     console.error("Error stack:", err.stack);
-    await connection.rollback();
+    try {
+      await connection.rollback();
+    } catch (rollbackErr) {
+      console.error("Rollback error:", rollbackErr);
+    }
     res.status(500).json({ 
       success: false,
-      message: err.message || "Server error", 
-      error: process.env.NODE_ENV === 'development' ? err : undefined 
+      message: err.message || "Server error",
+      sqlMessage: process.env.NODE_ENV === 'development' ? err.sqlMessage : undefined
     });
-
   } finally {
     connection.release();
   }
