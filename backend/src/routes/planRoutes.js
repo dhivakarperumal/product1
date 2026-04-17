@@ -1,5 +1,5 @@
 const express = require("express");
-const { authenticateToken, requireAdmin } = require("../middleware/auth");
+const { authenticateToken, requireAdmin, optionalAuthenticateToken } = require("../middleware/auth");
 const {
   getAllPlans,
   getPlanById,
@@ -20,7 +20,7 @@ router.get("/", authenticateToken, requireAdmin, getAllPlans);
  * @route   GET /api/plans/:id
  * @desc    Get single plan
  */
-router.get("/:id", getPlanById);
+router.get("/:id", optionalAuthenticateToken, getPlanById);
 
 /**
  * @route   POST /api/plans

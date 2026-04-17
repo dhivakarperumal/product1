@@ -83,19 +83,22 @@ const AddEditGymPlan = () => {
         const res = await api.get(`/plans/${id}`);
         const data = res.data;
 
-        if (res.status >= 400) {
-          toast.error("Plan not found");
-          navigate(-1);
-          return;
-        }
-
         setForm({
           ...form,
           ...data,
           dietPlans: data.dietPlans || [],
         });
-      } catch {
-        toast.error("Failed to load plan");
+      } catch (err) {
+        console.error('Failed to load plan:', err);
+        if (err.response?.status === 404) {
+          toast.error("Plan not found");
+          navigate(-1);
+        } else if (err.response?.status === 403) {
+          toast.error("You don't have permission to edit this plan");
+          navigate(-1);
+        } else {
+          toast.error(err.response?.data?.error || "Failed to load plan");
+        }
       } finally {
         setLoading(false);
       }
@@ -196,19 +199,12 @@ const AddEditGymPlan = () => {
         res = await api.post(`/plans`, payload);
       }
 
-      const data = res.data;
-
-      if (res.status >= 400) {
-        toast.error(data.message || data.error || "Save failed");
-        setSaving(false);
-        return;
-      }
-
       toast.success(isEdit ? "Plan updated ✅" : "Plan added 💪");
       navigate("/admin/plansall");
     } catch (err) {
-      console.error(err);
-      toast.error("Server error");
+      console.error('Save plan error:', err);
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || err.message || "Failed to save plan";
+      toast.error(errorMsg);
     } finally {
       setSaving(false);
     }

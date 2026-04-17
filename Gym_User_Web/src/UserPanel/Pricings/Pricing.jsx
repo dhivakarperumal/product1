@@ -20,17 +20,19 @@ const Pricing = () => {
 
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { adminId, isFiltered } = useAdminFilter();
+  const { adminId, isFiltered, loading: adminLoading } = useAdminFilter();
 
   /* ================= FETCH PLANS ================= */
   useEffect(() => {
     const abortController = new AbortController();
     
     const fetchPlans = async () => {
-      const cacheKey = isFiltered ? `plans_admin_${adminId}` : "plans";
+      // For filtered view (members), don't use cache to ensure fresh data
+      const cacheKey = isFiltered ? null : "plans";
       
-      if (cache[cacheKey]) {
+      if (cacheKey && cache[cacheKey]) {
         setServices(cache[cacheKey]);
+        return; // Use cache and exit
       }
 
       try {
@@ -43,7 +45,9 @@ const Pricing = () => {
         const plans = Array.isArray(res.data) ? res.data : [];
 
         setServices(plans);
-        cache[cacheKey] = plans;
+        if (cacheKey) {
+          cache[cacheKey] = plans; // Cache only if not filtered
+        }
 
         const durations = [
           ...new Set(plans.map((p) => p.duration || p.duration_months)),
@@ -56,13 +60,15 @@ const Pricing = () => {
       }
     };
 
-    // Only fetch if adminId is available (for filtered view) or if not filtered (admin view)
-    if (!isFiltered || adminId) {
-      fetchPlans();
+    // Wait for admin filter to load before fetching
+    if (adminLoading) {
+      return;
     }
     
+    fetchPlans();
+    
     return () => abortController.abort();
-  }, [adminId, isFiltered]);
+  }, [adminId, isFiltered, adminLoading]);
 
   /* ================= FILTER ================= */
   const filtered = services.filter((s) => {

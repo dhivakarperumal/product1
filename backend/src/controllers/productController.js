@@ -88,8 +88,44 @@ async function createProduct(req, res) {
 async function listProducts(req, res) {
   try {
     const user = req.user;
-    const { sql, params } = buildProductFilter(user);
-    const [rows] = await db.query(`SELECT * FROM products${sql} ORDER BY id DESC`, params);
+    const createdByParam = req.query.created_by;
+    const { limit = 20, offset = 0 } = req.query;
+    
+    // Check if user is super admin
+    const isSuperAdmin = user && String(user.role || '').toLowerCase() === 'super admin';
+    
+    let sql = 'SELECT * FROM products';
+    let params = [];
+    let whereConditions = [];
+    
+    // Handle created_by query parameter
+    if (createdByParam) {
+      // Validate that user is authorized to view this admin's data
+      if (!isSuperAdmin && user) {
+        const userAdminUuid = getActorUuid(user);
+        if (!userAdminUuid || userAdminUuid !== createdByParam) {
+          return res.status(403).json({ error: 'Not authorized to view this data' });
+        }
+      }
+      whereConditions.push('created_by = ?');
+      params.push(createdByParam);
+    } else if (!isSuperAdmin && user) {
+      // No query param: apply filter based on user role
+      const { sql: filterSql, params: filterParams } = buildProductFilter(user);
+      if (filterSql) {
+        whereConditions.push(filterSql.replace(' WHERE ', ''));
+        params.push(...filterParams);
+      }
+    }
+    // Super admin and unauthenticated users see all products
+    
+    if (whereConditions.length > 0) {
+      sql += ' WHERE ' + whereConditions.join(' AND ');
+    }
+    sql += ' ORDER BY id DESC LIMIT ? OFFSET ?';
+    params.push(parseInt(limit, 10), parseInt(offset, 10));
+    
+    const [rows] = await db.query(sql, params);
     res.json(rows.map(parseProduct));
   } catch (err) {
     console.error('listProducts error', err);

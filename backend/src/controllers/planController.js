@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { randomUUID } = require('crypto');
 
 // Extract admin UUID from request user
 const getAdminUuid = (user) =>
@@ -23,29 +24,45 @@ async function getAllPlans(req, res) {
   try {
     // Check if user is super admin
     const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    const createdByParam = req.query.created_by;
     
     let query = 'SELECT * FROM gym_plans';
     let params = [];
+    let whereConditions = [];
     
-    // Admin filter logic:
-    // 1. Super admin: see all plans
-    // 2. Admin/trainer with adminUuid: see plans they created
-    // 3. Regular user/member: see all public/active plans
-    if (isSuperAdmin) {
-      // Super admin sees all plans
-      // No WHERE clause needed
-    } else if (req.user) {
-      const adminUuid = getAdminUuid(req.user);
-      if (adminUuid) {
-        // Admin/trainer sees their own plans
-        query += ' WHERE created_by = ?';
-        params = [adminUuid];
+    // Handle created_by query parameter (for member access to specific admin's plans)
+    if (createdByParam) {
+      // Validate that user is authorized to view this admin's data
+      if (!isSuperAdmin && req.user) {
+        const userAdminUuid = getAdminUuid(req.user);
+        if (!userAdminUuid || userAdminUuid !== createdByParam) {
+          return res.status(403).json({ error: 'Not authorized to view this data' });
+        }
       }
-      // Regular users/members see all plans (no restriction)
-      // Falls through without WHERE clause
+      whereConditions.push('created_by = ?');
+      params.push(createdByParam);
+    } else {
+      // No query param: apply filter based on user role
+      // Admin filter logic:
+      // 1. Super admin: see all plans
+      // 2. Admin/trainer with adminUuid: see plans they created
+      // 3. Regular user/member: see all plans (no restriction)
+      if (!isSuperAdmin && req.user) {
+        const adminUuid = getAdminUuid(req.user);
+        if (adminUuid) {
+          // Admin/trainer sees their own plans
+          whereConditions.push('created_by = ?');
+          params.push(adminUuid);
+        }
+        // Regular users/members see all plans (no restriction)
+        // Falls through without WHERE clause
+      }
+      // Unauthenticated users also see all plans
     }
-    // Unauthenticated users also see all plans
     
+    if (whereConditions.length > 0) {
+      query += ' WHERE ' + whereConditions.join(' AND ');
+    }
     query += ' ORDER BY created_at DESC';
     console.log('getAllPlans query:', query, 'params:', params, 'user:', req.user?.role);
     const [rows] = await db.query(query, params);
@@ -63,6 +80,7 @@ async function getPlanById(req, res) {
     
     // Check if user is super admin
     const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    const adminUuid = getAdminUuid(req.user);
     
     // Try to parse as integer, otherwise use as string
     const idNum = parseInt(id, 10);
@@ -85,14 +103,17 @@ async function getPlanById(req, res) {
     
     const plan = rows[0];
     
-    // Authorization check: if not super admin, verify plan belongs to user's admin
+    // Authorization check: 
+    // - Super admin can access all plans
+    // - Admin/user can access their own plans (where created_by matches)
+    // - Unauthenticated users can only view if they specifically request (for read-only access)
     if (!isSuperAdmin && req.user) {
-      const adminUuid = getAdminUuid(req.user);
-      if (!adminUuid || plan.created_by !== adminUuid) {
+      // For logged-in non-super-admin users, allow if they created it OR if no creator set
+      if (plan.created_by && adminUuid && plan.created_by !== adminUuid) {
         return res.status(403).json({ error: 'Not authorized to access this plan' });
       }
-    } else if (!isSuperAdmin) {
-      // Unauthenticated user cannot access plans
+    } else if (!req.user) {
+      // Unauthenticated users cannot access plans
       return res.status(403).json({ error: 'Not authorized' });
     }
     
@@ -119,10 +140,8 @@ async function createPlan(req, res) {
     const adminUuid = getAdminUuid(req.user);
     const createdBy = adminUuid;
 
-    // generate plan_id
-    const [countResult] = await db.query("SELECT COUNT(*) as count FROM gym_plans");
-    const nextNumber = Number(countResult[0].count) + 1;
-    const planId = `PL${String(nextNumber).padStart(3, "0")}`;
+    // Generate UUID for plan_id
+    const planId = randomUUID();
 
     const [result] = await db.query(
       `INSERT INTO gym_plans
@@ -156,6 +175,7 @@ async function updatePlan(req, res) {
 
   const updatedBy = getAdminUuid(req.user);
   const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+  const isAdmin = req.user && String(req.user.role || '').toLowerCase() === 'admin';
 
   try {
     // Fetch the plan first to verify ownership
@@ -179,11 +199,17 @@ async function updatePlan(req, res) {
     
     const plan = planRows[0];
     
-    // Authorization check: if not super admin, verify plan belongs to user's admin
-    if (!isSuperAdmin && updatedBy && plan.created_by !== updatedBy) {
-      return res.status(403).json({ error: 'Not authorized to update this plan' });
-    } else if (!isSuperAdmin && !updatedBy) {
-      return res.status(403).json({ error: 'Not authorized' });
+    // Authorization check:
+    // - Super admin can update any plan
+    // - Admin can update plans they created (if created_by matches their adminUuid)
+    // - If plan has no creator, admin can update it
+    if (!isSuperAdmin) {
+      if (!isAdmin) {
+        return res.status(403).json({ error: 'Admin access required to update plans' });
+      }
+      if (plan.created_by && updatedBy && plan.created_by !== updatedBy) {
+        return res.status(403).json({ error: 'Not authorized to update this plan' });
+      }
     }
     
     let query;
@@ -243,6 +269,7 @@ async function deletePlan(req, res) {
     
     // Check if user is super admin
     const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    const isAdmin = req.user && String(req.user.role || '').toLowerCase() === 'admin';
     const adminUuid = getAdminUuid(req.user);
     
     // Try to parse as integer, otherwise use as string
@@ -266,11 +293,17 @@ async function deletePlan(req, res) {
     
     const plan = planRows[0];
     
-    // Authorization check: if not super admin, verify plan belongs to user's admin
-    if (!isSuperAdmin && adminUuid && plan.created_by !== adminUuid) {
-      return res.status(403).json({ error: 'Not authorized to delete this plan' });
-    } else if (!isSuperAdmin && !adminUuid) {
-      return res.status(403).json({ error: 'Not authorized' });
+    // Authorization check:
+    // - Super admin can delete any plan
+    // - Admin can delete plans they created
+    // - If plan has no creator, admin can delete it
+    if (!isSuperAdmin) {
+      if (!isAdmin) {
+        return res.status(403).json({ error: 'Admin access required to delete plans' });
+      }
+      if (plan.created_by && adminUuid && plan.created_by !== adminUuid) {
+        return res.status(403).json({ error: 'Not authorized to delete this plan' });
+      }
     }
     
     let query;

@@ -10,7 +10,7 @@ const Products = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const userId = user?.id;
-  const { adminId, isFiltered } = useAdminFilter();
+  const { adminId, isFiltered, loading: adminLoading } = useAdminFilter();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -94,10 +94,11 @@ const Products = () => {
     const abortController = new AbortController();
     
     const load = async () => {
-      const cacheKey = isFiltered ? `products_admin_${adminId}_p${page}` : `products_p${page}`;
+      // For filtered view (members), don't use cache to ensure fresh data
+      const cacheKey = isFiltered ? null : `products_p${page}`;
       
-      // Use cached data for first page only
-      if (page === 1 && cache[cacheKey]) {
+      // Use cached data for first page only (if not filtered)
+      if (cacheKey && page === 1 && cache[cacheKey]) {
         setProducts(cache[cacheKey]);
         setLoading(false);
         return;
@@ -117,7 +118,9 @@ const Products = () => {
 
         if (page === 1) {
           setProducts(data);
-          cache[cacheKey] = data;
+          if (cacheKey) {
+            cache[cacheKey] = data; // Cache only if not filtered
+          }
         } else {
           setProducts(prev => [...prev, ...data]);
         }
@@ -136,13 +139,16 @@ const Products = () => {
       }
     };
 
-    // Only load if adminId is ready (for filtered) or not filtered (admin view)
-    if (!isFiltered || adminId) {
-      load();
+    // Wait for admin filter to load before fetching
+    if (adminLoading) {
+      setLoading(false);
+      return;
     }
     
+    load();
+    
     return () => abortController.abort();
-  }, [page, adminId, isFiltered]);
+  }, [page, adminId, isFiltered, adminLoading]);
 
   // ✅ Load more handler
   const handleLoadMore = () => {
