@@ -137,6 +137,7 @@ export default function Checkout() {
   }, []);
 
   // Use cart items from context or buyNow item
+  const isBuyNow = Boolean(location.state?.buyNowItem);
   const items = useMemo(() => {
     if (location.state?.buyNowItem) {
       return [location.state.buyNowItem];
@@ -152,13 +153,17 @@ export default function Checkout() {
   const total = subtotal;
 
   const clearCart = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || isBuyNow) return;
     try {
-      await Promise.all(items.map((item) => api.delete(`/cart/${item.id}`)));
+      await Promise.all(
+        items
+          .filter((item) => item.id)
+          .map((item) => api.delete(`/cart/${item.id}`))
+      );
     } catch (err) {
       console.error("failed to clear cart", err);
     }
-  }, [userId, items]);
+  }, [userId, items, isBuyNow]);
 
   const saveOrder = useCallback(async (paymentId = null) => {
     if (placing) return;
@@ -175,11 +180,12 @@ export default function Checkout() {
         product_name: i.name || i.product_name || "Unknown Product",
         price: Number(i.price) || 0,
         qty: Number(i.quantity) || 0,
-        size: i.size || null,
+        size: i.size || i.weight || i.variant || null,
         color: i.color || null,
         image:
           i.image || (Array.isArray(i.images) ? i.images[0] : i.images) || "",
-        variant: i.weight || i.size || "",
+        variant: i.variant || i.weight || i.size || "",
+        weight: i.weight || i.size || i.variant || "",
       }));
 
       const orderData = {
@@ -220,74 +226,22 @@ export default function Checkout() {
         });
       } catch (err) {
         console.warn("saveUserAddress warning (not blocking order):", err.message);
-        // Don't throw - continue with order creation even if address save fails
-        // if (err.message !== "DUPLICATE_ADDRESS") throw err;
-      }
-
-      for (const item of items) {
-        const productId = item.productId || item.id;
-        const productRes = await api.get(`/products/${productId}`);
-        const product = productRes.data;
-
-        if (!product) {
-          throw new Error(`Product ${productId} not found`);
-        }
-
-        // Construct variant key with proper fallback logic
-        let variantKey =
-          item.variant ||
-          item.weight ||
-          (item.size && item.gender ? `${item.size}-${item.gender}` : null) ||
-          (item.size && item.color ? `${item.size}-${item.color}` : null) ||
-          item.size ||
-          '';
-
-        const updatedStock = { ...(product.stock || {}) };
-
-        // If no variant key found or specified, try the first available variant
-        if (!variantKey) {
-          const availableKeys = Object.keys(updatedStock);
-          if (availableKeys.length > 0) {
-            variantKey = availableKeys[0];
-            console.warn(`No variant specified for ${product.name}. Using first available: ${variantKey}`);
-          }
-        }
-
-        // Try exact variant key, then try without item details if needed
-        if (!variantKey || !updatedStock[variantKey]) {
-          // Log available keys for debugging
-          console.error(`Variant key '${variantKey}' not found in stock. Available keys:`, Object.keys(updatedStock), 'Item:', item);
-          throw new Error(`Variant not found for ${product.name}. Product has variants: ${Object.keys(updatedStock).join(', ')}`);
-        }
-
-        // Ensure quantities are numbers
-        const currentQty = parseInt(updatedStock[variantKey].qty, 10) || 0;
-        const itemQuantity = parseInt(item.quantity, 10) || 0;
-        const newQty = currentQty - itemQuantity;
-
-        if (newQty < 0) {
-          throw new Error(`Insufficient stock for ${product.name}. Available: ${currentQty}, Requested: ${itemQuantity}`);
-        }
-
-        updatedStock[variantKey] = {
-          ...updatedStock[variantKey],
-          qty: newQty,
-        };
-
-        // Use PATCH for stock updates (allows authenticated users during checkout)
-        await api.patch(`/products/${productId}/stock`, {
-          stock: updatedStock,
-        });
       }
 
       const orderResponse = await api.post("/orders", orderData);
       console.log("Order created successfully:", orderResponse.data);
+      console.log("Order ID:", orderResponse.data.order_id);
+      console.log("Redirecting to orders page for userId:", userId);
 
       await clearCart();
 
       setPlacing(false);
       toast.success(`Order ${orderId} placed 🎉`);
-      navigate("/user/orders");
+      
+      // Small delay to ensure backend processes the order before navigate
+      setTimeout(() => {
+        navigate("/user/orders");
+      }, 500);
     } catch (err) {
       console.error("Order creation error:", err);
       console.error("Error response:", err.response?.data);

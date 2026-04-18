@@ -53,13 +53,12 @@ const Orders = () => {
   const navigate = useNavigate();
   const isMountedRef = useRef(true);
 
-  // ✅ Initialize state from cache if available
-  const initialOrders = userId && ordersCache[userId] ? ordersCache[userId] : [];
-  const [orders, setOrders] = useState(initialOrders);
-  const [loading, setLoading] = useState(!initialOrders.length && !ordersCache[userId]);
+  // ✅ Initialize state with fresh fetch on component mount
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
-  // ✅ Fetch Orders (with instant caching)
+  // ✅ Fetch Orders - always fetch fresh on mount to catch new orders from checkout
   useEffect(() => {
     if (!userId) return;
 
@@ -68,6 +67,7 @@ const Orders = () => {
     
     const fetchOrders = async () => {
       try {
+        setLoading(true);
         const res = await api.get(`/orders/user/${userId}`, {
           signal: abortController.signal
         });
@@ -80,7 +80,7 @@ const Orders = () => {
         }
       } catch (err) {
         if (err.name !== 'CanceledError') {
-          console.error(err);
+          console.error('Error fetching orders:', err);
           if (isMountedRef.current) {
             setLoading(false);
           }

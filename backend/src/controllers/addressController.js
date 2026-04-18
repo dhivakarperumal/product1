@@ -22,6 +22,16 @@ const createAddress = async (req, res) => {
       return res.status(400).json({ error: "user_id is required" });
     }
 
+    // Verify user exists
+    const [userExists] = await db.query(
+      'SELECT id FROM users WHERE id = ? LIMIT 1',
+      [user_id]
+    );
+    if (userExists.length === 0) {
+      console.warn(`User ID ${user_id} does not exist. Address will not be saved.`);
+      return res.status(404).json({ error: "User not found", message: `User ID ${user_id} does not exist` });
+    }
+
     // Check if address already exists (avoid duplicates)
     const [existing] = await db.query(
       `SELECT * FROM user_addresses WHERE user_id = ? AND address = ? AND phone = ?`,

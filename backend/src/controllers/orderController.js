@@ -176,26 +176,33 @@ async function createOrder(req, res) {
     await connection.beginTransaction();
     console.log("Transaction started");
 
-    // Validate user_id if provided (foreign key check)
+    // Get member_uuid from authenticated user's JWT token
+    let memberUuid = data.member_uuid || null;
+    if (req.user) {
+      memberUuid = req.user.userUuid || req.user.user_uuid || data.member_uuid || null;
+    }
+    console.log("Member UUID:", memberUuid);
+
+    // Validate user_id exists in users table before storing
     let validUserId = null;
     if (data.user_id) {
-      console.log("Validating user_id:", data.user_id);
-      const [userExists] = await connection.query(
-        'SELECT id FROM users WHERE id = ?',
+      const [userCheck] = await connection.query(
+        'SELECT id FROM users WHERE id = ? LIMIT 1',
         [data.user_id]
       );
-      if (userExists.length === 0) {
-        console.warn(`User ID ${data.user_id} not found in database. Order will be created without user association.`);
-        validUserId = null;
-      } else {
+      if (userCheck.length > 0) {
         validUserId = data.user_id;
+        console.log("Valid user_id found:", validUserId);
+      } else {
+        console.warn("User ID", data.user_id, "does not exist. Will insert NULL.");
       }
     }
+    console.log("Storing user_id:", validUserId);
 
     // Insert order
     const insertOrderQuery = `INSERT INTO orders 
-      (order_id,user_id,status,payment_status,total,payment_method,payment_id,order_type,shipping,billing_address,billing_name,billing_email,billing_phone,pickup,order_track,notes,created_by,updated_by)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+      (order_id,user_id,member_uuid,status,payment_status,total,payment_method,payment_id,order_type,shipping,billing_address,billing_name,billing_email,billing_phone,pickup,order_track,notes,created_by,updated_by)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
     
     const createdBy = getActorUuid(req.user) || null;
     
@@ -208,6 +215,7 @@ async function createOrder(req, res) {
     const orderValues = [
       data.order_id,
       validUserId || null,
+      memberUuid,
       data.status || "orderPlaced",
       data.payment_status || "pending",
       data.total || 0,
@@ -230,7 +238,7 @@ async function createOrder(req, res) {
     await connection.query(insertOrderQuery, orderValues);
     console.log("Order inserted successfully");
 
-    // Insert order items (frontend may send various key names)
+    // Insert order items (frontend may send various key names) and update stock inside the same transaction
     if (Array.isArray(data.items) && data.items.length > 0) {
       console.log("Inserting", data.items.length, "order items");
       
@@ -239,8 +247,8 @@ async function createOrder(req, res) {
         const product_id = raw.product_id || raw.productId || null;
         const product_name = raw.product_name || raw.name || null;
         const price = raw.price || 0;
-        const qty = raw.qty || raw.quantity || 0;
-        const size = raw.size || raw.weight || null;
+        const qty = Number(raw.qty ?? raw.quantity ?? 0) || 0;
+        const size = raw.size || raw.weight || raw.variant || null;
         const color = raw.color || null;
         // image may be array or single
         let image = raw.image || "";
@@ -252,7 +260,6 @@ async function createOrder(req, res) {
         console.log("Inserting item:", { product_id, product_name, price, qty, size, color });
         if (image && image.length) {
           console.log("item image length", image.length);
-          // warn if we're about to insert a very long string (likely base64)
           if (image.length > 1000) {
             console.warn("large image detected; consider storing URL instead");
           }
@@ -273,6 +280,54 @@ async function createOrder(req, res) {
             image
           ]
         );
+
+        if (product_id && qty > 0 && size) {
+          const [productRows] = await connection.query(
+            'SELECT stock FROM products WHERE id = ? FOR UPDATE',
+            [product_id]
+          );
+
+          if (productRows.length === 0) {
+            throw new Error(`Product ${product_id} not found for stock update`);
+          }
+
+          let stock = {};
+          try {
+            stock = JSON.parse(productRows[0].stock || '{}');
+          } catch (err) {
+            stock = {};
+          }
+
+          if (!stock || typeof stock !== 'object' || Array.isArray(stock)) {
+            throw new Error(`Invalid stock data for product ${product_id}`);
+          }
+
+          if (!(size in stock)) {
+            throw new Error(`Stock variant '${size}' not found for product ${product_id}`);
+          }
+
+          const stockValue = stock[size];
+          let currentQty = Number(
+            stockValue?.qty ?? stockValue?.quantity ?? stockValue ?? 0
+          );
+          if (Number.isNaN(currentQty)) currentQty = 0;
+
+          if (currentQty < qty) {
+            throw new Error(
+              `Insufficient stock for product ${product_id} variant ${size}. Available: ${currentQty}, Requested: ${qty}`
+            );
+          }
+
+          stock[size] =
+            typeof stockValue === 'object'
+              ? { ...stockValue, qty: currentQty - qty }
+              : currentQty - qty;
+
+          await connection.query(
+            'UPDATE products SET stock = ?, updated_by = ? WHERE id = ?',
+            [JSON.stringify(stock), getActorUuid(req.user), product_id]
+          );
+        }
       }
     }
 
@@ -348,10 +403,15 @@ async function generateOrderId(req, res) {
 async function getUserOrders(req, res) {
   const { userId } = req.params;
   try {
+    console.log("Fetching orders for userId:", userId);
+    
+    // Query by user_id first, or by member_uuid as fallback
     const [orders] = await pool.query(
-      'SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC',
-      [userId]
+      'SELECT * FROM orders WHERE user_id = ? OR member_uuid = ? ORDER BY created_at DESC',
+      [userId, userId]
     );
+
+    console.log("Found", orders.length, "orders for userId", userId);
 
     if (orders.length === 0) {
       return res.json([]);
