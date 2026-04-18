@@ -36,7 +36,7 @@ const createAddress = async (req, res) => {
     }
 
     // Get audit trail data (created_by and updated_by with admin/user UUID)
-    const createdBy = req.user?.userUuid || req.user?.user_uuid || req.user?.id || null;
+    const createdBy = getActorUuid(req.user) || null;
 
     const insertQuery = `INSERT INTO user_addresses
       (user_id, name, email, phone, address, city, state, zip, country, created_by, updated_by)

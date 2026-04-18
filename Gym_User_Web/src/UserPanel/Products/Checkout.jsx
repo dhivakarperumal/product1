@@ -265,8 +265,15 @@ export default function Checkout() {
       navigate("/user/orders");
     } catch (err) {
       console.error("Order creation error:", err);
+      console.error("Error response:", err.response?.data);
+      console.error("Error message:", err.message);
       setPlacing(false);
-      toast.error(err.response?.data?.message || err.message || "Order failed");
+      
+      const errorMsg = err.response?.data?.message || 
+                       err.response?.data?.sqlMessage ||
+                       err.message || 
+                       "Order failed";
+      toast.error(errorMsg);
     }
   }, [userId, items, orderType, shipping, paymentMethod, subtotal, total, clearCart]);
 

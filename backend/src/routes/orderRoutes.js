@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { authenticateToken, optionalAuthenticateToken, requireAdmin } = require('../middleware/auth');
 const {
   getAllOrders,
   getOrder,
@@ -15,7 +15,7 @@ router.get('/', authenticateToken, requireAdmin, getAllOrders);
 router.get('/today', getTodayOrders);
 router.get('/user/:userId', getUserOrders);
 router.get('/:id', getOrder);
-router.post('/', createOrder);
+router.post('/', optionalAuthenticateToken, createOrder);
 router.patch('/:id/status', updateOrderStatus);
 router.post("/generate-order-id", generateOrderId);
 
