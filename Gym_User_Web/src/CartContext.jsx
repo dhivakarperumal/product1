@@ -35,7 +35,33 @@ export const CartProvider = ({ children }) => {
   // Add to cart
   const addToCart = useCallback(async (payload) => {
     try {
-      await api.post("/cart", payload);
+      const res = await api.post("/cart", payload);
+      // Add the new item to cartItems immediately
+      setCartItems((prev) => {
+        // If item already exists (same productId and variant), update quantity
+        const idx = prev.findIndex(
+          (item) =>
+            item.productId === payload.productId &&
+            (item.variant === payload.variant || !payload.variant)
+        );
+        if (idx !== -1) {
+          // Update quantity
+          const updated = [...prev];
+          updated[idx] = {
+            ...updated[idx],
+            quantity: (updated[idx].quantity || 0) + (payload.quantity || 1),
+          };
+          return updated;
+        }
+        // Add new item
+        return [
+          ...prev,
+          {
+            ...payload,
+            id: res?.data?.id || Math.random().toString(36).slice(2),
+          },
+        ];
+      });
       setCartCount((prev) => prev + 1);
       return true;
     } catch (err) {
