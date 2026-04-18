@@ -235,8 +235,30 @@ async function createMembership(req, res) {
       }
     }
 
-    // Get audit trail data (created_by and updated_by with admin UUID)
-    const auditTrail = createAuditTrail(req.user);
+    // Set created_by and updated_by to member_id if user is a member, else fallback to UUID
+    let createdBy = null;
+    let updatedBy = null;
+    if (req.user && req.user.role && String(req.user.role).toLowerCase() === 'member') {
+      // Try to get member_id from members table using user.id
+      const [memberRow] = await db.query(
+        `SELECT member_id FROM ${membersTable} WHERE id = ?`,
+        [req.user.id]
+      );
+      if (memberRow.length > 0 && memberRow[0].member_id) {
+        createdBy = memberRow[0].member_id;
+        updatedBy = memberRow[0].member_id;
+      } else {
+        // fallback to UUID if not found
+        const auditTrail = createAuditTrail(req.user);
+        createdBy = auditTrail.created_by;
+        updatedBy = auditTrail.updated_by;
+      }
+    } else {
+      const auditTrail = createAuditTrail(req.user);
+      createdBy = auditTrail.created_by;
+      updatedBy = auditTrail.updated_by;
+    }
+
 
     const query = `
       INSERT INTO memberships
@@ -260,8 +282,8 @@ async function createMembership(req, res) {
       paymentId || null,
       paymentMode || null,
       status || 'active',
-      auditTrail.created_by,
-      auditTrail.updated_by,
+      createdBy,
+      updatedBy,
     ];
 
     const [result] = await db.query(query, values);
