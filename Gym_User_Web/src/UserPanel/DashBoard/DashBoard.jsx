@@ -29,15 +29,27 @@ const isTodayOrder = (order) => {
   return orderDate.isValid() && orderDate.isSame(dayjs(), "day");
 };
 
+const resolveUserId = (user) => {
+  return (
+    user?.id ||
+    user?.userId ||
+    user?.user_id ||
+    user?.memberId ||
+    user?.member_id ||
+    null
+  );
+};
+
 /* ---------- MAIN ---------- */
 const Dashboard = () => {
   const { user } = useAuth();
+  const resolvedUserId = resolveUserId(user);
   const isMountedRef = useRef(true);
 
   // 🔄 Initialize state from cache if available
   const [dashboardData, setDashboardData] = useState(() => {
-    if (user?.id && dashboardCache[user.id]) {
-      return dashboardCache[user.id];
+    if (resolvedUserId && dashboardCache[resolvedUserId]) {
+      return dashboardCache[resolvedUserId];
     }
     return {
       userPlan: null,
@@ -52,7 +64,7 @@ const Dashboard = () => {
 
   // ✅ Fetch fresh data
   useEffect(() => {
-    if (!user?.id) return;
+    if (!resolvedUserId) return;
 
     const abortController = new AbortController();
     isMountedRef.current = true;
@@ -61,10 +73,10 @@ const Dashboard = () => {
       try {
         const [planRes, workoutRes, dietRes, orderRes] =
           await Promise.all([
-            api.get(`/memberships/user/${user.id}`, { signal }),
+            api.get(`/memberships/user/${resolvedUserId}`, { signal }),
             api.get("/workouts", { signal }),
             api.get("/diet-plans", { signal }),
-            api.get(`/orders/user/${user.id}`, { signal }),
+            api.get(`/orders/user/${resolvedUserId}`, { signal }),
           ]);
 
         const today = dayjs();
@@ -74,11 +86,58 @@ const Dashboard = () => {
         let orderList = [];
 
         /* PLAN */
-        const plans = planRes.data?.memberships || planRes.data || [];
-        const active = plans.find(
-          (p) => new Date(p.endDate) > new Date()
-        );
-        plan = active || plans[0] || null;
+        let plans = planRes.data?.memberships || planRes.data || [];
+        if (plans && !Array.isArray(plans) && typeof plans === 'object') {
+          plans = [plans];
+        }
+        plans = Array.isArray(plans) ? plans : [];
+
+        const normalizePlanDate = (planItem, key1, key2) => {
+          const value = planItem?.[key1] ?? planItem?.[key2];
+          return value ? dayjs(value) : null;
+        };
+
+        const isPlanActive = (planItem) => {
+          if (!planItem) return false;
+          const status = String(planItem.status || planItem.plan_status || '').toLowerCase();
+          if (status === 'active') return true;
+
+          const endDate = normalizePlanDate(planItem, 'endDate', 'end_date');
+          return endDate?.isValid() && endDate.isAfter(dayjs());
+        };
+
+        const sortByEndDate = (a, b) => {
+          const aEnd = normalizePlanDate(a, 'endDate', 'end_date')?.valueOf() || 0;
+          const bEnd = normalizePlanDate(b, 'endDate', 'end_date')?.valueOf() || 0;
+          return bEnd - aEnd;
+        };
+
+        const activePlans = plans.filter(isPlanActive).sort(sortByEndDate);
+        plan = activePlans[0] || plans.sort(sortByEndDate)[0] || null;
+
+        if (plan) {
+          plan.planName =
+            plan.planName ||
+            plan.plan_name ||
+            plan.name ||
+            plan.title ||
+            plan.plan_title ||
+            'Plan';
+          plan.startDate =
+            plan.startDate ||
+            plan.start_date ||
+            plan.planStartDate ||
+            plan.plan_start_date ||
+            plan.createdAt ||
+            plan.created_at ||
+            null;
+          plan.endDate =
+            plan.endDate ||
+            plan.end_date ||
+            plan.planEndDate ||
+            plan.plan_end_date ||
+            null;
+        }
 
         /* WORKOUT */
         const myWorkout = workoutRes.data.find(
@@ -145,7 +204,7 @@ const Dashboard = () => {
       }
     };
 
-    const cacheKey = user.id;
+    const cacheKey = resolvedUserId;
     fetchDashboardData(abortController.signal, cacheKey);
 
     return () => {
@@ -162,7 +221,16 @@ const Dashboard = () => {
 
         <StatCard
           title="ACTIVE PLAN"
-          value={dashboardData.userPlan?.planName || "No Plan"}
+          value={
+            dashboardData.userPlan?.planName ||
+            dashboardData.userPlan?.plan_name ||
+            dashboardData.userPlan?.name ||
+            dashboardData.userPlan?.title ||
+            dashboardData.userPlan?.plan_title ||
+            dashboardData.userPlan?.planId ||
+            dashboardData.userPlan?.plan_id ||
+            "No Plan"
+          }
           sub={`${formatDate(dashboardData.userPlan?.startDate)} → ${formatDate(dashboardData.userPlan?.endDate)}`}
           icon={<CreditCard />}
           color="bg-blue-500"

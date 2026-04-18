@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../PrivateRouter/AuthContext";
 import cache from "../../cache";
 import { useAdminFilter, buildAdminFilteredUrl } from "../../utils/useAdminFilter";
+import { resolveUserId } from "../../utils/userUtils";
 
 const Pricing = () => {
   const [services, setServices] = useState([]);
@@ -108,8 +109,10 @@ const Pricing = () => {
   ];
 
   /* ================= ACTIVE PLAN ================= */
+  const resolvedUserId = resolveUserId(user);
+
   useEffect(() => {
-    if (!user?.id) {
+    if (!resolvedUserId) {
       setCheckingPlan(false);
       return;
     }
@@ -118,7 +121,7 @@ const Pricing = () => {
     
     const check = async () => {
       try {
-        const res = await api.get(`/memberships/user/${user.id}`, {
+        const res = await api.get(`/memberships/user/${resolvedUserId}`, {
           signal: abortController.signal
         });
         const active = res.data?.some((p) => p.status === "active");
@@ -134,7 +137,7 @@ const Pricing = () => {
 
     check();
     return () => abortController.abort();
-  }, [user?.id]);
+  }, [resolvedUserId]);
 
   return (
     <div className="min-h-screen text-white overflow-x-hidden">

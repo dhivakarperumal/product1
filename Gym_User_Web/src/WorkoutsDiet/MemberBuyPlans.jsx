@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../src/PrivateRouter/AuthContext";
 import api from "../../src/api";
 import { Trash2 } from "lucide-react";
+import { resolveUserId } from "../utils/userUtils";
 
 const MemberSBuyPlans = ({ preFetchedPlans }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const resolvedUserId = resolveUserId(user);
 
   const [plans, setPlans] = useState(preFetchedPlans || []);
   const [loading, setLoading] = useState(!preFetchedPlans);
@@ -26,11 +28,11 @@ const MemberSBuyPlans = ({ preFetchedPlans }) => {
     };
     fetchFeatured();
 
-    if (!user?.id || preFetchedPlans) return;
+    if (!resolvedUserId || preFetchedPlans) return;
 
     const fetchMemberships = async () => {
       try {
-        const res = await api.get(`/memberships/user/${user.id}`);
+        const res = await api.get(`/memberships/user/${resolvedUserId}`);
 
         setPlans(res.data || []);
       } catch (err) {

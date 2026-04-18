@@ -275,11 +275,48 @@ async function getLowStockAlerts(req, res) {
   }
 }
 
+// Update only stock (for checkout flow - allows authenticated users to update stock during order)
+async function updateProductStock(req, res) {
+  try {
+    const { id } = req.params;
+    const idNum = parseInt(id, 10);
+    const { stock } = req.body;
+
+    if (!stock || typeof stock !== 'object') {
+      return res.status(400).json({ error: 'Invalid stock data' });
+    }
+
+    // Get existing product
+    const [existing] = await db.query('SELECT * FROM products WHERE id = ?', [idNum]);
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    // Update only the stock field (JSON stringify)
+    const [result] = await db.query(
+      'UPDATE products SET stock = ?, updated_by = ? WHERE id = ?',
+      [JSON.stringify(stock), getActorUuid(req.user), idNum]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    // Return updated product
+    const [rows] = await db.query('SELECT * FROM products WHERE id = ?', [idNum]);
+    res.json(parseProduct(rows[0]));
+  } catch (err) {
+    console.error('updateProductStock error', err);
+    res.status(500).json({ error: 'Update failed', detail: err.message });
+  }
+}
+
 module.exports = {
   createProduct,
   listProducts,
   getProduct,
   deleteProduct,
   updateProduct,
+  updateProductStock,
   getLowStockAlerts,
 };

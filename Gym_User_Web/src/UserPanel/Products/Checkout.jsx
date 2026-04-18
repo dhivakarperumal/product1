@@ -250,7 +250,8 @@ export default function Checkout() {
           qty: newQty,
         };
 
-        await api.put(`/products/${productId}`, {
+        // Use PATCH for stock updates (allows authenticated users during checkout)
+        await api.patch(`/products/${productId}/stock`, {
           stock: updatedStock,
         });
       }

@@ -128,7 +128,8 @@ async function createMembership(req, res) {
     // Allow admins to create memberships for anyone
     // Allow regular users to create memberships only for themselves
     const isAdmin = req.user && ['admin', 'super admin', 'superadmin'].includes(String(req.user.role || '').toLowerCase());
-    const currentUserId = req.user?.id;
+    // Use userId from JWT (set by buildAuthPayload), fallback to user_id or id
+    const currentUserId = req.user?.userId || req.user?.user_id || req.user?.id;
 
     const requestedUserId = userId || user_id || null;
     const requestedMemberId = memberId || member_id || null;
@@ -239,10 +240,11 @@ async function createMembership(req, res) {
     let createdBy = null;
     let updatedBy = null;
     if (req.user && req.user.role && String(req.user.role).toLowerCase() === 'member') {
-      // Try to get member_id from members table using user.id
+      // Try to get member_id from members table using userId from JWT
+      const memberUserId = req.user.userId || req.user.user_id || req.user.id;
       const [memberRow] = await db.query(
         `SELECT member_id FROM ${membersTable} WHERE id = ?`,
-        [req.user.id]
+        [memberUserId]
       );
       if (memberRow.length > 0 && memberRow[0].member_id) {
         createdBy = memberRow[0].member_id;
@@ -309,8 +311,13 @@ async function getUserMemberships(req, res) {
     const { userId } = req.params;
 
     const [rows] = await db.query(
-      "SELECT * FROM memberships WHERE userId = ? OR memberId = ? ORDER BY createdAt DESC",
-      [userId, userId]
+      `SELECT * FROM memberships
+       WHERE userId = ?
+          OR memberId = ?
+          OR member_id = ?
+          OR member_email = ?
+       ORDER BY createdAt DESC`,
+      [userId, userId, userId, userId]
     );
 
     res.json(rows);

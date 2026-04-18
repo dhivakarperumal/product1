@@ -344,14 +344,14 @@ export default function ProductDetails() {
 
   return (
     <div className="min-h-screen bg-black text-white p-6">
-      <div className="grid gap-10 lg:grid-cols-[1.1fr_0.95fr]">
+      <div className="grid gap-10 lg:grid-cols-[1.0fr_0.90fr]">
 
         {/* IMAGE */}
         <div className="space-y-6 rounded-[32px] border border-white/10 bg-slate-950/70 p-6 shadow-[0_40px_120px_-80px_rgba(249,115,22,0.35)]">
           <div className="overflow-hidden rounded-3xl bg-black">
             <img
               src={previewImage}
-              className="w-full h-[460px] object-contain transition duration-500"
+              className="w-[90%] mx-auto h-[460px] object-contain transition duration-500"
               alt={product.name}
             />
           </div>
@@ -401,110 +401,22 @@ export default function ProductDetails() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-4">
+              {/* <div className="flex flex-wrap items-center gap-4">
                 <div className="text-4xl font-semibold text-white">₹{pricing?.offerPrice}</div>
                 {pricing?.mrp && pricing?.mrp !== pricing?.offerPrice && (
                   <div className="text-sm text-white/50 line-through">₹{pricing.mrp}</div>
                 )}
-              </div>
+              </div> */}
 
-              <p className="text-sm leading-7 text-white/70">
-                {product.description || "Discover premium workout essentials crafted for performance, recovery, and everyday training."}
-              </p>
+            
             </div>
 
-            <div className="mt-6 grid gap-5 lg:grid-cols-[1.15fr_0.85fr] items-start">
-              <div className="space-y-5 w-full">
-                <div className="w-full rounded-3xl border border-white/10 bg-slate-900 p-5">
-                  <h2 className="text-sm font-semibold text-white/80 mb-4">Quick facts</h2>
-                  <div className="grid gap-3 text-sm text-white/70">
-                    <div className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-3">
-                      <span>Available</span>
-                      <span className="text-right text-white/80">{availableStock > 0 ? `${availableStock} items` : 'Sold out'}</span>
-                      <span>Delivery</span>
-                      <span className="text-right text-white/80">2-4 days</span>
-                      <span>Return</span>
-                      <span className="text-right text-white/80">7 days</span>
-                      <span>SKU</span>
-                      <span className="text-right text-white/80">{product.sku ?? product.id ?? 'N/A'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="w-full rounded-3xl border border-white/10 bg-slate-900 p-5">
-                  <h2 className="text-sm font-semibold text-white/80 mb-4">Variant selection</h2>
-                  <div className="space-y-4">
-                    {product.weight && product.weight.length > 0 && (
-                      <div>
-                        <label className="block text-sm font-semibold mb-3">Weight</label>
-                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                          {product.weight.map((w) => (
-                            <button
-                              key={w}
-                              onClick={() => setSelectedWeight(w)}
-                              className={`rounded-3xl border px-4 py-3 text-sm font-semibold transition ${
-                                selectedWeight === w
-                                  ? 'border-orange-500 bg-orange-500/15 text-orange-100'
-                                  : 'border-white/10 bg-slate-950 text-white/70'
-                              }`}
-                            >
-                              {w}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {product.size && product.size.length > 0 && (
-                      <div>
-                        <label className="block text-sm font-semibold mb-3">Size</label>
-                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                          {product.size.map((s) => (
-                            <button
-                              key={s}
-                              onClick={() => setSelectedSize(s)}
-                              className={`rounded-3xl border px-4 py-3 text-sm font-semibold transition ${
-                                selectedSize === s
-                                  ? 'border-orange-500 bg-orange-500/15 text-orange-100'
-                                  : 'border-white/10 bg-slate-950 text-white/70'
-                              }`}
-                            >
-                              {s}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {product.gender && product.gender.length > 0 && (
-                      <div>
-                        <label className="block text-sm font-semibold mb-3">Gender</label>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                          {product.gender.map((g) => (
-                            <button
-                              key={g}
-                              onClick={() => setSelectedGender(g)}
-                              className={`rounded-3xl border px-4 py-3 text-sm font-semibold transition ${
-                                selectedGender === g
-                                  ? 'border-orange-500 bg-orange-500/15 text-orange-100'
-                                  : 'border-white/10 bg-slate-950 text-white/70'
-                              }`}
-                            >
-                              {g}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-white/10 bg-[#0f1724] p-6 self-start">
-                <div className="space-y-4">
-                  <div className="rounded-3xl bg-slate-950/80 p-4">
+            <div className="mt-6 grid gap-5">
+              <div className="rounded-3xl border border-white/10 bg-[#0f1724] p-6 self-start w-full max-w-full min-h-full">
+                <div className="space-y-4 w-full">
+                  <div className="min-w-0 w-full rounded-3xl bg-slate-950/80 p-4">
                     <p className="text-sm uppercase tracking-[0.25em] text-white/40">Your order</p>
-                    <div className="mt-4 flex items-end justify-between gap-4">
+                    <div className="mt-4 flex w-full items-start justify-between gap-4">
                       <div>
                         <p className="text-sm text-white/60">Total price</p>
                         <p className="text-3xl font-semibold text-white">₹{pricing?.offerPrice}</p>
@@ -512,6 +424,74 @@ export default function ProductDetails() {
                       <div className="rounded-3xl bg-white/5 px-3 py-2 text-xs uppercase tracking-[0.2em] text-white/70">
                         {availableStock > 0 ? 'Ready to ship' : 'Unavailable'}
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-3xl border border-white/10 bg-slate-950/80 p-5">
+                    <h2 className="text-sm font-semibold text-white/80 mb-4">Variant selection</h2>
+                    <div className="space-y-4">
+                      {product.weight && product.weight.length > 0 && (
+                        <div>
+                          <label className="block text-sm font-semibold mb-3">Weight</label>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {product.weight.map((w) => (
+                              <button
+                                key={w}
+                                onClick={() => setSelectedWeight(w)}
+                                className={`rounded-3xl border px-3 py-2 text-sm font-semibold transition min-w-[3rem] text-center ${
+                                  selectedWeight === w
+                                    ? 'border-orange-500 bg-orange-500/15 text-orange-100'
+                                    : 'border-white/10 bg-slate-950 text-white/70'
+                                }`}
+                              >
+                                {w}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {product.size && product.size.length > 0 && (
+                        <div>
+                          <label className="block text-sm font-semibold mb-3">Size</label>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {product.size.map((s) => (
+                              <button
+                                key={s}
+                                onClick={() => setSelectedSize(s)}
+                                className={`rounded-3xl border px-3 py-2 text-sm font-semibold transition min-w-[3rem] text-center ${
+                                  selectedSize === s
+                                    ? 'border-orange-500 bg-orange-500/15 text-orange-100'
+                                    : 'border-white/10 bg-slate-950 text-white/70'
+                                }`}
+                              >
+                                {s}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {product.gender && product.gender.length > 0 && (
+                        <div>
+                          <label className="block text-sm font-semibold mb-3">Gender</label>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {product.gender.map((g) => (
+                              <button
+                                key={g}
+                                onClick={() => setSelectedGender(g)}
+                                className={`rounded-3xl border px-3 py-2 text-sm font-semibold transition min-w-[3rem] text-center ${
+                                  selectedGender === g
+                                    ? 'border-orange-500 bg-orange-500/15 text-orange-100'
+                                    : 'border-white/10 bg-slate-950 text-white/70'
+                                }`}
+                              >
+                                {g}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 

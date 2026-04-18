@@ -4,12 +4,13 @@ import { useAuth } from "../../PrivateRouter/AuthContext";
 import { CreditCard, CheckCircle, Clock, AlertCircle } from "lucide-react";
 import dayjs from "dayjs";
 import cache from "../../cache";
+import { resolveUserId } from "../../utils/userUtils";
 
 const plansCache = {};
 
 const Plans = () => {
   const { user } = useAuth();
-  const userId = user?.id;
+  const userId = resolveUserId(user);
   const isMountedRef = useRef(true);
 
   const [plans, setPlans] = useState([]);
