@@ -58,6 +58,30 @@ export default function Checkout() {
   const userId = user?.id;
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Auto-fetch member details for shipping fields
+  useEffect(() => {
+    if (!userId) return;
+    // Only set if fields are empty (don't overwrite if user already typed)
+    if (shipping.name || shipping.email || shipping.phone) return;
+
+    const fetchMember = async () => {
+      try {
+        const res = await api.get(`/members/${userId}`);
+        const m = res.data;
+        setShipping((prev) => ({
+          ...prev,
+          name: m.name || "",
+          email: m.email || "",
+          phone: m.phone || "",
+        }));
+      } catch (err) {
+        console.error("Failed to fetch member details", err);
+      }
+    };
+    fetchMember();
+    // eslint-disable-next-line
+  }, [userId]);
   const { cartItems, loading: cartLoading } = useCart();
 
   const [savedAddresses, setSavedAddresses] = useState([]);
