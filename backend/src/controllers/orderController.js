@@ -176,46 +176,102 @@ async function createOrder(req, res) {
     await connection.beginTransaction();
     console.log("Transaction started");
 
-    // Get member_uuid from authenticated user's JWT token
-    let memberUuid = data.member_uuid || null;
-    if (req.user) {
-      memberUuid = req.user.userUuid || req.user.user_uuid || data.member_uuid || null;
-    }
-    console.log("Member UUID:", memberUuid);
+    // Helper to validate and normalize UUID-like strings (reject numeric-only values)
+    const normalizeUuid = (value) => {
+      if (typeof value !== 'string') return null;
+      const trimmed = value.trim();
+      if (trimmed.length === 0) return null;
+      // Reject numeric-only values like "5" or "123"
+      if (/^\d+$/.test(trimmed)) return null;
+      return trimmed;
+    };
 
-    // Validate user_id exists in users table before storing
+    // Resolve the member's UUID from available data and membership records.
+    let memberUuid = normalizeUuid(data.member_uuid) || normalizeUuid(data.memberUuid) || null;
+    if (req.user) {
+      memberUuid =
+        normalizeUuid(req.user.memberUuid) ||
+        normalizeUuid(req.user.member_uuid) ||
+        normalizeUuid(req.user.member_id) ||
+        memberUuid ||
+        null;
+    }
+    console.log("Resolved member UUID from request/auth:", memberUuid);
+
+    // Use only a valid users.id for order.user_id. Do not store member record IDs in orders.user_id.
     let validUserId = null;
-    if (data.user_id) {
-      const [userCheck] = await connection.query(
+    let validMemberUuid = memberUuid;
+    const incomingUserId = data.user_id || req.user?.userId || req.user?.user_id || null;
+
+    if (incomingUserId) {
+      const [userRows] = await connection.query(
         'SELECT id FROM users WHERE id = ? LIMIT 1',
-        [data.user_id]
+        [incomingUserId]
       );
-      if (userCheck.length > 0) {
-        validUserId = data.user_id;
-        console.log("Valid user_id found:", validUserId);
+      if (userRows.length > 0) {
+        validUserId = incomingUserId;
+        console.log("Valid users.id found for order.user_id:", validUserId);
       } else {
-        console.warn("User ID", data.user_id, "does not exist. Will insert NULL.");
+        const [memberRows] = await connection.query(
+          'SELECT member_id FROM members WHERE id = ? LIMIT 1',
+          [incomingUserId]
+        );
+        if (memberRows.length > 0) {
+          const memberIdValue = normalizeUuid(memberRows[0].member_id);
+          if (memberIdValue) {
+            validMemberUuid = memberIdValue;
+            console.log("Resolved member_uuid from members.id:", validMemberUuid);
+          }
+        } else {
+          console.warn("Incoming user_id", incomingUserId, "is not a valid users.id or members.id. Will omit order.user_id.");
+        }
       }
     }
-    console.log("Storing user_id:", validUserId);
 
-    // Insert order
+    // For member / trainer sessions where req.user is a members record with only id, resolve member_uuid if missing.
+    if (!validMemberUuid && req.user && ['member', 'trainer'].includes((req.user.role || '').toLowerCase())) {
+      const memberLookupId = req.user.userId || req.user.user_id || req.user.id;
+      if (memberLookupId) {
+        const [memberRows] = await connection.query(
+          'SELECT member_id FROM members WHERE id = ? LIMIT 1',
+          [memberLookupId]
+        );
+        if (memberRows.length > 0) {
+          const memberIdValue = normalizeUuid(memberRows[0].member_id);
+          if (memberIdValue) {
+            validMemberUuid = memberIdValue;
+            console.log("Resolved member_uuid from req.user member record:", validMemberUuid);
+          }
+        }
+      }
+    }
+
+    console.log("Storing user_id:", validUserId, "member_uuid:", validMemberUuid);
+
+    // If still no member UUID, this order cannot be created without audit trail
+    if (!validMemberUuid) {
+      console.warn("No valid member UUID found for order. Cannot create order without member UUID.");
+      return res.status(400).json({ message: "Member UUID required for order creation" });
+    }
+
     const insertOrderQuery = `INSERT INTO orders 
       (order_id,user_id,member_uuid,status,payment_status,total,payment_method,payment_id,order_type,shipping,billing_address,billing_name,billing_email,billing_phone,pickup,order_track,notes,created_by,updated_by)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
-    
-    const createdBy = getActorUuid(req.user) || null;
-    
+
+    // created_by and updated_by must store the same member_uuid value (guaranteed to be a valid UUID, not numeric)
+    const createdBy = validMemberUuid;
+    const updatedBy = validMemberUuid;
+
     // Use shipping address as billing address if not provided separately
     const billingAddress = data.billing_address || data.shipping;
     const billingName = data.billing_name || data.shipping?.name || null;
     const billingEmail = data.billing_email || data.shipping?.email || null;
     const billingPhone = data.billing_phone || data.shipping?.phone || null;
-    
+
     const orderValues = [
       data.order_id,
       validUserId || null,
-      memberUuid,
+      validMemberUuid || null,
       data.status || "orderPlaced",
       data.payment_status || "pending",
       data.total || 0,
@@ -231,7 +287,7 @@ async function createOrder(req, res) {
       JSON.stringify(data.order_track || []),
       data.notes || null,
       createdBy,
-      createdBy
+      updatedBy
     ];
     
     console.log("Inserting order with values:", orderValues);

@@ -17,6 +17,7 @@ export const buildAddressHash = (data) =>
 /**
  * SAVE USER ADDRESS (NO DUPLICATES)
  * Used by BOTH Checkout & AddressForm
+ * Non-blocking: silently fails if user doesn't exist yet
  */
 export const saveUserAddress = async (
   userId,
@@ -38,9 +39,15 @@ export const saveUserAddress = async (
     }
   } catch (err) {
     console.error("saveUserAddress error", err.response || err);
+    // Silently ignore if user doesn't exist (404) - address can be saved later
+    if (err.response?.status === 404) {
+      console.warn("User not found in database yet. Address save skipped (non-blocking).");
+      return;
+    }
     if (err.response?.data?.message?.includes("exists")) {
       throw new Error("DUPLICATE_ADDRESS");
     }
-    throw err;
+    // For other errors, log but don't block checkout
+    console.warn("Address save failed (non-blocking):", err.message);
   }
 };

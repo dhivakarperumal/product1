@@ -35,8 +35,11 @@ export const CartProvider = ({ children }) => {
   // Add to cart
   const addToCart = useCallback(async (payload) => {
     try {
-      await api.post("/cart", payload);
-      setCartCount((prev) => prev + 1);
+      const res = await api.post("/cart", payload);
+      const items = Array.isArray(res.data) ? res.data : [];
+      setCartItems(items);
+      setCartCount(items.length);
+      setLastFetch(Date.now());
       return true;
     } catch (err) {
       console.error("Failed to add to cart:", err);
@@ -48,7 +51,9 @@ export const CartProvider = ({ children }) => {
   const updateQty = useCallback(async (itemId, quantity) => {
     if (quantity < 1) return false;
     try {
-      await api.put(`/cart/${itemId}`, { quantity });
+      const res = await api.put(`/cart/${itemId}`, { quantity });
+      const updatedItem = res.data;
+      setCartItems((prev) => prev.map((item) => (item.id === itemId ? updatedItem : item)));
       return true;
     } catch (err) {
       console.error("Failed to update quantity:", err);
@@ -60,6 +65,7 @@ export const CartProvider = ({ children }) => {
   const removeFromCart = useCallback(async (itemId) => {
     try {
       await api.delete(`/cart/${itemId}`);
+      setCartItems((prev) => prev.filter((item) => item.id !== itemId));
       setCartCount((prev) => Math.max(0, prev - 1));
       return true;
     } catch (err) {

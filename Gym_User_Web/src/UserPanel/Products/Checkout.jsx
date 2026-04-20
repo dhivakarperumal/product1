@@ -188,9 +188,15 @@ export default function Checkout() {
         weight: i.weight || i.size || i.variant || "",
       }));
 
+      const resolvedUserId = user.user_id || user.userId || user.id;
+      const isMemberAccount = ['member', 'trainer'].includes((user.role || '').toLowerCase());
+      const orderUserId = isMemberAccount && !user.user_id ? null : resolvedUserId;
+      const orderMemberUuid = user.userUuid || user.user_uuid || null;
+
       const orderData = {
         order_id: orderId,
-        user_id: userId,
+        user_id: orderUserId,
+        member_uuid: orderMemberUuid,
         order_type: orderType,
         items: formattedItems,
         shipping: orderType === "DELIVERY" ? shipping : null,

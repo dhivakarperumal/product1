@@ -3,13 +3,15 @@ import api from "../../api";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../../PrivateRouter/AuthContext";
+import { useCart } from "../../CartContext";
 import cache from "../../cache";
 import { useAdminFilter, buildAdminFilteredUrl } from "../../utils/useAdminFilter";
 
 const Products = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const userId = user?.id;
+  const userId = user?.id || user?.userId || user?.user_id;
+  const { addToCart: addToCartContext } = useCart();
   const { adminId, isFiltered, loading: adminLoading } = useAdminFilter();
 
   const [products, setProducts] = useState([]);
@@ -219,8 +221,12 @@ const Products = () => {
     };
 
     try {
-      await api.post("/cart", payload);
-      toast.success("Added to cart");
+      const success = await addToCartContext(payload);
+      if (success) {
+        toast.success("Added to cart");
+      } else {
+        toast.error("Failed to add to cart");
+      }
     } catch (err) {
       console.error("addToCart failed", err);
       toast.error("Failed to add to cart");

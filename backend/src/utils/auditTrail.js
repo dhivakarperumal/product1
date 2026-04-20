@@ -7,17 +7,23 @@
  * @param {Object} user - The user object from req.user (set by auth middleware)
  * @returns {string|null} The UUID if found, null otherwise
  */
+const isNonEmptyString = (value) => typeof value === 'string' && value.trim().length > 0;
+const looksLikeUuid = (value) => isNonEmptyString(value) && /[^0-9]/.test(value);
+const normalizeUuid = (value) => (looksLikeUuid(value) ? value.trim() : null);
+
 const getActorUuid = (user) => {
   if (!user) return null;
-  
-  // Check camelCase first (from JWT), then snake_case (legacy), then created_by (for members)
+
+  // Prioritize explicit UUID fields. Reject numeric-only values like "0".
   return (
-    user.adminUuid ||
-    user.userUuid ||
-    user.admin_uuid ||
-    user.user_uuid ||
-    user.created_by ||
-    user.uuid ||
+    normalizeUuid(user.memberUuid) ||
+    normalizeUuid(user.member_uuid) ||
+    normalizeUuid(user.member_id) ||
+    normalizeUuid(user.adminUuid) ||
+    normalizeUuid(user.userUuid) ||
+    normalizeUuid(user.admin_uuid) ||
+    normalizeUuid(user.user_uuid) ||
+    normalizeUuid(user.uuid) ||
     null
   );
 };

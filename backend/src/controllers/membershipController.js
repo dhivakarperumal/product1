@@ -236,6 +236,16 @@ async function createMembership(req, res) {
       }
     }
 
+    // Helper to validate and normalize UUID-like strings (reject numeric-only values)
+    const normalizeUuid = (value) => {
+      if (typeof value !== 'string') return null;
+      const trimmed = value.trim();
+      if (trimmed.length === 0) return null;
+      // Reject numeric-only values like "5" or "123"
+      if (/^\d+$/.test(trimmed)) return null;
+      return trimmed;
+    };
+
     // Set created_by and updated_by to member_id if user is a member, else fallback to UUID
     let createdBy = null;
     let updatedBy = null;
@@ -246,11 +256,12 @@ async function createMembership(req, res) {
         `SELECT member_id FROM ${membersTable} WHERE id = ?`,
         [memberUserId]
       );
-      if (memberRow.length > 0 && memberRow[0].member_id) {
-        createdBy = memberRow[0].member_id;
-        updatedBy = memberRow[0].member_id;
+      const memberIdValue = memberRow.length > 0 ? normalizeUuid(memberRow[0].member_id) : null;
+      if (memberIdValue) {
+        createdBy = memberIdValue;
+        updatedBy = memberIdValue;
       } else {
-        // fallback to UUID if not found
+        // fallback to UUID if not found or not a valid UUID
         const auditTrail = createAuditTrail(req.user);
         createdBy = auditTrail.created_by;
         updatedBy = auditTrail.updated_by;

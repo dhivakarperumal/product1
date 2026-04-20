@@ -21,7 +21,7 @@ const makeImageUrl = (img) => {
 
 const Cart = () => {
   const { user } = useAuth();
-  const userId = user?.id;
+  const userId = user?.id || user?.userId || user?.user_id;
   const navigate = useNavigate();
   const { cartItems, fetchCart, updateQty, removeFromCart, loading } = useCart();
   const [localItems, setLocalItems] = useState([]);
@@ -32,7 +32,7 @@ const Cart = () => {
       navigate("/login");
       return;
     }
-    fetchCart(userId);
+    fetchCart(userId, true);
   }, [userId, fetchCart, navigate]);
 
   // Sync cart items

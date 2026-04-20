@@ -49,7 +49,7 @@ function normalize(row) {
 
 async function listCart(req, res) {
   try {
-    const { userId } = req.query;
+    const userId = req.query.userId || req.user?.id || req.user?.userId || req.user?.user_id || null;
     if (!userId) return res.status(400).json({ error: 'userId required' });
     const [rows] = await db.query(
       `SELECT c.*, p.name as product_name_join, p.images as product_images
@@ -81,7 +81,7 @@ async function addToCart(req, res) {
   try {
     console.log('addToCart body', req.body);
     const {
-      userId,
+      userId: bodyUserId,
       productId,
       variant,
       quantity,
@@ -89,9 +89,10 @@ async function addToCart(req, res) {
       productName,
       productImage,
     } = req.body || {};
+    const userId = bodyUserId || req.user?.id || req.user?.userId || req.user?.user_id || null;
     if (!userId || !productId) {
       const msg = 'userId and productId required';
-      console.warn('addToCart validation failed:', msg, req.body);
+      console.warn('addToCart validation failed:', msg, { bodyUserId, productId, reqUser: req.user });
       return res.status(400).json({ error: msg });
     }
     const qty = quantity || 1;
@@ -130,9 +131,11 @@ async function updateCartItem(req, res) {
     const { id } = req.params;
     const { quantity } = req.body;
     if (!quantity) return res.status(400).json({ error: 'quantity required' });
+    const userId = req.user?.id || req.user?.userId || req.user?.user_id || null;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
     const [result] = await db.query(
-      'UPDATE cart_items SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [quantity, id]
+      'UPDATE cart_items SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+      [quantity, id, userId]
     );
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Item not found' });
@@ -148,7 +151,9 @@ async function updateCartItem(req, res) {
 async function removeCartItem(req, res) {
   try {
     const { id } = req.params;
-    const [result] = await db.query('DELETE FROM cart_items WHERE id = ?', [id]);
+    const userId = req.user?.id || req.user?.userId || req.user?.user_id || null;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const [result] = await db.query('DELETE FROM cart_items WHERE id = ? AND user_id = ?', [id, userId]);
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Item not found' });
     }

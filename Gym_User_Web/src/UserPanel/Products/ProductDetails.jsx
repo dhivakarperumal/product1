@@ -26,7 +26,7 @@ export default function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const userId = user?.id;
+  const userId = user?.id || user?.userId || user?.user_id;
   const { addToCart } = useCart();
   const isMountedRef = useRef(true);
 
@@ -236,8 +236,8 @@ export default function ProductDetails() {
       quantity,
       variant: variantKey,
       price: Number(pricing?.offerPrice ?? pricing?.mrp ?? 0),
-      name: product.name,
-      image: product.images?.[0] || "",
+      productName: product.name,
+      productImage: product.images?.[0] || "",
     };
 
     try {

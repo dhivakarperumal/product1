@@ -25,22 +25,23 @@ const parseProduct = (product) => {
   };
 };
 
+const isAdminOrTrainer = (user) => {
+  if (!user) return false;
+  const role = String(user.role || '').toLowerCase();
+  return ['admin', 'trainer'].includes(role);
+};
+
 const buildProductFilter = (user) => {
-  // Super admin sees all products
-  if (user && user.role === 'super admin') {
+  // Super admin and regular members/users see all products
+  if (!isAdminOrTrainer(user)) {
     return { sql: '', params: [] };
   }
 
-  // Admin/trainer with UUID sees their own products
-  if (user) {
-    const adminUuid = getActorUuid(user);
-    if (adminUuid) {
-      return { sql: ' WHERE created_by = ?', params: [adminUuid] };
-    }
+  const adminUuid = getActorUuid(user);
+  if (adminUuid) {
+    return { sql: ' WHERE created_by = ?', params: [adminUuid] };
   }
 
-  // Regular users, members, and unauthenticated users see all products
-  // (no restriction)
   return { sql: '', params: [] };
 };
 
@@ -102,22 +103,22 @@ async function listProducts(req, res) {
     if (createdByParam) {
       // Validate that user is authorized to view this admin's data
       if (!isSuperAdmin && user) {
-        const userAdminUuid = getActorUuid(user);
+        const userAdminUuid = user?.adminUuid || user?.admin_uuid || user?.userUuid || user?.user_uuid || user?.created_by || null;
         if (!userAdminUuid || userAdminUuid !== createdByParam) {
           return res.status(403).json({ error: 'Not authorized to view this data' });
         }
       }
       whereConditions.push('created_by = ?');
       params.push(createdByParam);
-    } else if (!isSuperAdmin && user) {
-      // No query param: apply filter based on user role
+    } else if (!isSuperAdmin && user && isAdminOrTrainer(user)) {
+      // Apply filter only for admin/trainer users to show their own products.
       const { sql: filterSql, params: filterParams } = buildProductFilter(user);
       if (filterSql) {
         whereConditions.push(filterSql.replace(' WHERE ', ''));
         params.push(...filterParams);
       }
     }
-    // Super admin and unauthenticated users see all products
+    // Super admin, regular members/users, and unauthenticated users see all products
     
     if (whereConditions.length > 0) {
       sql += ' WHERE ' + whereConditions.join(' AND ');
@@ -142,7 +143,7 @@ async function getProduct(req, res) {
     let query = 'SELECT * FROM products WHERE id = ?';
     const queryParams = [idNum];
 
-    if (user && user.role !== 'super admin') {
+    if (user && user.role !== 'super admin' && isAdminOrTrainer(user)) {
       const adminUuid = getActorUuid(user);
       if (!adminUuid) {
         return res.status(403).json({ error: 'Not authorized' });

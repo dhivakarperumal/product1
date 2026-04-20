@@ -12,10 +12,10 @@ const router = express.Router();
 // GET /api/cart?userId=...
 router.get('/', authenticateToken, listCart);
 // POST /api/cart
-router.post('/', addToCart);
+router.post('/', authenticateToken, addToCart);
 // PUT /api/cart/:id
-router.put('/:id', updateCartItem);
+router.put('/:id', authenticateToken, updateCartItem);
 // DELETE /api/cart/:id
-router.delete('/:id', removeCartItem);
+router.delete('/:id', authenticateToken, removeCartItem);
 
 module.exports = router;

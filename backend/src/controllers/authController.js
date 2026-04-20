@@ -16,6 +16,7 @@ function buildAuthPayload(user) {
     userId: user.id || null,
     user_id: user.user_id || null,
     userUuid: user.user_uuid || user.userUuid || null,
+    memberUuid: user.member_id || user.memberId || user.member_uuid || user.memberUuid || null,
     role: user.role,
     email: user.email,
     username: user.username || null,
