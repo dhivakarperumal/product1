@@ -35,11 +35,8 @@ export const CartProvider = ({ children }) => {
   // Add to cart
   const addToCart = useCallback(async (payload) => {
     try {
-      const res = await api.post("/cart", payload);
-      const items = Array.isArray(res.data) ? res.data : [];
-      setCartItems(items);
-      setCartCount(items.length);
-      setLastFetch(Date.now());
+      await api.post("/cart", payload);
+      setCartCount((prev) => prev + 1);
       return true;
     } catch (err) {
       console.error("Failed to add to cart:", err);
