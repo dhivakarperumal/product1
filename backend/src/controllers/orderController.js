@@ -36,17 +36,15 @@ async function getAllOrders(req, res) {
         WHERE m.created_by = ?
         ORDER BY o.created_at DESC`;
       params.push(filterAdminUuid);
-    } else if (!isSuperAdmin && req.user) {
-      // Regular admin: show only orders for members managed by this admin
-      if (adminUuid) {
-        ordersQuery = `SELECT o.* FROM orders o
-          LEFT JOIN members m ON o.member_uuid = m.member_id
-          WHERE m.created_by = ?
-          ORDER BY o.created_at DESC`;
-        params.push(adminUuid);
-      }
+    } else if (req.user && adminUuid) {
+      // Both super admin (no filter) and regular admin: show only orders for members managed by this admin
+      ordersQuery = `SELECT o.* FROM orders o
+        LEFT JOIN members m ON o.member_uuid = m.member_id
+        WHERE m.created_by = ?
+        ORDER BY o.created_at DESC`;
+      params.push(adminUuid);
     } else {
-      // Super admin with no filter: show all orders
+      // Fallback: show all orders (shouldn't happen in normal cases)
       ordersQuery = 'SELECT * FROM orders ORDER BY created_at DESC';
     }
 
@@ -554,17 +552,15 @@ async function getTodayOrders(req, res) {
         WHERE DATE(o.created_at) = CURDATE() AND m.created_by = ?
         ORDER BY o.created_at DESC`;
       params.push(filterAdminUuid);
-    } else if (!isSuperAdmin && req.user) {
-      // Regular admin: show only today's orders for members managed by this admin
-      if (adminUuid) {
-        ordersQuery = `SELECT o.* FROM orders o
-          LEFT JOIN members m ON o.member_uuid = m.member_id
-          WHERE DATE(o.created_at) = CURDATE() AND m.created_by = ?
-          ORDER BY o.created_at DESC`;
-        params.push(adminUuid);
-      }
+    } else if (req.user && adminUuid) {
+      // Both super admin (no filter) and regular admin: show only today's orders for members managed by this admin
+      ordersQuery = `SELECT o.* FROM orders o
+        LEFT JOIN members m ON o.member_uuid = m.member_id
+        WHERE DATE(o.created_at) = CURDATE() AND m.created_by = ?
+        ORDER BY o.created_at DESC`;
+      params.push(adminUuid);
     } else {
-      // Super admin with no filter: show all today's orders
+      // Fallback: show all today's orders (shouldn't happen in normal cases)
       ordersQuery = 'SELECT * FROM orders WHERE DATE(created_at) = CURDATE() ORDER BY created_at DESC';
     }
 

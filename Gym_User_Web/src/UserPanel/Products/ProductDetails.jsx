@@ -4,6 +4,7 @@ import api from "../../api";
 import toast from "react-hot-toast";
 import { useAuth } from "../../PrivateRouter/AuthContext";
 import { useCart } from "../../CartContext";
+import { useAdminFilter, buildAdminFilteredUrl } from "../../utils/useAdminFilter";
 
 // ✅ Product cache with local storage
 const productCache = {};
@@ -28,6 +29,7 @@ export default function ProductDetails() {
   const { user } = useAuth();
   const userId = user?.id || user?.userId || user?.user_id;
   const { addToCart } = useCart();
+  const { adminId, loading: adminLoading } = useAdminFilter();
   const isMountedRef = useRef(true);
 
   const [product, setProduct] = useState(null);
@@ -119,14 +121,16 @@ export default function ProductDetails() {
     };
   }, [id, initializeVariants]);
 
-  // ✅ Fetch related products (same category) - optimized with limit
+  // ✅ Fetch related products (same category) - optimized with limit + admin filter
   useEffect(() => {
     const abortController = new AbortController();
     
     const loadRelated = async () => {
-      if (!product) return;
+      if (!product || adminLoading) return;
       try {
-        const res = await api.get(`/products?category=${product.category}&limit=5`, {
+        const baseUrl = `/products?category=${product.category}&limit=5`;
+        const url = buildAdminFilteredUrl(baseUrl, adminId);
+        const res = await api.get(url, {
           signal: abortController.signal
         });
         const filtered = res.data?.filter((p) => p.id !== id).slice(0, 4);
@@ -140,7 +144,7 @@ export default function ProductDetails() {
     loadRelated();
     
     return () => abortController.abort();
-  }, [product, id]);
+  }, [product, id, adminId, adminLoading]);
 
   // ✅ Variant key calculation
   const getVariantKey = () => {

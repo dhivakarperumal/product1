@@ -90,6 +90,7 @@ async function listProducts(req, res) {
   try {
     const user = req.user;
     const createdByParam = req.query.created_by;
+    const categoryParam = req.query.category;
     const { limit = 20, offset = 0 } = req.query;
     
     // Check if user is super admin
@@ -119,6 +120,12 @@ async function listProducts(req, res) {
       }
     }
     // Super admin, regular members/users, and unauthenticated users see all products
+    
+    // Handle category query parameter
+    if (categoryParam) {
+      whereConditions.push('category = ?');
+      params.push(categoryParam);
+    }
     
     if (whereConditions.length > 0) {
       sql += ' WHERE ' + whereConditions.join(' AND ');
