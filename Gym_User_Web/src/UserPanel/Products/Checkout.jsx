@@ -175,18 +175,29 @@ export default function Checkout() {
     try {
       const orderId = await generateOrderNumber();
 
-      const formattedItems = items.map((i) => ({
-        product_id: i.productId || i.id,
-        product_name: i.name || i.product_name || "Unknown Product",
-        price: Number(i.price) || 0,
-        qty: Number(i.quantity) || 0,
-        size: i.size || i.weight || i.variant || null,
-        color: i.color || null,
-        image:
-          i.image || (Array.isArray(i.images) ? i.images[0] : i.images) || "",
-        variant: i.variant || i.weight || i.size || "",
-        weight: i.weight || i.size || i.variant || "",
-      }));
+      // Ensure every item has an image, fallback to product data if missing
+      const formattedItems = items.map((i) => {
+        let image = i.image || (Array.isArray(i.images) ? i.images[0] : i.images) || "";
+        if (!image && window.cache && window.cache.products) {
+          const prod = window.cache.products.find(
+            (p) => p.id === i.productId || p.product_id === i.productId
+          );
+          if (prod) {
+            image = Array.isArray(prod.images) ? prod.images[0] : prod.images || "";
+          }
+        }
+        return {
+          product_id: i.productId || i.id,
+          product_name: i.name || i.product_name || "Unknown Product",
+          price: Number(i.price) || 0,
+          qty: Number(i.quantity) || 0,
+          size: i.size || i.weight || i.variant || null,
+          color: i.color || null,
+          image,
+          variant: i.variant || i.weight || i.size || "",
+          weight: i.weight || i.size || i.variant || "",
+        };
+      });
 
       const resolvedUserId = user.user_id || user.userId || user.id;
       const isMemberAccount = ['member', 'trainer'].includes((user.role || '').toLowerCase());

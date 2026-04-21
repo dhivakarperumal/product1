@@ -79,14 +79,6 @@ app.use(
   })
 );
 
-// Correct the wildcard route for preflight requests
-app.options('*', (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.sendStatus(204);
-});
 
 // allow large payloads (images encoded as base64 can be big)
 app.use(express.json({ limit: '50mb' }));
