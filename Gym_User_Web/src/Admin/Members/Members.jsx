@@ -7,9 +7,12 @@ import cache from "../../cache";
 import * as XLSX from "xlsx";
 import DateRangeFilter from "../DateRangeFilter";
 import { filterByDateRange } from "../utils/dateUtils";
+import { useAuth } from "../../PrivateRouter/AuthContext";
+import AdminFilter from "../../components/AdminFilter";
 
 
 const Members = () => {
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const querySearch = searchParams.get("search") || "";
   const [search, setSearch] = useState(querySearch);
@@ -18,7 +21,11 @@ const Members = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [dateRange, setDateRange] = useState({ type: 'All Time', range: null });
   const [loading, setLoading] = useState(() => !cache.adminMembers);
+  const [adminFilter, setAdminFilter] = useState(null);
   const isMountedRef = useRef(true);
+
+  // Check if user is super admin
+  const isSuperAdmin = user?.role === 'super admin';
 
   useEffect(() => {
     setSearch(querySearch);
@@ -27,13 +34,19 @@ const Members = () => {
   const navigate = useNavigate();
 
   // 🔄 FETCH MEMBERS
-  const fetchMembers = async () => {
+  const fetchMembers = async (adminUuid = null) => {
     if (!cache.adminMembers && isMountedRef.current) {
       setLoading(true);
     }
 
     try {
-      const res = await api.get("/members");
+      // Build query params
+      const params = {};
+      if (adminUuid) {
+        params.adminUuid = adminUuid;
+      }
+      
+      const res = await api.get("/members", { params });
       const data = Array.isArray(res.data) ? res.data : [];
       if (isMountedRef.current) {
         setMembers(data);
@@ -45,6 +58,13 @@ const Members = () => {
         setLoading(false);
       }
     }
+  };
+
+  // Handle admin filter change
+  const handleAdminFilterChange = (adminUuid) => {
+    setAdminFilter(adminUuid);
+    setCurrentPage(1);
+    fetchMembers(adminUuid);
   };
 
   useEffect(() => {
@@ -94,7 +114,7 @@ const Members = () => {
     try {
       await api.delete(`/members/${idToDelete}`);
       toast.success("Deleted successfully");
-      fetchMembers();
+      fetchMembers(adminFilter);
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.error || "Delete failed");
@@ -221,7 +241,7 @@ const Members = () => {
           toast.error(`${errorCount} member${errorCount > 1 ? 's' : ''} failed to import`);
         }
 
-        fetchMembers();
+        fetchMembers(adminFilter);
       } catch (err) {
         console.error(err);
         toast.error("Import failed");
@@ -301,6 +321,15 @@ const Members = () => {
           </button>
 
           <DateRangeFilter onRangeChange={(type, range) => setDateRange({ type, range })} />
+
+          {/* Admin Filter - Only visible to super admins */}
+          {isSuperAdmin && (
+            <AdminFilter 
+              value={adminFilter} 
+              onChange={handleAdminFilterChange}
+              disabled={loading}
+            />
+          )}
 
           <div className="flex bg-white/10 p-1 rounded-xl border border-white/20 ml-0 sm:ml-2">
             <button

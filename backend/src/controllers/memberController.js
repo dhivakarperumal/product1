@@ -38,11 +38,19 @@ async function getAllMembers(req, res) {
     const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
     const adminUuid = getAdminUuid(req.user);
     
+    // Get optional admin filter from query params (for super admin)
+    const filterAdminUuid = req.query.adminUuid || req.query.admin_uuid || null;
+    
     let whereClauses = [];
     let params = [];
     
+    // If super admin has selected a specific admin to filter by
+    if (isSuperAdmin && filterAdminUuid) {
+      whereClauses.push('gm.created_by = ?');
+      params.push(filterAdminUuid);
+    }
     // If not super admin, filter by created_by (admin_uuid)
-    if (!isSuperAdmin && req.user) {
+    else if (!isSuperAdmin && req.user) {
       if (adminUuid) {
         whereClauses.push('gm.created_by = ?');
         params.push(adminUuid);

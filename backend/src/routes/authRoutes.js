@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, googleLogin, registerSuperAdmin, registerAdmin, registerMember, setMemberPassword } = require('../controllers/authController');
+const { register, login, googleLogin, registerSuperAdmin, registerAdmin, registerMember, setMemberPassword, getAllAdmins } = require('../controllers/authController');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 // Public endpoints
@@ -13,5 +13,8 @@ router.post('/set-password', setMemberPassword);
 router.post('/register-superadmin', registerSuperAdmin);
 router.post('/register-admin', authenticateToken, requireAdmin, registerAdmin);
 router.post('/register-member', registerMember);
+
+// Get all admins (for super admin filtering)
+router.get('/admins', authenticateToken, getAllAdmins);
 
 module.exports = router;

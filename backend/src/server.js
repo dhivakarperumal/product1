@@ -47,7 +47,6 @@ app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) {
-        // some tools (curl, Postman) omit origin
         return callback(null, true);
       }
       try {
@@ -57,10 +56,7 @@ app.use(
         if (isLocalhost) {
           return callback(null, true);
         }
-      } catch (err) {
-        // malformed origin, reject
-      }
-      // allow production domains
+      } catch (err) {}
       const allowed = [
         "https://product1.qtechx.com",
         "https://www.product1.qtechx.com",
@@ -70,17 +66,27 @@ app.use(
       if (allowed.includes(origin)) {
         return callback(null, true);
       }
-      // Also allow vercel deployments
       if (origin && origin.includes("vercel.app")) {
         return callback(null, true);
       }
       callback(new Error("Not allowed by CORS"));
     },
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   })
 );
+
+// Correct the wildcard route for preflight requests
+app.options('/*', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.sendStatus(204);
+});
 
 // allow large payloads (images encoded as base64 can be big)
 app.use(express.json({ limit: '50mb' }));

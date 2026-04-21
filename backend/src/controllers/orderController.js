@@ -22,26 +22,35 @@ async function getAllOrders(req, res) {
   try {
     // Check if user is super admin
     const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
-    
-    let whereClauses = [];
+    const adminUuid = getAdminUuid(req.user);
+    // Get optional admin filter from query params (for super admin)
+    const filterAdminUuid = req.query.adminUuid || req.query.admin_uuid || null;
+
+    let ordersQuery = '';
     let params = [];
-    
-    // If not super admin, filter by created_by (admin_uuid)
-    if (!isSuperAdmin && req.user) {
-      const adminUuid = getAdminUuid(req.user);
+
+    if (isSuperAdmin && filterAdminUuid) {
+      // Super admin filtering by specific admin: show orders for members managed by that admin
+      ordersQuery = `SELECT o.* FROM orders o
+        LEFT JOIN members m ON o.member_uuid = m.member_id
+        WHERE m.created_by = ?
+        ORDER BY o.created_at DESC`;
+      params.push(filterAdminUuid);
+    } else if (!isSuperAdmin && req.user) {
+      // Regular admin: show only orders for members managed by this admin
       if (adminUuid) {
-        whereClauses.push('created_by = ?');
+        ordersQuery = `SELECT o.* FROM orders o
+          LEFT JOIN members m ON o.member_uuid = m.member_id
+          WHERE m.created_by = ?
+          ORDER BY o.created_at DESC`;
         params.push(adminUuid);
       }
+    } else {
+      // Super admin with no filter: show all orders
+      ordersQuery = 'SELECT * FROM orders ORDER BY created_at DESC';
     }
 
-    const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-
-    const [orders] = await pool.query(
-      `SELECT * FROM orders ${whereClause} ORDER BY created_at DESC`,
-      params
-    );
-    
+    const [orders] = await pool.query(ordersQuery, params);
     if (orders.length === 0) {
       return res.json([]);
     }
@@ -104,23 +113,37 @@ async function getOrder(req, res) {
 async function updateOrderStatus(req, res) {
   const { id } = req.params;
   const { status, cancelledReason, courierName, docketNumber } = req.body;
-  if (!status) return res.status(400).json({ message: 'status required' });
+  if (!status) {
+    console.warn(`[OrderStatus] No status provided in request body for order_id:`, id, 'Body:', req.body);
+    return res.status(400).json({ message: 'status required' });
+  }
   try {
+    console.log(`[OrderStatus] Attempting to update order_id:`, id, 'to status:', status, 'Body:', req.body, 'User:', req.user);
+    // Normalize order_id format if needed
+    let normalizedId = id;
+    if (typeof id === 'string' && !id.startsWith('ORD')) {
+      const num = parseInt(id.replace(/[^0-9]/g, ''), 10) || 0;
+      normalizedId = `ORD${String(num).padStart(3, '0')}`;
+    }
     // Get the current order_track
     const [existingOrder] = await pool.query(
       'SELECT order_track FROM orders WHERE order_id = ?',
-      [id]
+      [normalizedId]
     );
 
+    if (existingOrder.length === 0) {
+      console.warn(`[OrderStatus] Order not found for id:`, normalizedId, 'Requested by user:', req.user);
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
     let trackArray = [];
-    if (existingOrder.length > 0 && existingOrder[0].order_track) {
+    if (existingOrder[0].order_track) {
       try {
         trackArray = JSON.parse(existingOrder[0].order_track);
       } catch (e) {
         trackArray = [];
       }
     }
-    
     // Add new status to track
     trackArray.push({ status, time: new Date() });
 
@@ -140,15 +163,23 @@ async function updateOrderStatus(req, res) {
     }
 
     query += ' WHERE order_id = ?';
-    params.push(id);
+    params.push(normalizedId);
 
-    await pool.query(query, params);
-    
-    const [updated] = await pool.query('SELECT * FROM orders WHERE order_id = ?', [id]);
+    const [result] = await pool.query(query, params);
+    if (result.affectedRows === 0) {
+      console.error(`[OrderStatus] Update failed for order_id:`, normalizedId, 'Query:', query, 'Params:', params, 'User:', req.user);
+      return res.status(500).json({ message: 'Failed to update order status (no rows affected)' });
+    }
+
+    const [updated] = await pool.query('SELECT * FROM orders WHERE order_id = ?', [normalizedId]);
+    if (!updated[0]) {
+      console.error(`[OrderStatus] Order updated but not found for id:`, normalizedId, 'User:', req.user);
+      return res.status(500).json({ message: 'Order updated but not found' });
+    }
     res.json(parseOrder(updated[0]));
   } catch (err) {
-    console.error('updateOrderStatus error', err);
-    res.status(500).json({ message: 'Server error' });
+    console.error('[OrderStatus] updateOrderStatus error', err, 'Request body:', req.body, 'User:', req.user);
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 }
 
@@ -254,19 +285,28 @@ async function createOrder(req, res) {
       return res.status(400).json({ message: "Member UUID required for order creation" });
     }
 
-    const insertOrderQuery = `INSERT INTO orders 
-      (order_id,user_id,member_uuid,status,payment_status,total,payment_method,payment_id,order_type,shipping,billing_address,billing_name,billing_email,billing_phone,pickup,order_track,notes,created_by,updated_by)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
-
-    // created_by and updated_by must store the same member_uuid value (guaranteed to be a valid UUID, not numeric)
-    const createdBy = validMemberUuid;
-    const updatedBy = validMemberUuid;
+    // Fetch member's created_by and updated_by for audit and admin linkage
+    const [memberAuditRows] = await connection.query(
+      'SELECT created_by, updated_by FROM members WHERE member_id = ? LIMIT 1',
+      [validMemberUuid]
+    );
+    let memberCreatedBy = null;
+    let memberUpdatedBy = null;
+    if (memberAuditRows.length > 0) {
+      memberCreatedBy = memberAuditRows[0].created_by;
+      memberUpdatedBy = memberAuditRows[0].updated_by;
+    }
 
     // Use shipping address as billing address if not provided separately
     const billingAddress = data.billing_address || data.shipping;
     const billingName = data.billing_name || data.shipping?.name || null;
     const billingEmail = data.billing_email || data.shipping?.email || null;
     const billingPhone = data.billing_phone || data.shipping?.phone || null;
+
+    // Insert order with admin_uuid, created_by, updated_by from member
+    const insertOrderQuery = `INSERT INTO orders 
+      (order_id,user_id,member_uuid,status,payment_status,total,payment_method,payment_id,order_type,shipping,billing_address,billing_name,billing_email,billing_phone,pickup,order_track,notes,created_by,updated_by,admin_uuid)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
 
     const orderValues = [
       data.order_id,
@@ -286,8 +326,9 @@ async function createOrder(req, res) {
       data.pickup ? JSON.stringify(data.pickup) : null,
       JSON.stringify(data.order_track || []),
       data.notes || null,
-      createdBy,
-      updatedBy
+      validMemberUuid, // created_by is member's UUID
+      memberUpdatedBy,
+      memberCreatedBy // admin_uuid is member's created_by
     ];
     
     console.log("Inserting order with values:", orderValues);
@@ -498,10 +539,36 @@ async function getUserOrders(req, res) {
 // fetch today's orders
 async function getTodayOrders(req, res) {
   try {
-    const [orders] = await pool.query(
-      'SELECT * FROM orders WHERE DATE(created_at) = CURDATE() ORDER BY created_at DESC'
-    );
-    
+    // Check if user is super admin
+    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    const adminUuid = req.user?.adminUuid || req.user?.userUuid || req.user?.admin_uuid || req.user?.user_uuid || null;
+    const filterAdminUuid = req.query.adminUuid || req.query.admin_uuid || null;
+
+    let ordersQuery = '';
+    let params = [];
+
+    if (isSuperAdmin && filterAdminUuid) {
+      // Super admin filtering by specific admin: show today's orders for members managed by that admin
+      ordersQuery = `SELECT o.* FROM orders o
+        LEFT JOIN members m ON o.member_uuid = m.member_id
+        WHERE DATE(o.created_at) = CURDATE() AND m.created_by = ?
+        ORDER BY o.created_at DESC`;
+      params.push(filterAdminUuid);
+    } else if (!isSuperAdmin && req.user) {
+      // Regular admin: show only today's orders for members managed by this admin
+      if (adminUuid) {
+        ordersQuery = `SELECT o.* FROM orders o
+          LEFT JOIN members m ON o.member_uuid = m.member_id
+          WHERE DATE(o.created_at) = CURDATE() AND m.created_by = ?
+          ORDER BY o.created_at DESC`;
+        params.push(adminUuid);
+      }
+    } else {
+      // Super admin with no filter: show all today's orders
+      ordersQuery = 'SELECT * FROM orders WHERE DATE(created_at) = CURDATE() ORDER BY created_at DESC';
+    }
+
+    const [orders] = await pool.query(ordersQuery, params);
     if (orders.length === 0) {
       return res.json([]);
     }

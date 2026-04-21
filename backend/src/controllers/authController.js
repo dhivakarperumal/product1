@@ -516,4 +516,25 @@ async function setMemberPassword(req, res) {
   }
 }
 
-module.exports = { register, login, googleLogin, registerSuperAdmin, registerAdmin, registerMember, setMemberPassword };
+// Get all admins (for super admin to filter by admin)
+async function getAllAdmins(req, res) {
+  try {
+    // Only super admins can get all admins
+    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    if (!isSuperAdmin) {
+      return res.status(403).json({ message: 'Only super admins can access this resource' });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT id, username, email, role, user_uuid, admin_uuid, created_at 
+       FROM users WHERE role = 'admin' 
+       ORDER BY created_at DESC`
+    );
+    res.json(rows);
+  } catch (err) {
+    logger.error('getAllAdmins error: %O', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+}
+
+module.exports = { register, login, googleLogin, registerSuperAdmin, registerAdmin, registerMember, setMemberPassword, getAllAdmins };

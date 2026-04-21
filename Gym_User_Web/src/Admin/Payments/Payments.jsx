@@ -6,10 +6,14 @@ import { FaPrint } from "react-icons/fa";
 // backend API
 import api from "../../api";
 import cache from "../../cache";
+import { useAuth } from "../../PrivateRouter/AuthContext";
+import AdminFilter from "../../components/AdminFilter";
+
 const MEMBERSHIPS_API = `memberships`;
 const MEMBERS_API = `members`;
 
 const Payments = () => {
+  const { user } = useAuth();
   const [members, setMembers] = useState([]);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("all");
@@ -20,23 +24,30 @@ const Payments = () => {
   const [loading, setLoading] = useState(true);
   const [selectedRows, setSelectedRows] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
+  const [adminFilter, setAdminFilter] = useState(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  /* ================= FETCH DATA ================= */
-  useEffect(() => {
-    const fetchPayments = async () => {
-      if (cache.adminPayments) {
-        setMembers(cache.adminPayments);
-        setLoading(false);
-      } else {
-        setLoading(true);
-      }
+  // Check if user is super admin
+  const isSuperAdmin = user?.role === 'super admin';
 
-      try {
-        const res = await api.get(MEMBERSHIPS_API);
-        const membershipsData = res.data;
+  /* ================= FETCH DATA ================= */
+  const fetchPayments = async (adminUuid = null) => {
+    if (cache.adminPayments && !adminUuid) {
+      setMembers(cache.adminPayments);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    try {
+      const params = {};
+      if (adminUuid) {
+        params.adminUuid = adminUuid;
+      }
+      const res = await api.get(MEMBERSHIPS_API, { params });
+      const membershipsData = res.data;
 
         // Group memberships by user to match the existing UI shape
         const usersMap = new Map();
@@ -93,6 +104,13 @@ const Payments = () => {
 
     fetchPayments();
   }, []);
+
+  // Handle admin filter change
+  const handleAdminFilterChange = (adminUuid) => {
+    setAdminFilter(adminUuid);
+    setCurrentPage(1);
+    fetchPayments(adminUuid);
+  };
 
   /* ================= EXPIRY CHECK ================= */
   const isExpiringPlan = (endDate) => {
@@ -553,22 +571,14 @@ const Payments = () => {
                 </div>
               )}
 
-              {/* Status Filters */}
-              <div className="flex items-center rounded-xl bg-slate-800/50 border border-white/10 p-1 gap-1 backdrop-blur-xl">
-                {["all", "active", "inactive", "expiry"].map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => setFilterType(type)}
-                    className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                      filterType === type
-                        ? "bg-orange-600 text-white shadow-lg shadow-orange-500/20"
-                        : "text-gray-400 hover:text-white hover:bg-white/10"
-                    }`}
-                  >
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
-                  </button>
-                ))}
-              </div>
+              {/* Admin Filter - Only visible to super admins */}
+              {isSuperAdmin && (
+                <AdminFilter 
+                  value={adminFilter} 
+                  onChange={handleAdminFilterChange}
+                  disabled={loading}
+                />
+              )}
             </div>
           </div>
         </div>

@@ -17,6 +17,8 @@ import DateRangeFilter from "../DateRangeFilter";
 import { filterByDateRange } from "../utils/dateUtils";
 import { createPortal } from 'react-dom';
 import { FaChevronDown } from "react-icons/fa";
+import { useAuth } from "../../PrivateRouter/AuthContext";
+import AdminFilter from "../../components/AdminFilter";
 
 /* ================= HELPERS ================= */
 
@@ -216,6 +218,7 @@ const CustomDropdown = ({ label, options, value, onChange }) => {
 
 /* ================= PAGE ================= */
 const AllOrders = () => {
+  const { user } = useAuth();
   const [orders, setOrders] = useState([]);
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -223,10 +226,14 @@ const AllOrders = () => {
   const [view, setView] = useState("table");
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState({ type: 'All Time', range: null });
+  const [adminFilter, setAdminFilter] = useState(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const querySearch = searchParams.get("search") || "";
   const [search, setSearch] = useState(querySearch);
+
+  // Check if user is super admin
+  const isSuperAdmin = user?.role === 'super admin';
 
   useEffect(() => {
     if (querySearch) {
@@ -247,36 +254,50 @@ const AllOrders = () => {
   const ordersPerPage = 10;
 
   /* ================= LOAD ================= */
-  useEffect(() => {
-    const fetch = async () => {
-      if (cache.adminOrders) {
-        setOrders(cache.adminOrders);
-        setLoading(false);
-      } else {
-        setLoading(true);
-      }
+  const fetchOrders = async (adminUuid = null) => {
+    if (cache.adminOrders && !adminUuid) {
+      setOrders(cache.adminOrders);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
 
-      try {
-        const res = await api.get("/orders");
-        const raw = res.data || [];
-        const formatted = raw.map((o) => ({
-          ...o,
-          orderId: o.order_id,
-          paymentStatus: o.payment_status,
-          orderType: o.order_type,
-          shipping: o.shipping,
-          pickup: o.pickup,
-          createdAt: o.created_at,
-        }));
-        setOrders(formatted);
-        cache.adminOrders = formatted;
-      } catch (err) {
-        console.error("failed to load orders", err);
-      } finally {
-        setLoading(false);
+    try {
+      const params = {};
+      if (adminUuid) {
+        params.adminUuid = adminUuid;
       }
-    };
-    fetch();
+      const res = await api.get("/orders", { params });
+      const raw = res.data || [];
+      const formatted = raw.map((o) => ({
+        ...o,
+        orderId: o.order_id,
+        paymentStatus: o.payment_status,
+        orderType: o.order_type,
+        shipping: o.shipping,
+        pickup: o.pickup,
+        createdAt: o.created_at,
+      }));
+      setOrders(formatted);
+      if (!adminUuid) {
+        cache.adminOrders = formatted;
+      }
+    } catch (err) {
+      console.error("failed to load orders", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle admin filter change
+  const handleAdminFilterChange = (adminUuid) => {
+    setAdminFilter(adminUuid);
+    setCurrentPage(1);
+    fetchOrders(adminUuid);
+  };
+
+  useEffect(() => {
+    fetchOrders();
   }, []);
 
   /* ================= STATS ================= */
@@ -334,10 +355,20 @@ const AllOrders = () => {
   }, [filteredOrders, currentPage]);
 
   /* ================= UPDATE STATUS ================= */
+
+  // Ensure orderId is in ORD#### format
+  const formatOrderIdForApi = (id) => {
+    if (!id) return "";
+    if (String(id).startsWith("ORD")) return id;
+    const num = parseInt(String(id).replace(/[^0-9]/g, ""), 10) || 0;
+    return `ORD${String(num).padStart(3, "0")}`;
+  };
+
   const updateStatus = async (orderId, newStatus) => {
+    const formattedOrderId = formatOrderIdForApi(orderId);
     if (newStatus === "cancelled") {
       setModalType("cancelled");
-      setPendingStatus({ orderId, newStatus });
+      setPendingStatus({ orderId: formattedOrderId, newStatus });
       setModalInput({ reason: "", courier: "", docket: "" });
       setShowStatusModal(true);
       return;
@@ -345,14 +376,14 @@ const AllOrders = () => {
 
     if (newStatus === "shipped") {
       setModalType("shipped");
-      setPendingStatus({ orderId, newStatus });
+      setPendingStatus({ orderId: formattedOrderId, newStatus });
       setModalInput({ reason: "", courier: "", docket: "" });
       setShowStatusModal(true);
       return;
     }
 
     // Direct update for other statuses
-    confirmAndSendStatus(orderId, newStatus);
+    confirmAndSendStatus(formattedOrderId, newStatus);
   };
 
   const confirmAndSendStatus = async (orderId, newStatus, extra = {}) => {
@@ -365,22 +396,19 @@ const AllOrders = () => {
         docketNumber: extra.docket
       });
 
-      const res = await api.get("/orders");
-      const raw = res.data || [];
-      const formatted = raw.map((o) => ({
-        ...o,
-        orderId: o.order_id,
-        paymentStatus: o.payment_status,
-        orderType: o.order_type,
-        shipping: o.shipping,
-        pickup: o.pickup,
-        createdAt: o.created_at,
-      }));
-      setOrders(formatted);
+      // Re-fetch with current admin filter
+      fetchOrders(adminFilter);
       setShowStatusModal(false);
     } catch (err) {
       console.error("updateStatus error:", err);
-      alert(err.response?.data?.message || "Failed to update status");
+      let msg = "Failed to update status";
+      if (err.response) {
+        if (err.response.status === 401) msg = "You are not logged in. Please login again.";
+        else if (err.response.status === 403) msg = "You do not have permission to update this order.";
+        else if (err.response.status === 404) msg = "Order not found. Please refresh the page.";
+        else if (err.response.data?.message) msg = err.response.data.message;
+      }
+      alert(msg);
     } finally {
       setSubmitting(false);
     }
@@ -754,6 +782,15 @@ ${items
 
             <div className="flex flex-wrap gap-3 items-center">
               <DateRangeFilter onRangeChange={(type, range) => setDateRange({ type, range })} />
+
+              {/* Admin Filter - Only visible to super admins */}
+              {isSuperAdmin && (
+                <AdminFilter 
+                  value={adminFilter} 
+                  onChange={handleAdminFilterChange}
+                  disabled={loading}
+                />
+              )}
 
               <CustomDropdown
                 label="Status"
