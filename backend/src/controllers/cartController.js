@@ -12,10 +12,10 @@ function normalize(row) {
     updatedAt: row.updated_at,
   };
 
-  // prefer stored snapshot values if present, otherwise fall back to join
-  if (row.product_name) item.name = row.product_name;
-  // if join returned a name and snapshot doesn't exist, use it
-  if (!item.name && row.product_name_join) item.name = row.product_name_join;
+  // prefer joined values first, then stored snapshot values
+  if (row.product_name_join) item.name = row.product_name_join;
+  // if join didn't return a name, use stored snapshot
+  if (!item.name && row.product_name) item.name = row.product_name;
 
   if (row.product_images) {
     try {
@@ -61,7 +61,7 @@ async function listCart(req, res) {
     );
     const out = rows.map((row) => {
       const item = normalize(row);
-      if (row.product_name) item.name = row.product_name;
+      if (row.product_name_join) item.name = row.product_name_join;
       if (row.product_images) {
         try {
           item.images = JSON.parse(row.product_images);

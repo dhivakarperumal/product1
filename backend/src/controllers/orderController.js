@@ -534,7 +534,7 @@ async function getUserOrders(req, res) {
   }
 }
 
-// fetch today's orders
+// fetch today's orders (only from current admin's members)
 async function getTodayOrders(req, res) {
   try {
     // Check if user is super admin
@@ -546,16 +546,16 @@ async function getTodayOrders(req, res) {
     let params = [];
 
     if (isSuperAdmin && filterAdminUuid) {
-      // Super admin filtering by specific admin: show today's orders for members managed by that admin
+      // Super admin filtering by specific admin: show today's orders from that admin's members only
       ordersQuery = `SELECT o.* FROM orders o
-        LEFT JOIN members m ON o.member_uuid = m.member_id
+        INNER JOIN members m ON o.member_uuid = m.member_id
         WHERE DATE(o.created_at) = CURDATE() AND m.created_by = ?
         ORDER BY o.created_at DESC`;
       params.push(filterAdminUuid);
     } else if (req.user && adminUuid) {
-      // Both super admin (no filter) and regular admin: show only today's orders for members managed by this admin
+      // Regular admin: show today's orders from their own members only (INNER JOIN ensures member exists and belongs to admin)
       ordersQuery = `SELECT o.* FROM orders o
-        LEFT JOIN members m ON o.member_uuid = m.member_id
+        INNER JOIN members m ON o.member_uuid = m.member_id
         WHERE DATE(o.created_at) = CURDATE() AND m.created_by = ?
         ORDER BY o.created_at DESC`;
       params.push(adminUuid);

@@ -23,6 +23,43 @@ const makeImageUrl = (img) => {
   return `${base.replace(/\/$/, "")}/${img.replace(/^\/+/, "")}`;
 };
 
+// ✅ Pricing helper for related products
+const getProductPrice = (product) => {
+  if (!product) return { mrp: 0, offerPrice: 0, offer: 0 };
+
+  // Check stock variants first (where pricing is often stored)
+  if (product.stock && Object.keys(product.stock).length > 0) {
+    const stock = Object.values(product.stock)[0];
+    if (stock?.offer_price || stock?.offerPrice || stock?.mrp) {
+      return {
+        mrp: stock.mrp || stock.offer_price || stock.offerPrice || 0,
+        offerPrice: stock.offer_price ?? stock.offerPrice ?? stock.mrp ?? 0,
+        offer: stock.offer || 0,
+      };
+    }
+  }
+
+  // Check direct pricing fields
+  const mrp = product.mrp || 0;
+  const offerPrice = product.offer_price ?? product.offerPrice ?? 0;
+
+  if (mrp || offerPrice) {
+    return {
+      mrp: mrp || offerPrice,
+      offerPrice: offerPrice || mrp,
+      offer: product.offer || 0,
+    };
+  }
+
+  // Fallback to generic price field
+  const fallback = Number(product.price || 0);
+  if (fallback > 0) {
+    return { mrp: fallback, offerPrice: fallback, offer: 0 };
+  }
+
+  return { mrp: 0, offerPrice: 0, offer: 0 };
+};
+
 export default function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -576,10 +613,17 @@ export default function ProductDetails() {
 
                   {/* Price */}
                   <div className="flex gap-2 items-center mt-3">
-                    <span className="font-bold text-white">₹{p.offer_price || p.offerPrice || p.mrp}</span>
-                    {(p.offer_price || p.offerPrice) && (
-                      <span className="line-through text-white/50 text-sm">₹{p.mrp}</span>
-                    )}
+                    {(() => {
+                      const pricing = getProductPrice(p);
+                      return (
+                        <>
+                          <span className="font-bold text-white">₹{pricing.offerPrice || pricing.mrp}</span>
+                          {(pricing.offerPrice && pricing.mrp && pricing.offerPrice !== pricing.mrp) && (
+                            <span className="line-through text-white/50 text-sm">₹{pricing.mrp}</span>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {/* Stock */}

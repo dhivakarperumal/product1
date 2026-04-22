@@ -49,7 +49,7 @@ const normalizeStatus = (status) => {
 
 const Orders = () => {
   const { user } = useAuth();
-  const userId = user?.id;
+  const userId = user?.userUuid || user?.user_uuid || user?.id;
   const navigate = useNavigate();
   const isMountedRef = useRef(true);
 

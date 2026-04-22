@@ -12,7 +12,7 @@ const {
 } = require('../controllers/orderController');
 
 router.get('/', authenticateToken, requireAdmin, getAllOrders);
-router.get('/today', getTodayOrders);
+router.get('/today', authenticateToken, getTodayOrders);
 router.get('/user/:userId', getUserOrders);
 router.get('/:id', getOrder);
 router.post('/', optionalAuthenticateToken, createOrder);
