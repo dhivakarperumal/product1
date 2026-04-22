@@ -49,7 +49,8 @@ const normalizeStatus = (status) => {
 
 const Orders = () => {
   const { user } = useAuth();
-  const userId = user?.userUuid || user?.user_uuid || user?.id;
+  // Proper member/user UUID resolution
+  const userId = user?.memberUuid || user?.userUuid || user?.user_uuid || user?.user_id || user?.id;
   const navigate = useNavigate();
   const isMountedRef = useRef(true);
 
@@ -57,10 +58,18 @@ const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [error, setError] = useState(null);
 
   // ✅ Fetch Orders - always fetch fresh on mount to catch new orders from checkout
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      console.warn('Orders: No userId found in user object', { user });
+      if (isMountedRef.current) {
+        setLoading(false);
+        setError('No user ID found. Please log in again.');
+      }
+      return;
+    }
 
     const abortController = new AbortController();
     isMountedRef.current = true;
@@ -68,10 +77,13 @@ const Orders = () => {
     const fetchOrders = async () => {
       try {
         setLoading(true);
+        setError(null);
+        console.log('Orders: Fetching orders for userId:', userId);
         const res = await api.get(`/orders/user/${userId}`, {
           signal: abortController.signal
         });
         const fetchedOrders = Array.isArray(res.data) ? res.data : [];
+        console.log('Orders: Fetched', fetchedOrders.length, 'orders');
         
         if (isMountedRef.current) {
           setOrders(fetchedOrders);
@@ -80,9 +92,10 @@ const Orders = () => {
         }
       } catch (err) {
         if (err.name !== 'CanceledError') {
-          console.error('Error fetching orders:', err);
+          console.error('Orders: Error fetching orders:', err);
           if (isMountedRef.current) {
             setLoading(false);
+            setError(err?.response?.data?.message || 'Failed to load orders');
           }
         }
       }
@@ -104,6 +117,25 @@ const Orders = () => {
           <div className="w-12 h-12 border-4 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-white">Loading your orders...</p>
         </div>
+      </div>
+    );
+  }
+
+  // ✅ Error
+  if (error) {
+    return (
+      <div className="min-h-screen p-6 flex flex-col items-center justify-center text-center">
+        <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4">
+          <X className="w-8 h-8 text-red-500" />
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-2">Error Loading Orders</h2>
+        <p className="text-white/60 mb-6">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-6 py-3 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold hover:scale-105 transition"
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -161,9 +193,13 @@ const Orders = () => {
             {/* ORDERS GRID */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {orders.map((order) => {
+                if (!order || !order.order_id) {
+                  console.warn('Invalid order data:', order);
+                  return null;
+                }
                 return (
                   <div
-                    key={order.id}
+                    key={order.order_id || order.id}
                     onClick={() => setSelectedOrder(order)}
                     className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 hover:bg-white/10 cursor-pointer transition"
                   >
@@ -193,23 +229,30 @@ const Orders = () => {
 
                     {/* ITEMS PREVIEW */}
                     <div className="space-y-2">
-                      {order.items?.slice(0, 2).map((item, i) => (
-                        <div key={i} className="flex gap-3">
-                          {item.image && (
-                            <img
-                              src={makeImageUrl(item.image)}
-                              alt={item.product_name}
-                              className="w-10 h-10 object-cover rounded"
-                            />
+                      {Array.isArray(order.items) && order.items.length > 0 ? (
+                        <>
+                          {order.items.slice(0, 2).map((item, i) => (
+                            <div key={i} className="flex gap-3">
+                              {item.image && (
+                                <img
+                                  src={makeImageUrl(item.image)}
+                                  alt={item.product_name || 'Product'}
+                                  className="w-10 h-10 object-cover rounded"
+                                  onError={(e) => { e.target.style.display = 'none'; }}
+                                />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm text-white truncate">{item.product_name || 'Unknown Product'}</p>
+                                <p className="text-xs text-white/50">Qty: {item.qty || 1}</p>
+                              </div>
+                            </div>
+                          ))}
+                          {order.items.length > 2 && (
+                            <p className="text-xs text-white/50 py-2">+{order.items.length - 2} more items</p>
                           )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-white truncate">{item.product_name}</p>
-                            <p className="text-xs text-white/50">Qty: {item.qty}</p>
-                          </div>
-                        </div>
-                      ))}
-                      {order.items?.length > 2 && (
-                        <p className="text-xs text-white/50 py-2">+{order.items.length - 2} more items</p>
+                        </>
+                      ) : (
+                        <p className="text-xs text-white/50 py-2">No items</p>
                       )}
                     </div>
 
@@ -249,11 +292,14 @@ const Orders = () => {
                   <div className="bg-black/40 border border-white/10 rounded-xl p-6 mb-8">
                     <h3 className="text-red-500 font-bold text-lg mb-4">Delivery Address</h3>
                     <div className="text-white space-y-1">
-                      <p className="font-semibold">{selectedOrder.shipping?.name || 'N/A'}</p>
-                      <p className="text-white/60">{selectedOrder.shipping?.email || ''}</p>
-                      <p className="text-white/60">{selectedOrder.shipping?.phone || 'N/A'}</p>
-                      <p className="text-white/60">{selectedOrder.shipping?.address || 'N/A'}</p>
-                      <p className="text-white/60">{selectedOrder.shipping?.state} - {selectedOrder.shipping?.zip}</p>
+                      <p className="font-semibold">{selectedOrder.shipping?.name || selectedOrder.shipping?.email || 'Not provided'}</p>
+                      {selectedOrder.shipping?.email && <p className="text-white/60">{selectedOrder.shipping.email}</p>}
+                      {selectedOrder.shipping?.phone && <p className="text-white/60">{selectedOrder.shipping.phone}</p>}
+                      {selectedOrder.shipping?.address && <p className="text-white/60">{selectedOrder.shipping.address}</p>}
+                      {(selectedOrder.shipping?.state || selectedOrder.shipping?.zip) && (
+                        <p className="text-white/60">{selectedOrder.shipping?.state} {selectedOrder.shipping?.state && selectedOrder.shipping?.zip ? '-' : ''} {selectedOrder.shipping?.zip}</p>
+                      )}
+                      {!selectedOrder.shipping && <p className="text-white/60">No shipping address provided</p>}
                     </div>
                   </div>
 
@@ -262,11 +308,15 @@ const Orders = () => {
                     <div className="bg-black/40 border border-white/10 rounded-xl p-6 mb-8">
                       <h3 className="text-orange-500 font-bold text-lg mb-4">Billing Address</h3>
                       <div className="text-white space-y-1">
-                        <p className="font-semibold">{selectedOrder.billing_name || selectedOrder.billing_address?.name || 'N/A'}</p>
-                        <p className="text-white/60">{selectedOrder.billing_email || selectedOrder.billing_address?.email || ''}</p>
-                        <p className="text-white/60">{selectedOrder.billing_phone || selectedOrder.billing_address?.phone || 'N/A'}</p>
-                        <p className="text-white/60">{selectedOrder.billing_address?.address || 'N/A'}</p>
-                        <p className="text-white/60">{selectedOrder.billing_address?.state} - {selectedOrder.billing_address?.zip}</p>
+                        <p className="font-semibold">{selectedOrder.billing_name || selectedOrder.billing_address?.name || 'Not provided'}</p>
+                        {selectedOrder.billing_email && <p className="text-white/60">{selectedOrder.billing_email}</p>}
+                        {!selectedOrder.billing_email && selectedOrder.billing_address?.email && <p className="text-white/60">{selectedOrder.billing_address.email}</p>}
+                        {selectedOrder.billing_phone && <p className="text-white/60">{selectedOrder.billing_phone}</p>}
+                        {!selectedOrder.billing_phone && selectedOrder.billing_address?.phone && <p className="text-white/60">{selectedOrder.billing_address.phone}</p>}
+                        {selectedOrder.billing_address?.address && <p className="text-white/60">{selectedOrder.billing_address.address}</p>}
+                        {(selectedOrder.billing_address?.state || selectedOrder.billing_address?.zip) && (
+                          <p className="text-white/60">{selectedOrder.billing_address?.state} {selectedOrder.billing_address?.state && selectedOrder.billing_address?.zip ? '-' : ''} {selectedOrder.billing_address?.zip}</p>
+                        )}
                       </div>
                     </div>
                   )}
@@ -278,35 +328,40 @@ const Orders = () => {
                       <div className="col-span-3"><p className="text-red-500 font-bold">Qty</p></div>
                       <div className="col-span-2"><p className="text-red-500 font-bold">Price</p></div>
                     </div>
-                    {selectedOrder.items?.map((item, i) => (
-                      <div key={i} className="grid grid-cols-12 gap-4 mb-6 pb-6 border-b border-white/10 last:border-b-0">
-                        <div className="col-span-7 flex gap-3">
-                          {item.image && (
-                            <img
-                              src={makeImageUrl(item.image)}
-                              alt={item.product_name}
-                              className="w-16 h-16 object-cover rounded"
-                            />
-                          )}
-                          <div>
-                            <p className="text-white font-semibold text-sm">{item.product_name}</p>
-                            {(item.size || item.weight) && (
-                              <p className="text-white/60 text-xs mt-1">
-                                {item.size && `Size: ${item.size}`}
-                                {item.size && item.weight && " • "}
-                                {item.weight && `Weight: ${item.weight}`}
-                              </p>
+                    {Array.isArray(selectedOrder.items) && selectedOrder.items.length > 0 ? (
+                      selectedOrder.items.map((item, i) => (
+                        <div key={i} className="grid grid-cols-12 gap-4 mb-6 pb-6 border-b border-white/10 last:border-b-0">
+                          <div className="col-span-7 flex gap-3">
+                            {item.image && (
+                              <img
+                                src={makeImageUrl(item.image)}
+                                alt={item.product_name || 'Product'}
+                                className="w-16 h-16 object-cover rounded"
+                                onError={(e) => { e.target.style.display = 'none'; }}
+                              />
                             )}
+                            <div>
+                              <p className="text-white font-semibold text-sm">{item.product_name || 'Unknown Product'}</p>
+                              {(item.size || item.weight) && (
+                                <p className="text-white/60 text-xs mt-1">
+                                  {item.size && `Size: ${item.size}`}
+                                  {item.size && item.weight && " • "}
+                                  {item.weight && `Weight: ${item.weight}`}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="col-span-3">
+                            <p className="text-white">{item.qty || 1}</p>
+                          </div>
+                          <div className="col-span-2">
+                            <p className="text-white font-semibold">₹{((item.price || 0) * (item.qty || 1)).toFixed(2)}</p>
                           </div>
                         </div>
-                        <div className="col-span-3">
-                          <p className="text-white">{item.qty}</p>
-                        </div>
-                        <div className="col-span-2">
-                          <p className="text-white font-semibold">₹{item.price * item.qty}</p>
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    ) : (
+                      <p className="text-white/60 py-4">No items in this order</p>
+                    )}
                   </div>
 
                   {/* TOTAL */}

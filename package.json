@@ -40,6 +40,8 @@
   },
   "scripts": {
     "backend": "cd backend && npm start",
+
+    
     "frontend": "cd Gym_User_Web && npm run dev",
 
     

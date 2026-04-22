@@ -326,6 +326,13 @@ async function login(req, res) {
 
     const { password_hash, ...userData } = user;
     userData.role = role;
+    // Include the memberUuid in the frontend user object so it matches JWT
+    if (payload.memberUuid) {
+      userData.memberUuid = payload.memberUuid;
+    }
+    if (payload.userUuid) {
+      userData.userUuid = payload.userUuid;
+    }
     logger.info('login successful for %s: %d from table %s', role, user.id, table);
     res.json({ token, user: userData });
   } catch (err) {
@@ -377,6 +384,13 @@ async function googleLogin(req, res) {
     const token = jwt.sign(payload, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
 
     const { password_hash, ...userData } = user;
+    // Include UUIDs in the frontend user object so it matches JWT
+    if (payload.memberUuid) {
+      userData.memberUuid = payload.memberUuid;
+    }
+    if (payload.userUuid) {
+      userData.userUuid = payload.userUuid;
+    }
     res.json({ token, user: userData });
 
   } catch (err) {

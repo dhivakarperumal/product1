@@ -31,6 +31,7 @@ const isTodayOrder = (order) => {
 
 const resolveUserId = (user) => {
   return (
+    user?.memberUuid ||
     user?.id ||
     user?.userId ||
     user?.user_id ||
