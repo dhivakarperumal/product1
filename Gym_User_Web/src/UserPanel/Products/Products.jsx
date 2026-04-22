@@ -239,8 +239,7 @@ const Products = () => {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl space-y-3">
             <p className="text-sm uppercase tracking-[0.3em] text-orange-400/80">Gym & Nutrition Shop</p>
-            <h1 className="text-4xl md:text-5xl font-semibold text-white">Premium products built for your workout routine</h1>
-            
+           
           </div>
 
           <div className="flex flex-wrap gap-3">
