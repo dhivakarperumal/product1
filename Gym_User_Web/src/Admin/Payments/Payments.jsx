@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Search, Users, CheckCircle, XCircle, AlertTriangle, Calendar } from "lucide-react";
 import * as XLSX from "xlsx";
 import { FaPrint } from "react-icons/fa";
@@ -33,77 +33,82 @@ const Payments = () => {
   const isSuperAdmin = user?.role === 'super admin';
 
   /* ================= FETCH DATA ================= */
-  const fetchPayments = async (adminUuid = null) => {
-    if (cache.adminPayments && !adminUuid) {
-      setMembers(cache.adminPayments);
-      setLoading(false);
-    } else {
-      setLoading(true);
+const fetchPayments = useCallback(async (adminUuid = null) => {
+  if (cache.adminPayments && !adminUuid) {
+    setMembers(cache.adminPayments);
+    setLoading(false);
+  } else {
+    setLoading(true);
+  }
+
+  try {
+    const params = {};
+    if (adminUuid) {
+      params.adminUuid = adminUuid;
     }
 
-    try {
-      const params = {};
-      if (adminUuid) {
-        params.adminUuid = adminUuid;
-      }
-      const res = await api.get(MEMBERSHIPS_API, { params });
-      const membershipsData = res.data;
+    const res = await api.get(MEMBERSHIPS_API, { params });
+    const membershipsData = res.data;
 
-        // Group memberships by user to match the existing UI shape
-        const usersMap = new Map();
+    const usersMap = new Map();
 
-        if (!Array.isArray(membershipsData)) {
-          console.warn("Expected array for memberships, got:", membershipsData);
-          setMembers([]);
-          return;
-        }
+    if (!Array.isArray(membershipsData)) {
+      console.warn("Expected array for memberships, got:", membershipsData);
+      setMembers([]);
+      return;
+    }
 
-        membershipsData.forEach((m) => {
-          const uId = m.userId || `guest_${m.id}`;
-          if (!usersMap.has(uId)) {
-            usersMap.set(uId, {
-              uid: uId,
-              username:
-                m.username ||
-                m.userName ||
-                m.member_name ||
-                m.memberName ||
-                "No Name",
-              email:
-                m.email ||
-                m.userEmail ||
-                m.member_email ||
-                m.memberEmail ||
-                "",
-              plans: [],
-            });
-          }
+    membershipsData.forEach((m) => {
+      const uId = m.userId || `guest_${m.id}`;
 
-          usersMap.get(uId).plans.push({
-            id: m.id,
-            planName: m.planName || m.plan_name || m.planName || "Unknown Plan",
-            pricePaid: Number(m.pricePaid ?? m.price ?? 0),
-            startDate: m.startDate || m.start_date || m.joinDate || m.join_date,
-            endDate: m.endDate || m.end_date || m.expiryDate || m.expiry_date,
-            createdAt: m.createdAt || m.created_at || m.startDate || m.start_date,
-            status: m.status || "active",
-            paymentStatus: m.paymentId ? "Paid" : "Unpaid",
-          });
+      if (!usersMap.has(uId)) {
+        usersMap.set(uId, {
+          uid: uId,
+          username:
+            m.username ||
+            m.userName ||
+            m.member_name ||
+            m.memberName ||
+            "No Name",
+          email:
+            m.email ||
+            m.userEmail ||
+            m.member_email ||
+            m.memberEmail ||
+            "",
+          plans: [],
         });
-
-        const finalData = Array.from(usersMap.values());
-        setMembers(finalData);
-        cache.adminPayments = finalData;
-      } catch (error) {
-        console.error(error);
-        if (!cache.adminPayments) alert("Failed to load payment data");
-      } finally {
-        setLoading(false);
       }
-    };
 
-    fetchPayments();
-  }, []);
+      usersMap.get(uId).plans.push({
+        id: m.id,
+        planName: m.planName || m.plan_name || "Unknown Plan",
+        pricePaid: Number(m.pricePaid ?? m.price ?? 0),
+        startDate: m.startDate || m.start_date || m.joinDate || m.join_date,
+        endDate: m.endDate || m.end_date || m.expiryDate || m.expiry_date,
+        createdAt:
+          m.createdAt || m.created_at || m.startDate || m.start_date,
+        status: m.status || "active",
+        paymentStatus: m.paymentId ? "Paid" : "Unpaid",
+      });
+    });
+
+    const finalData = Array.from(usersMap.values());
+    setMembers(finalData);
+    cache.adminPayments = finalData;
+  } catch (error) {
+    console.error(error);
+    if (!cache.adminPayments) alert("Failed to load payment data");
+  } finally {
+    setLoading(false);
+  }
+}, []);
+
+  
+
+ useEffect(() => {
+  fetchPayments();
+}, [fetchPayments]);
 
   // Handle admin filter change
   const handleAdminFilterChange = (adminUuid) => {
@@ -885,7 +890,8 @@ const Payments = () => {
         )}
       </div>
     </div>
+
   );
-};
+}
 
 export default Payments;

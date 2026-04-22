@@ -26,52 +26,98 @@ const Cart = () => {
   const { cartItems, fetchCart, updateQty, removeFromCart, loading } = useCart();
   const [localItems, setLocalItems] = useState([]);
 
-  // Fetch cart on mount
-  useEffect(() => {
-    if (!userId) {
-      navigate("/login");
-      return;
+  
+const addToCart = async (product) => {
+  try {
+    const res = await api.post("/cart/add", product);
+
+    if (res.data) {
+      // ✅ UPDATE STATE IMMEDIATELY
+      setCartItems((prev) => {
+        const existing = prev.find(p => p.id === res.data.id);
+
+        if (existing) {
+          return prev.map(p =>
+            p.id === res.data.id
+              ? { ...p, quantity: p.quantity + 1 }
+              : p
+          );
+        }
+
+        return [...prev, res.data];
+      });
+
+      // ✅ trigger update event
+      window.dispatchEvent(new Event("cartUpdated"));
     }
-    fetchCart(userId, true);
-  }, [userId, fetchCart, navigate]);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+
+  // Fetch cart on mount
+useEffect(() => {
+  if (!userId) return;
+
+  fetchCart(userId); // first load
+
+  const interval = setInterval(() => {
+    fetchCart(userId); // auto refresh
+  }, 100); // every 3 sec
+
+  return () => clearInterval(interval);
+}, [userId, fetchCart]);
 
   // Sync cart items
   useEffect(() => {
     setLocalItems(cartItems);
   }, [cartItems]);
 
+
+  
+
   const handleUpdateQty = useCallback(async (item, qty) => {
-    if (qty < 1) return;
-    try {
-      const success = await updateQty(item.id, qty);
-      if (success) {
-        setLocalItems((prev) =>
-          prev.map((i) => (i.id === item.id ? { ...i, quantity: qty } : i))
-        );
-      } else {
-        toast.error("Failed to update quantity");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to update quantity");
+  if (qty < 1) return;
+
+  // ✅ instant UI update
+  setLocalItems((prev) =>
+    prev.map((i) =>
+      i.id === item.id ? { ...i, quantity: qty } : i
+    )
+  );
+
+  try {
+    const success = await updateQty(item.id, qty);
+
+    if (!success) {
+      toast.error("Update failed, reverting...");
+      fetchCart(userId); // rollback
     }
-  }, [updateQty]);
+  } catch (err) {
+    console.error(err);
+    fetchCart(userId); // rollback
+  }
+}, [updateQty, fetchCart, userId]);
 
   const handleRemoveItem = useCallback(async (itemId) => {
-    try {
-      const success = await removeFromCart(itemId);
-      if (success) {
-        setLocalItems((prev) => prev.filter((i) => i.id !== itemId));
-        toast.success("Item removed from cart");
-      } else {
-        toast.error("Failed to remove item");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to remove item");
-    }
-  }, [removeFromCart]);
+  // ✅ instant UI remove
+  setLocalItems((prev) => prev.filter((i) => i.id !== itemId));
 
+  try {
+    const success = await removeFromCart(itemId);
+
+    if (!success) {
+      toast.error("Remove failed, refreshing...");
+      fetchCart(userId);
+    } else {
+      toast.success("Item removed");
+    }
+  } catch (err) {
+    console.error(err);
+    fetchCart(userId);
+  }
+}, [removeFromCart, fetchCart, userId]);
   // Memoize total calculation
   const total = useMemo(
     () => localItems.reduce((a, c) => a + c.price * c.quantity, 0),

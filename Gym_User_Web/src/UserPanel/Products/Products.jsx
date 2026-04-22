@@ -374,7 +374,8 @@ const Products = () => {
               {products.length > filteredProducts.length && ` (filtered from ${products.length})`}
             </div>
           </div>
-          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+         <div className="grid gap-6   grid-cols-1   sm:grid-cols-2   md:grid-cols-3 
+         xl:grid-cols-4">
             {filteredProducts.length > 0 ? (
               filteredProducts.map((product, index) => {
               const productId =
@@ -404,70 +405,79 @@ const Products = () => {
 
               return (
                 <div
-                  key={productId}
-                  className="group overflow-hidden rounded-[32px] border border-white/10 bg-slate-950/80 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.6)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_30px_90px_-20px_rgba(249,115,22,0.35)]"
-                >
-                  <div className="relative overflow-hidden bg-slate-900">
-                    <img
-                      onClick={goToDetails}
-                      src={makeImageUrl(image) || "https://via.placeholder.com/300x300"}
-                      className="h-64 w-full object-cover transition duration-500 group-hover:scale-105 cursor-pointer"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-950/90 to-transparent" />
-                    {pricing?.offer > 0 && (
-                      <div className="absolute top-4 left-4 rounded-full bg-orange-500/15 px-3 py-1 text-xs font-semibold text-orange-200 backdrop-blur-sm">
-                        {pricing.offer}% OFF
-                      </div>
-                    )}
-                    <div className={`absolute top-4 right-4 rounded-full px-3 py-1 text-xs font-semibold ${isAvailable ? 'bg-emerald-500/10 text-emerald-200' : 'bg-red-500/10 text-red-200'}`}>
-                      {isAvailable ? 'In stock' : 'Out of stock'}
-                    </div>
-                  </div>
+  key={productId}
+  className="group relative overflow-hidden rounded-3xl border border-white/10 
+  bg-gradient-to-b from-slate-900 to-slate-950 
+  hover:ring-1 hover:ring-orange-500/40
+  transition-all duration-300 ease-out shadow-lg"
+>
+  {/* IMAGE */}
+  <div  onClick={() => navigate(`/user/products/${productId}`)} className="relative w-full aspect-square overflow-hidden cursor-pointer">
+    <img
+      onClick={goToDetails}
+      src={makeImageUrl(image) || "https://via.placeholder.com/300"}
+      className="w-full h-full object-cover transition duration-500 group-hover:scale-110 cursor-pointer"
+    />
 
-                  <div className="flex flex-col gap-4 p-5">
-                    <button
-                      onClick={() => addToCart(product)}
-                      className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition ${isAvailable ? 'border-orange-500/40 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20' : 'border-white/10 bg-white/5 text-white/40 cursor-not-allowed'}`}
-                      disabled={!isAvailable}
-                    >
-                      Quick add
-                    </button>
+    {/* Overlay gradient */}
+    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <h3
-                          onClick={goToDetails}
-                          className="text-xl font-semibold text-white line-clamp-2 cursor-pointer hover:text-orange-400"
-                        >
-                          {safeName}
-                        </h3>
-                        <span className="text-xs uppercase tracking-[0.3em] text-white/50">
-                          {product.category || "Supplement"}
-                        </span>
-                      </div>
+    {/* Discount badge */}
+    {pricing?.offer > 0 && (
+      <div className="absolute top-3 left-3 bg-orange-500 text-white text-xs px-3 py-1 rounded-full shadow">
+        {pricing.offer}% OFF
+      </div>
+    )}
 
-                      <p className="text-sm leading-6 text-white/60 line-clamp-3">
-                        {descriptionSnippet}
-                      </p>
+    {/* Stock badge */}
+    <div className={`absolute top-3 right-3 text-xs px-3 py-1 rounded-full ${
+      isAvailable ? "bg-green-500/80 text-white" : "bg-red-500/80 text-white"
+    }`}>
+      {isAvailable ? "In Stock" : "Out"}
+    </div>
+  </div>
 
-                      <div className="flex items-center gap-3">
-                        <div>
-                          <p className="text-xl font-semibold text-white">₹{pricing?.offerPrice || "0"}</p>
-                          {pricing?.mrp && pricing?.mrp !== pricing?.offerPrice && (
-                            <p className="text-sm text-white/50 line-through">₹{pricing.mrp}</p>
-                          )}
-                        </div>
-                        <button
-                          onClick={goToDetails}
-                          className="ml-auto rounded-2xl bg-orange-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-orange-700"
-                        >
-                          View details
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+  {/* CONTENT */}
+  <div className="p-5 flex flex-col gap-3">
+    <div className="flex justify-between items-start">
+      <h3
+        onClick={goToDetails}
+        className="text-lg font-semibold text-white line-clamp-2 cursor-pointer group-hover:text-orange-400"
+      >
+        {safeName}
+      </h3>
+
+      <span className="text-[10px] uppercase text-white/40">
+        {product.category}
+      </span>
+    </div>
+
+    <p className="text-xs text-white/50 line-clamp-2">
+      {descriptionSnippet}
+    </p>
+
+    {/* PRICE + ACTION */}
+    <div className="flex items-center justify-between mt-2">
+      <div>
+        <p className="text-lg font-bold text-white">
+          ₹{pricing?.offerPrice}
+        </p>
+        {pricing?.mrp !== pricing?.offerPrice && (
+          <p className="text-xs line-through text-white/40">
+            ₹{pricing?.mrp}
+          </p>
+        )}
+      </div>
+
+      <button
+        onClick={() => navigate(`/user/products/${productId}`)}
+        className="bg-orange-600 hover:bg-orange-700 text-white text-sm px-4 py-2 rounded-xl shadow-md cursor-pointer transition disabled:cursor-not-allowed disabled:opacity-50"
+      >
+       Viwe Details
+      </button>
+    </div>
+  </div>
+</div>
               );
             })
             ) : (
