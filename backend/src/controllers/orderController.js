@@ -48,10 +48,10 @@ async function getAllOrders(req, res) {
       ordersQuery = 'SELECT * FROM orders ORDER BY created_at DESC';
     }
 
-    const [orders] = await pool.query(ordersQuery, params);
-    if (orders.length === 0) {
-      return res.json([]);
-    }
+ const [orders] = await pool.query(
+  'SELECT * FROM orders WHERE member_uuid = ? ORDER BY created_at DESC',
+  [userId]
+);
 
     // Get all items for these orders in one go
     const orderIds = orders.map(o => o.order_id);
@@ -575,12 +575,14 @@ async function getTodayOrders(req, res) {
       [orderIds]
     );
 
-    const ordersWithItems = orders.map(order => {
-      return {
-        ...parseOrder(order),
-        items: items.filter(item => item.order_id === order.order_id)
-      };
-    });
+const ordersWithItems = orders.map(order => ({
+  ...parseOrder(order),
+  order_id: order.order_id,
+  total: order.total,
+  created_at: order.created_at,
+  items: items.filter(item => item.order_id === order.order_id)
+}));
+ 
 
     return res.json(ordersWithItems);
   } catch (err) {
