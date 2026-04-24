@@ -722,22 +722,15 @@ async function getTodayOrders(req, res) {
         [productIds]
       );
       productImages = products.reduce((acc, prod) => {
-        let images = prod.images;
-        if (typeof images === 'string') {
-          try {
-            images = JSON.parse(images);
-            acc[prod.id] = Array.isArray(images) ? images[0] : images;
-          } catch {
-            acc[prod.id] = images;
-          }
-        } else if (Array.isArray(images)) {
-          acc[prod.id] = images[0];
+        const imageUrl = constructImageUrl(prod.images);
+        if (imageUrl) {
+          acc[prod.id] = imageUrl;
         }
         return acc;
       }, {});
     }
 
-    // Enrich items with product images if missing
+    // Enrich items with product images if missing AND ensure existing images are properly formatted
     const enrichedItems = items.map(item => {
       if ((!item.image || (typeof item.image === 'string' && item.image.trim() === '')) && item.product_id && productImages[item.product_id]) {
         return {
@@ -745,7 +738,10 @@ async function getTodayOrders(req, res) {
           image: productImages[item.product_id]
         };
       }
-      return item;
+      return {
+        ...item,
+        image: item.image ? constructImageUrl(item.image) : null
+      };
     });
 
     const ordersWithItems = orders.map(order => ({
