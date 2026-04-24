@@ -48,10 +48,12 @@ async function getAllOrders(req, res) {
       ordersQuery = 'SELECT * FROM orders ORDER BY created_at DESC';
     }
 
- const [orders] = await pool.query(
-  'SELECT * FROM orders WHERE member_uuid = ? ORDER BY created_at DESC',
-  [userId]
-);
+    const [orders] = await pool.query(ordersQuery, params);
+
+    // Return empty array if no orders found
+    if (!orders || orders.length === 0) {
+      return res.json([]);
+    }
 
     // Get all items for these orders in one go
     const orderIds = orders.map(o => o.order_id);
