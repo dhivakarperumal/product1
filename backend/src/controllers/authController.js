@@ -9,21 +9,22 @@ function buildAuthPayload(user) {
   // For admins, adminUuid should be their own userUuid/user_uuid
   // For super admins, it might be stored as admin_uuid
   // For members, it's stored in created_by field
+  // For trainers in staff table, admin_uuid is their admin's UUID
   const adminUuid = user.admin_uuid || user.user_uuid || user.userUuid || user.created_by || null;
   const contact = user.mobile || user.phone || null;
   
   return {
     userId: user.id || null,
     user_id: user.user_id || null,
-    userUuid: user.user_uuid || user.userUuid || null,
-    memberUuid: user.member_id || user.memberId || user.member_uuid || user.memberUuid || null,
+    userUuid: user.user_uuid || user.userUuid || user.employee_id || null,
+    memberUuid: user.member_id || user.memberId || user.member_uuid || user.memberUuid || user.employee_id || null,
     role: user.role,
     email: user.email,
     username: user.username || null,
     mobile: user.mobile || contact,
     phone: user.phone || contact,
     adminId: user.admin_id || null,
-    adminUuid: adminUuid,  // For filtering - admin's own UUID or member's admin UUID
+    adminUuid: adminUuid,  // For filtering - admin's own UUID, or trainer's admin UUID, or member's admin UUID
     subscriptionStatus: user.subscription_status || null,
   };
 }
@@ -155,6 +156,29 @@ async function findUserByIdentifier(identifier) {
   }
 }
 
+async function findTrainerByIdentifier(identifier) {
+  try {
+    console.log('[DEBUG] findTrainerByIdentifier called with:', identifier);
+    const [rows] = await pool.query(
+      'SELECT * FROM staff WHERE role = ? AND (email = ? OR username = ?)',
+      ['trainer', identifier, identifier]
+    );
+    console.log('[DEBUG] findTrainerByIdentifier found', rows.length, 'rows');
+    if (rows[0]) {
+      console.log('[DEBUG] First row email:', rows[0].email, 'role:', rows[0].role, 'admin_uuid:', rows[0].admin_uuid);
+    }
+    logger.debug('findTrainerByIdentifier(%s): found %d rows', identifier, rows.length);
+    return rows[0] || null;
+  } catch (err) {
+    console.error('[DEBUG] findTrainerByIdentifier error:', err.message);
+    if (err.code === 'ER_NO_SUCH_TABLE') {
+      logger.warn('staff table not found');
+      return null;
+    }
+    throw err;
+  }
+}
+
 // register a new user
 async function register(req, res) {
   const { username, email, mobile, password } = req.body;
@@ -229,12 +253,32 @@ async function login(req, res) {
       }
     } else if (role === 'member' || role === 'trainer' || role === 'user') {
       debug_branch = 'member_trainer';
-      console.log('[LOGIN] Routing to members table for role:', role);
-      user = await findMemberByIdentifier(identifier);
-      table = 'members';
-      console.log('[LOGIN] findMemberByIdentifier returned:', user ? 'Found' : 'Not found');
+      
+      if (role === 'trainer') {
+        // First, try to find trainer in staff table
+        console.log('[LOGIN] Looking for trainer in staff table for:', identifier);
+        user = await findTrainerByIdentifier(identifier);
+        table = 'staff';
+        if (user) {
+          console.log('[LOGIN] Found trainer in staff table');
+        } else {
+          // Fallback to members table if not found in staff
+          console.log('[LOGIN] Trainer not found in staff table, checking members table');
+          user = await findMemberByIdentifier(identifier);
+          table = 'members';
+          if (user && user.role !== 'trainer') {
+            user = null; // User exists but is not a trainer
+          }
+        }
+      } else {
+        // For member/user login, search in members table
+        console.log('[LOGIN] Routing to members table for role:', role);
+        user = await findMemberByIdentifier(identifier);
+        table = 'members';
+        console.log('[LOGIN] findMemberByIdentifier returned:', user ? 'Found' : 'Not found');
+      }
 
-      if (!user) {
+      if (!user && role !== 'trainer') {
         logger.warn('member not found for identifier: %s in members table', identifier);
         // Fallback to members_auth if the account is stored in the legacy auth table.
         const legacyMember = await findMemberAuthByIdentifier(identifier);
@@ -260,7 +304,7 @@ async function login(req, res) {
       }
 
       if (!user) {
-        logger.warn('member not found for identifier: %s', identifier);
+        logger.warn('member/trainer not found for identifier: %s', identifier);
         return res.status(400).json({ message: 'Invalid credentials', debug: debug_branch + '_not_found' });
       }
 
