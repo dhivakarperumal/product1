@@ -221,7 +221,7 @@ async function updateStaff(req, res) {
 
 async function getAllStaff(req, res) {
   try {
-    const { role } = req.query;
+    const { role, created_by } = req.query;
     let sql = 'SELECT * FROM staff';
     const params = [];
     const conditions = [];
@@ -234,8 +234,13 @@ async function getAllStaff(req, res) {
     // Check if user is super admin
     const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
     
-    // Filter by admin's UUID if user is an admin (not super admin)
-    if (!isSuperAdmin && req.user?.role === 'admin') {
+    // If created_by query parameter is provided (member access), filter by it
+    if (created_by) {
+      conditions.push('admin_uuid = ?');
+      params.push(created_by);
+    }
+    // Filter by admin's UUID if user is an admin (not super admin) and no created_by param
+    else if (!isSuperAdmin && req.user?.role === 'admin') {
       const adminUuid = req.user?.adminUuid || req.user?.admin_uuid || req.user?.userUuid || req.user?.user_uuid || null;
       if (adminUuid) {
         conditions.push('admin_uuid = ?');
