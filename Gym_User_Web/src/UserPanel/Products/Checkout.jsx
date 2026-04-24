@@ -176,7 +176,7 @@ export default function Checkout() {
       const orderId = await generateOrderNumber();
 
       // Ensure every item has an image, fallback to product data if missing
-      const formattedItems = items.map((i) => {
+      let formattedItems = items.map((i) => {
         let image = i.image || (Array.isArray(i.images) ? i.images[0] : i.images) || "";
         if (!image && window.cache && window.cache.products) {
           const prod = window.cache.products.find(
@@ -198,6 +198,33 @@ export default function Checkout() {
           weight: i.weight || i.size || i.variant || "",
         };
       });
+
+      // If any item is missing an image, fetch product data from backend
+      const itemsNeedingImages = formattedItems.filter(item => !item.image && item.product_id);
+      if (itemsNeedingImages.length > 0) {
+        try {
+          const productIds = [...new Set(itemsNeedingImages.map(i => i.product_id))];
+          const productRequests = productIds.map(pid => api.get(`/products/${pid}`).catch(() => null));
+          const productResponses = await Promise.all(productRequests);
+          const productMap = productResponses.reduce((acc, res) => {
+            if (res && res.data && res.data.id) {
+              acc[res.data.id] = res.data;
+            }
+            return acc;
+          }, {});
+          
+          formattedItems = formattedItems.map(item => {
+            if (!item.image && item.product_id && productMap[item.product_id]) {
+              const prod = productMap[item.product_id];
+              item.image = Array.isArray(prod.images) ? prod.images[0] : prod.images || "";
+            }
+            return item;
+          });
+        } catch (err) {
+          console.warn("Failed to fetch product images for missing items:", err);
+          // Continue anyway - backend will handle missing images
+        }
+      }
 
       const resolvedUserId = user.user_id || user.userId || user.id;
       const isMemberAccount = ['member', 'trainer'].includes((user.role || '').toLowerCase());

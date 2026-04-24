@@ -5,6 +5,41 @@ const { getActorUuid } = require('../utils/auditTrail');
 const getAdminUuid = (user) =>
   user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
 
+// Helper function to construct proper image URLs
+const constructImageUrl = (imageData) => {
+  if (!imageData) return null;
+  
+  // Already a full URL
+  if (typeof imageData === 'string' && (imageData.startsWith('http') || imageData.startsWith('data:'))) {
+    return imageData;
+  }
+  
+  // Try to parse JSON (in case it's stored as JSON array)
+  let imagePath = imageData;
+  if (typeof imageData === 'string') {
+    try {
+      const parsed = JSON.parse(imageData);
+      imagePath = Array.isArray(parsed) ? parsed[0] : parsed;
+    } catch (e) {
+      // Not JSON, use as-is
+    }
+  }
+  
+  if (!imagePath) return null;
+  
+  // Make sure it's a string
+  imagePath = String(imagePath).trim();
+  if (!imagePath) return null;
+  
+  // If it's a relative path, construct the full URL
+  if (!imagePath.startsWith('http') && !imagePath.startsWith('data:')) {
+    const baseUrl = process.env.API_BASE_URL || 'http://localhost:5000';
+    return `${baseUrl}/${imagePath.replace(/^\/+/, '')}`;
+  }
+  
+  return imagePath;
+};
+
 // Helper function to parse JSON fields
 const parseOrder = (order) => {
   if (!order) return order;
@@ -62,11 +97,44 @@ async function getAllOrders(req, res) {
       [orderIds]
     );
 
+    // Get product images for items that are missing them
+    const itemsWithoutImages = items.filter(item => !item.image || (typeof item.image === 'string' && item.image.trim() === ''));
+    const productIds = [...new Set(itemsWithoutImages.map(item => item.product_id).filter(Boolean))];
+    
+    let productImages = {};
+    if (productIds.length > 0) {
+      const [products] = await pool.query(
+        'SELECT id, images FROM products WHERE id IN (?)',
+        [productIds]
+      );
+      productImages = products.reduce((acc, prod) => {
+        const imageUrl = constructImageUrl(prod.images);
+        if (imageUrl) {
+          acc[prod.id] = imageUrl;
+        }
+        return acc;
+      }, {});
+    }
+
+    // Enrich items with product images if missing
+    const enrichedItems = items.map(item => {
+      if ((!item.image || (typeof item.image === 'string' && item.image.trim() === '')) && item.product_id && productImages[item.product_id]) {
+        return {
+          ...item,
+          image: productImages[item.product_id]
+        };
+      }
+      return {
+        ...item,
+        image: item.image ? constructImageUrl(item.image) : null
+      };
+    });
+
     // Group items by order_id
     const ordersWithItems = orders.map(order => {
       return {
         ...parseOrder(order),
-        items: items.filter(item => item.order_id === order.order_id)
+        items: enrichedItems.filter(item => item.order_id === order.order_id)
       };
     });
 
@@ -98,9 +166,42 @@ async function getOrder(req, res) {
       [id]
     );
 
+    // Get product images for items that are missing them
+    const itemsWithoutImages = items.filter(item => !item.image || (typeof item.image === 'string' && item.image.trim() === ''));
+    const productIds = [...new Set(itemsWithoutImages.map(item => item.product_id).filter(Boolean))];
+    
+    let productImages = {};
+    if (productIds.length > 0) {
+      const [products] = await pool.query(
+        'SELECT id, images FROM products WHERE id IN (?)',
+        [productIds]
+      );
+      productImages = products.reduce((acc, prod) => {
+        const imageUrl = constructImageUrl(prod.images);
+        if (imageUrl) {
+          acc[prod.id] = imageUrl;
+        }
+        return acc;
+      }, {});
+    }
+
+    // Enrich items with product images if missing
+    const enrichedItems = items.map(item => {
+      if ((!item.image || (typeof item.image === 'string' && item.image.trim() === '')) && item.product_id && productImages[item.product_id]) {
+        return {
+          ...item,
+          image: productImages[item.product_id]
+        };
+      }
+      return {
+        ...item,
+        image: item.image ? constructImageUrl(item.image) : null
+      };
+    });
+
     res.json({
       ...order[0],
-      items
+      items: enrichedItems
     });
 
   } catch (err) {
@@ -521,11 +622,44 @@ async function getUserOrders(req, res) {
       [orderIds]
     );
 
+    // Get product images for items that are missing them
+    const itemsWithoutImages = items.filter(item => !item.image || (typeof item.image === 'string' && item.image.trim() === ''));
+    const productIds = [...new Set(itemsWithoutImages.map(item => item.product_id).filter(Boolean))];
+    
+    let productImages = {};
+    if (productIds.length > 0) {
+      const [products] = await pool.query(
+        'SELECT id, images FROM products WHERE id IN (?)',
+        [productIds]
+      );
+      productImages = products.reduce((acc, prod) => {
+        const imageUrl = constructImageUrl(prod.images);
+        if (imageUrl) {
+          acc[prod.id] = imageUrl;
+        }
+        return acc;
+      }, {});
+    }
+
+    // Enrich items with product images if missing
+    const enrichedItems = items.map(item => {
+      if ((!item.image || (typeof item.image === 'string' && item.image.trim() === '')) && item.product_id && productImages[item.product_id]) {
+        return {
+          ...item,
+          image: productImages[item.product_id]
+        };
+      }
+      return {
+        ...item,
+        image: item.image ? constructImageUrl(item.image) : null
+      };
+    });
+
     // Group items by order_id
     const ordersWithItems = orders.map(order => {
       return {
         ...parseOrder(order),
-        items: items.filter(item => item.order_id === order.order_id)
+        items: enrichedItems.filter(item => item.order_id === order.order_id)
       };
     });
 
@@ -577,13 +711,50 @@ async function getTodayOrders(req, res) {
       [orderIds]
     );
 
-const ordersWithItems = orders.map(order => ({
-  ...parseOrder(order),
-  order_id: order.order_id,
-  total: order.total,
-  created_at: order.created_at,
-  items: items.filter(item => item.order_id === order.order_id)
-}));
+    // Get product images for items that are missing them
+    const itemsWithoutImages = items.filter(item => !item.image || (typeof item.image === 'string' && item.image.trim() === ''));
+    const productIds = [...new Set(itemsWithoutImages.map(item => item.product_id).filter(Boolean))];
+    
+    let productImages = {};
+    if (productIds.length > 0) {
+      const [products] = await pool.query(
+        'SELECT id, images FROM products WHERE id IN (?)',
+        [productIds]
+      );
+      productImages = products.reduce((acc, prod) => {
+        let images = prod.images;
+        if (typeof images === 'string') {
+          try {
+            images = JSON.parse(images);
+            acc[prod.id] = Array.isArray(images) ? images[0] : images;
+          } catch {
+            acc[prod.id] = images;
+          }
+        } else if (Array.isArray(images)) {
+          acc[prod.id] = images[0];
+        }
+        return acc;
+      }, {});
+    }
+
+    // Enrich items with product images if missing
+    const enrichedItems = items.map(item => {
+      if ((!item.image || (typeof item.image === 'string' && item.image.trim() === '')) && item.product_id && productImages[item.product_id]) {
+        return {
+          ...item,
+          image: productImages[item.product_id]
+        };
+      }
+      return item;
+    });
+
+    const ordersWithItems = orders.map(order => ({
+      ...parseOrder(order),
+      order_id: order.order_id,
+      total: order.total,
+      created_at: order.created_at,
+      items: enrichedItems.filter(item => item.order_id === order.order_id)
+    }));
  
 
     return res.json(ordersWithItems);
