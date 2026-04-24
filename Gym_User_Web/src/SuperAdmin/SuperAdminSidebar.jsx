@@ -34,12 +34,12 @@ const SuperAdminSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => 
 
   return (
     <>
-      <div
-        onClick={onClose}
-        className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden transition-opacity ${
-          isOpen ? "opacity-100 visible" : "opacity-0 invisible"
-        }`}
-      />
+      {isOpen && (
+        <div
+          onClick={onClose}
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+        />
+      )}
 
       <aside
         className={`fixed top-0 left-0 z-50 h-full bg-slate-950/95 backdrop-blur-xl border-r border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.45)] flex flex-col transition-all duration-300 ${

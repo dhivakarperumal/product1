@@ -139,11 +139,12 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
   return (
     <>
       {/* ========== MOBILE OVERLAY ========== */}
-      <div
-        onClick={onClose}
-        className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden
-        transition-opacity ${isOpen ? "opacity-100 visible" : "opacity-0 invisible"}`}
-      />
+      {isOpen && (
+        <div
+          onClick={onClose}
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+        />
+      )}
 
       {/* ========== SIDEBAR ========== */}
       <aside

@@ -54,8 +54,8 @@ const SuperAdminPanel = () => {
         `}
       >
         {/* Header */}
-      {/* Header */}
-        <Header onMenuClick={() => setSidebarOpen(true)} />
+        {/* Header */}
+        <Header onMenuClick={() => setSidebarOpen(true)} isLargeScreen={isLargeScreen} />
 
         {/* ⚡ ROUTE PROGRESS BAR */}
         {isTransitioning && (

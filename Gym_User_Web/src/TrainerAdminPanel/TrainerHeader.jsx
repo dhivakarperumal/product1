@@ -59,7 +59,7 @@ const clearCheckin = () => localStorage.removeItem(CHECKIN_KEY);
 
 /* ------------------------------------------------------------------ */
 
-const Header = ({ onMenuClick }) => {
+const Header = ({ onMenuClick, isLargeScreen }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [alerts, setAlerts] = useState([]);
@@ -261,12 +261,16 @@ const Header = ({ onMenuClick }) => {
 
         {/* LEFT */}
         <div className="flex items-center gap-3 min-w-0">
-          <button
-            onClick={onMenuClick}
-            className="lg:hidden p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
+          {/* MOBILE MENU BUTTON - Only show on mobile */}
+          {!isLargeScreen && (
+            <button
+              onClick={onMenuClick}
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition"
+              aria-label="Toggle menu"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+          )}
 
           <h1 className="text-lg sm:text-xl lg:text-2xl font-semibold text-white tracking-wide truncate leading-tight">
             {getPageTitle()}

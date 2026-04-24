@@ -23,7 +23,7 @@ const pageTitles = {
   "/superadmin/users": "Users",
 };
 
-const SuperAdminHeader = ({ onMenuClick }) => {
+const SuperAdminHeader = ({ onMenuClick, isLargeScreen }) => {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -73,14 +73,18 @@ const SuperAdminHeader = ({ onMenuClick }) => {
 
         {/* LEFT */}
         <div className="flex items-center gap-3 min-w-0">
-          <button
-            onClick={onMenuClick}
-            className="lg:hidden p-2 rounded-xl 
-            bg-white/10 hover:bg-white/20 
-            text-white transition"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
+          {/* MOBILE MENU BUTTON - Only show on mobile */}
+          {!isLargeScreen && (
+            <button
+              onClick={onMenuClick}
+              className="p-2 rounded-xl 
+              bg-white/10 hover:bg-white/20 
+              text-white transition"
+              aria-label="Toggle menu"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+          )}
 
           <h1 className="text-lg sm:text-xl lg:text-2xl font-semibold 
             text-white tracking-wide truncate">

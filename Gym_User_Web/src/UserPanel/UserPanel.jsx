@@ -42,7 +42,7 @@ const UserPanel = () => {
           ${isLargeScreen ? (sidebarCollapsed ? "lg:ml-20" : "lg:ml-64") : ""}
         `}
       >
-        <UserHeader onMenuClick={() => setSidebarOpen(true)} />
+        <UserHeader onMenuClick={() => setSidebarOpen(true)} isLargeScreen={isLargeScreen} />
 
         <main className="flex-1 p-4 sm:p-5 lg:p-6 overflow-y-auto">
           <div className="glass-container animate-fade-in-up">

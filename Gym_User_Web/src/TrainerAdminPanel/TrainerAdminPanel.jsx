@@ -41,7 +41,7 @@ const AdminLayout = () => {
         `}
       >
         {/* Header */}
-        <Header onMenuClick={() => setSidebarOpen(true)} />
+        <Header onMenuClick={() => setSidebarOpen(true)} isLargeScreen={isLargeScreen} />
 
         {/* Page Content */}
         <main className="flex-1 p-4 sm:p-5 lg:p-6 overflow-y-auto">

@@ -55,7 +55,7 @@ const AdminLayout = () => {
       >
         {/* Header */}
       {/* Header */}
-        <Header onMenuClick={() => setSidebarOpen(true)} />
+        <Header onMenuClick={() => setSidebarOpen(true)} isLargeScreen={isLargeScreen} />
 
         {/* ⚡ ROUTE PROGRESS BAR */}
         {isTransitioning && (
