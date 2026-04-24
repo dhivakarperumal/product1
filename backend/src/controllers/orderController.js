@@ -49,7 +49,9 @@ async function getAllOrders(req, res) {
     }
 
     const [orders] = await pool.query(ordersQuery, params);
-    if (orders.length === 0) {
+
+    // Return empty array if no orders found
+    if (!orders || orders.length === 0) {
       return res.json([]);
     }
 
@@ -575,12 +577,14 @@ async function getTodayOrders(req, res) {
       [orderIds]
     );
 
-    const ordersWithItems = orders.map(order => {
-      return {
-        ...parseOrder(order),
-        items: items.filter(item => item.order_id === order.order_id)
-      };
-    });
+const ordersWithItems = orders.map(order => ({
+  ...parseOrder(order),
+  order_id: order.order_id,
+  total: order.total,
+  created_at: order.created_at,
+  items: items.filter(item => item.order_id === order.order_id)
+}));
+ 
 
     return res.json(ordersWithItems);
   } catch (err) {

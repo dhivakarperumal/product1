@@ -82,8 +82,22 @@ const normalizeStatus = (status) => {
 
 const Orders = () => {
   const { user } = useAuth();
-  // Proper member/user UUID resolution
-  const userId = user?.memberUuid || user?.userUuid || user?.user_uuid || user?.user_id || user?.id;
+  // Debug log for user object
+  console.log('Orders Page: user object:', user);
+  // Robust user ID resolution for all possible user object shapes
+  // Try all common keys for user/member UUIDs/IDs
+  const userId =
+    user?.memberUuid ||
+    user?.userUuid ||
+    user?.user_uuid ||
+    user?.user_id ||
+    user?.id ||
+    user?.member_uuid ||
+    user?.uuid ||
+    user?.UserId ||
+    user?.MemberId ||
+    null;
+  // Remove debug log for production
   const navigate = useNavigate();
   const isMountedRef = useRef(true);
 
@@ -93,20 +107,26 @@ const Orders = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [error, setError] = useState(null);
 
+
+  
+
   // ✅ Fetch Orders - always fetch fresh on mount to catch new orders from checkout
   useEffect(() => {
     if (!userId) {
+      // Avoid setState directly in effect body
+      window.setTimeout(() => {
+        if (isMountedRef.current) {
+          setLoading(false);
+          setError('No user ID found. Please log in again.');
+        }
+      }, 0);
       console.warn('Orders: No userId found in user object', { user });
-      if (isMountedRef.current) {
-        setLoading(false);
-        setError('No user ID found. Please log in again.');
-      }
       return;
     }
 
     const abortController = new AbortController();
     isMountedRef.current = true;
-    
+
     const fetchOrders = async () => {
       try {
         setLoading(true);
@@ -116,8 +136,8 @@ const Orders = () => {
           signal: abortController.signal
         });
         const fetchedOrders = Array.isArray(res.data) ? res.data : [];
-        console.log('Orders: Fetched', fetchedOrders.length, 'orders');
-        
+        console.log('Orders: Fetched orders:', fetchedOrders);
+
         if (isMountedRef.current) {
           setOrders(fetchedOrders);
           setLoading(false);
@@ -135,12 +155,12 @@ const Orders = () => {
     };
 
     fetchOrders();
-    
+
     return () => {
       isMountedRef.current = false;
       abortController.abort();
     };
-  }, [userId]);
+  }, [userId, user]);
 
   // ✅ Loading
   if (loading) {
