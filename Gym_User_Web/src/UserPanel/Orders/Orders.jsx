@@ -7,18 +7,51 @@ import { ShoppingCart, X, Package, CheckCircle, Truck, Clock } from "lucide-reac
 // ✅ Cache for orders
 const ordersCache = {};
 
-// ✅ Image helper
+// ✅ Image helper - improved
 const makeImageUrl = (img) => {
-  if (!img) return "";
-  if (img.startsWith("http") || img.startsWith("data:")) return img;
-
-  const maybeBase64 = /^[A-Za-z0-9+/=]+$/.test(img);
-  if (maybeBase64 && img.length > 50) {
-    return `data:image/webp;base64,${img}`;
+  if (!img) return null;
+  
+  // Already a URL
+  if (typeof img === 'string') {
+    if (img.startsWith("http")) return img;
+    if (img.startsWith("data:")) return img;
+    
+    // Check if it looks like base64
+    const trimmed = img.trim();
+    if (trimmed.match(/^[A-Za-z0-9+/=]+$/)) {
+      if (trimmed.length > 50) {
+        return `data:image/webp;base64,${trimmed}`;
+      }
+    }
+    
+    // Treat as relative path
+    const apiUrl = import.meta.env.VITE_API_URL || "";
+    const baseUrl = apiUrl.replace(/\/api\/?$/, "");
+    if (baseUrl) {
+      const finalUrl = `${baseUrl.replace(/\/$/, "")}/${trimmed.replace(/^\/+/, "")}`;
+      return finalUrl;
+    }
   }
+  
+  return null;
+};
 
-  const base = import.meta.env.VITE_API_URL || "";
-  return `${base.replace(/\/$/, "")}/${img.replace(/^\/+/, "")}`;
+// ✅ Debug helper - logs when images fail
+const handleImageError = (e, itemName = '') => {
+  console.warn(`[Orders] Image failed to load for ${itemName}:`, e.target.src);
+  e.target.style.display = 'none';
+  const parent = e.target.parentElement;
+  if (parent) {
+    const fallback = document.createElement('div');
+    fallback.className = 'w-16 h-16 bg-white/10 rounded-md border border-white/10 flex items-center justify-center flex-shrink-0';
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'w-5 h-5 text-white/30');
+    svg.setAttribute('fill', 'currentColor');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.innerHTML = '<path d="M20 7l-8-4m0 0L4 7m16 0v10l-8 4m0 0l-8-4m0 0V7m0 0L4 3m8 4v10m0 0l8-4"></path>';
+    fallback.appendChild(svg);
+    parent.appendChild(fallback);
+  }
 };
 
 const ORDER_STEPS = [
@@ -218,41 +251,66 @@ const Orders = () => {
                     {/* ORDER DATE & TOTAL */}
                     <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-white/10">
                       <div>
-                        <p className="text-xs text-white/60 mb-1">Date</p>
-                        <p className="text-sm text-white">{new Date(order.created_at).toLocaleDateString()}</p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Clock className="w-3 h-3 text-orange-400" />
+                          <p className="text-xs text-white/60">Order Date</p>
+                        </div>
+                        <p className="text-sm text-white font-medium">{new Date(order.created_at).toLocaleDateString()}</p>
+                        <p className="text-xs text-white/50">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-white/60 mb-1">Total</p>
+                        <p className="text-xs text-white/60 mb-1">Total Amount</p>
                         <p className="text-lg font-bold text-orange-400">₹{order.total}</p>
                       </div>
                     </div>
 
                     {/* ITEMS PREVIEW */}
-                    <div className="space-y-2">
+                    <div className="space-y-3">
+                      <p className="text-xs text-white/60 font-semibold uppercase tracking-wide">Products ({order.items?.length || 0})</p>
                       {Array.isArray(order.items) && order.items.length > 0 ? (
                         <>
-                          {order.items.slice(0, 2).map((item, i) => (
-                            <div key={i} className="flex gap-3">
-                              {item.image && (
-                                <img
-                                  src={makeImageUrl(item.image)}
-                                  alt={item.product_name || 'Product'}
-                                  className="w-10 h-10 object-cover rounded"
-                                  onError={(e) => { e.target.style.display = 'none'; }}
-                                />
-                              )}
+                          {order.items.slice(0, 3).map((item, i) => (
+                            <div key={i} className="flex gap-3 bg-black/30 p-3 rounded-lg border border-white/5 hover:border-white/10 transition">
+                              {(() => {
+                                const imgUrl = makeImageUrl(item.image);
+                                if (!imgUrl) {
+                                  return (
+                                    <div className="w-16 h-16 bg-white/10 rounded-md border border-white/10 flex items-center justify-center flex-shrink-0">
+                                      <Package className="w-6 h-6 text-white/30" />
+                                    </div>
+                                  );
+                                }
+                                return (
+                                  <img
+                                    src={imgUrl}
+                                    alt={item.product_name || 'Product'}
+                                    className="w-16 h-16 object-cover rounded-md border border-white/10 flex-shrink-0"
+                                    onError={(e) => handleImageError(e, item.product_name)}
+                                  />
+                                );
+                              })()}
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm text-white truncate">{item.product_name || 'Unknown Product'}</p>
-                                <p className="text-xs text-white/50">Qty: {item.qty || 1}</p>
+                                <p className="text-sm text-white font-semibold truncate">{item.product_name || 'Unknown Product'}</p>
+                                {(item.size || item.color) && (
+                                  <p className="text-xs text-white/50 truncate">
+                                    {item.size && `Size: ${item.size}`}
+                                    {item.size && item.color && ' • '}
+                                    {item.color && `Color: ${item.color}`}
+                                  </p>
+                                )}
+                                <div className="flex gap-2 mt-1">
+                                  <span className="inline-block px-2 py-1 bg-orange-500/20 text-orange-300 text-xs rounded">Qty: {item.qty || 1}</span>
+                                  <span className="inline-block px-2 py-1 bg-green-500/20 text-green-300 text-xs rounded font-semibold">₹{((item.price || 0) * (item.qty || 1)).toFixed(0)}</span>
+                                </div>
                               </div>
                             </div>
                           ))}
-                          {order.items.length > 2 && (
-                            <p className="text-xs text-white/50 py-2">+{order.items.length - 2} more items</p>
+                          {order.items.length > 3 && (
+                            <p className="text-xs text-white/50 py-2 text-center bg-black/20 rounded">+{order.items.length - 3} more items</p>
                           )}
                         </>
                       ) : (
-                        <p className="text-xs text-white/50 py-2">No items</p>
+                        <p className="text-xs text-white/50 py-2 text-center">No items</p>
                       )}
                     </div>
 
@@ -278,9 +336,23 @@ const Orders = () => {
                   </div>
 
                   {/* ORDER ID & STATUS */}
-                  <div className="flex justify-between items-center mb-8">
-                    <div>
-                      <p className="text-white text-lg font-semibold">Order ID: <span className="text-white">{selectedOrder.order_id || selectedOrder.id}</span></p>
+                  <div className="flex justify-between items-start mb-8 pb-6 border-b border-white/10">
+                    <div className="flex-1">
+                      <p className="text-white text-lg font-semibold mb-3">Order ID: <span className="text-orange-400">{selectedOrder.order_id || selectedOrder.id}</span></p>
+                      <div className="flex items-center gap-6 text-sm">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-blue-400" />
+                          <span className="text-white/70">
+                            {new Date(selectedOrder.created_at).toLocaleDateString('en-IN', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-blue-400" />
+                          <span className="text-white/70">
+                            {new Date(selectedOrder.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                     <div className={`text-sm font-bold px-4 py-2 rounded-full flex items-center gap-2 ${statusColor[normalizeStatus(selectedOrder.status)]}`}>
                       {statusIcon[normalizeStatus(selectedOrder.status)]}
@@ -332,14 +404,24 @@ const Orders = () => {
                       selectedOrder.items.map((item, i) => (
                         <div key={i} className="grid grid-cols-12 gap-4 mb-6 pb-6 border-b border-white/10 last:border-b-0">
                           <div className="col-span-7 flex gap-3">
-                            {item.image && (
-                              <img
-                                src={makeImageUrl(item.image)}
-                                alt={item.product_name || 'Product'}
-                                className="w-16 h-16 object-cover rounded"
-                                onError={(e) => { e.target.style.display = 'none'; }}
-                              />
-                            )}
+                            {(() => {
+                              const imgUrl = makeImageUrl(item.image);
+                              if (!imgUrl) {
+                                return (
+                                  <div className="w-16 h-16 bg-white/10 rounded border border-white/10 flex items-center justify-center flex-shrink-0">
+                                    <Package className="w-5 h-5 text-white/30" />
+                                  </div>
+                                );
+                              }
+                              return (
+                                <img
+                                  src={imgUrl}
+                                  alt={item.product_name || 'Product'}
+                                  className="w-16 h-16 object-cover rounded border border-white/10 flex-shrink-0"
+                                  onError={(e) => handleImageError(e, item.product_name)}
+                                />
+                              );
+                            })()}
                             <div>
                               <p className="text-white font-semibold text-sm">{item.product_name || 'Unknown Product'}</p>
                               {(item.size || item.weight) && (

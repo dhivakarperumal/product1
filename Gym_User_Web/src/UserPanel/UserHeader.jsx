@@ -41,6 +41,8 @@ const UserHeader = ({ onMenuClick }) => {
   const [fetchingAlerts, setFetchingAlerts] = useState(false);
   const [messages, setMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [orderCount, setOrderCount] = useState(0);
+  const [fetchingOrders, setFetchingOrders] = useState(false);
 
 
   const totalNotifications = alerts.length + messages.length;
@@ -81,6 +83,37 @@ const UserHeader = ({ onMenuClick }) => {
     fetchAlerts();
     // Only fetch alerts when user explicitly opens notifications, not periodically
     // This reduces unnecessary requests and improves performance
+    return () => abortController.abort();
+  }, [user?.id]);
+
+  /* ---- Fetch Pending Orders Count (not delivered) -------- */
+  useEffect(() => {
+    const abortController = new AbortController();
+    
+    const fetchOrderCount = async () => {
+      if (!user?.id) return;
+      try {
+        setFetchingOrders(true);
+        const res = await api.get(`/orders/user/${user.id}`, {
+          signal: abortController.signal
+        });
+        const orders = Array.isArray(res.data) ? res.data : [];
+        // Count only orders that are NOT delivered
+        const pendingOrders = orders.filter(o => {
+          const status = String(o.status || '').toLowerCase().replace(/[\s_-]+/g, '');
+          return status !== 'delivered' && status !== 'cancelled';
+        });
+        setOrderCount(pendingOrders.length);
+      } catch (err) {
+        if (err.name !== 'CanceledError') {
+          console.error("Failed to fetch orders:", err);
+        }
+      } finally {
+        setFetchingOrders(false);
+      }
+    };
+
+    fetchOrderCount();
     return () => abortController.abort();
   }, [user?.id]);
 
@@ -257,6 +290,14 @@ const UserHeader = ({ onMenuClick }) => {
             title="Order Tracking"
           >
             <Package className="w-5 h-5" />
+            {orderCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center 
+                rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 
+                text-[10px] font-bold text-white ring-2 ring-slate-900
+                animate-bounce shadow-lg shadow-cyan-500/50">
+                {orderCount}
+              </span>
+            )}
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 
               opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           </Link>
