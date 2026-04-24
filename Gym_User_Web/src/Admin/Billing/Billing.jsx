@@ -22,6 +22,7 @@ const Billing = () => {
   /* ================= LOAD MEMBERS ================= */
   const [members, setMembers] = useState([]);
   const [selectedMember, setSelectedMember] = useState("");
+  const [selectedMemberUuid, setSelectedMemberUuid] = useState("");
 
   useEffect(() => {
     const loadMembers = async () => {
@@ -44,6 +45,7 @@ const Billing = () => {
         email: "",
         address: "",
       });
+      setSelectedMemberUuid("");
       return;
     }
 
@@ -55,6 +57,8 @@ const Billing = () => {
         email: m.email || m.user_email || "",
         address: m.address || "",
       });
+      // Store the member UUID for order creation
+      setSelectedMemberUuid(m.member_id || m.memberUuid || m.uuid || "");
       toast.success(`Details loaded for: ${m.name || m.displayName || m.username}`);
     }
   };
@@ -183,6 +187,7 @@ const Billing = () => {
   /* ================= SAVE BILL ================= */
   const saveBill = async () => {
     if (!cart.length) return toast.error("Cart empty");
+    if (!selectedMemberUuid) return toast.error("Please select a member");
 
     for (const key in shipping) {
       if (!shipping[key]) return toast.error(`Fill ${key} field`);
@@ -225,6 +230,7 @@ const Billing = () => {
       /* 3️⃣ CREATE ORDER WITH ITEMS */
       const orderPayload = {
         order_id: orderId,
+        member_uuid: selectedMemberUuid || null,
         user_id: null,
         status: "orderPlaced",
         payment_status: orderType === "ONLINE" ? "pending" : "paid",
@@ -270,6 +276,8 @@ const Billing = () => {
 
       // Reset form
       setCart([]);
+      setSelectedMember("");
+      setSelectedMemberUuid("");
       setShipping({
         name: "",
         phone: "",
