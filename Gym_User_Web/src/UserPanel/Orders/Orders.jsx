@@ -7,19 +7,27 @@ import { ShoppingCart, X, Package, CheckCircle, Truck, Clock } from "lucide-reac
 // ✅ Cache for orders
 const ordersCache = {};
 
-// ✅ Image helper - improved
+// ✅ Image helper - improved with size limits
 const makeImageUrl = (img) => {
   if (!img) return null;
   
   // Already a URL
   if (typeof img === 'string') {
     if (img.startsWith("http")) return img;
-    if (img.startsWith("data:")) return img;
+    if (img.startsWith("data:")) {
+      // Check if base64 data is too large (over 100KB)
+      const dataPart = img.split(',')[1];
+      if (dataPart && dataPart.length > 100000) {
+        console.warn('Image data too large, skipping display:', dataPart.length, 'characters');
+        return null; // Don't display very large images
+      }
+      return img;
+    }
     
     // Check if it looks like base64
     const trimmed = img.trim();
     if (trimmed.match(/^[A-Za-z0-9+/=]+$/)) {
-      if (trimmed.length > 50) {
+      if (trimmed.length > 50 && trimmed.length < 100000) {
         return `data:image/webp;base64,${trimmed}`;
       }
     }
@@ -295,8 +303,8 @@ const Orders = () => {
                                 const imgUrl = makeImageUrl(item.image);
                                 if (!imgUrl) {
                                   return (
-                                    <div className="w-16 h-16 bg-white/10 rounded-md border border-white/10 flex items-center justify-center flex-shrink-0">
-                                      <Package className="w-6 h-6 text-white/30" />
+                                    <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded-md border border-orange-200 flex items-center justify-center flex-shrink-0">
+                                      <Package className="w-6 h-6 text-orange-500" />
                                     </div>
                                   );
                                 }
@@ -304,8 +312,13 @@ const Orders = () => {
                                   <img
                                     src={imgUrl}
                                     alt={item.product_name || 'Product'}
-                                    className="w-16 h-16 object-cover rounded-md border border-white/10 flex-shrink-0"
+                                    className="w-16 h-16 object-cover rounded-md border border-white/10 flex-shrink-0 transition-opacity duration-200"
+                                    loading="lazy"
                                     onError={(e) => handleImageError(e, item.product_name)}
+                                    onLoad={(e) => {
+                                      e.target.style.opacity = '1';
+                                    }}
+                                    style={{ opacity: 0 }}
                                   />
                                 );
                               })()}
@@ -342,8 +355,8 @@ const Orders = () => {
 
             {/* MODAL */}
             {selectedOrder && (
-              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                <div className="bg-[#0a0e27] border border-white/10 rounded-2xl p-8 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-10 p-4 overflow-hidden">
+                <div className="bg-[#0a0e27] border border-white/10 rounded-2xl p-8 w-full max-w-3xl max-h-[calc(100vh-5rem)] overflow-y-auto shadow-2xl shadow-black/40">
                   {/* MODAL HEADER */}
                   <div className="flex justify-between items-start mb-8">
                     <h2 className="text-3xl font-bold text-red-500">Order Details</h2>
@@ -428,8 +441,8 @@ const Orders = () => {
                               const imgUrl = makeImageUrl(item.image);
                               if (!imgUrl) {
                                 return (
-                                  <div className="w-16 h-16 bg-white/10 rounded border border-white/10 flex items-center justify-center flex-shrink-0">
-                                    <Package className="w-5 h-5 text-white/30" />
+                                  <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded border border-orange-200 flex items-center justify-center flex-shrink-0">
+                                    <Package className="w-5 h-5 text-orange-500" />
                                   </div>
                                 );
                               }
@@ -437,8 +450,13 @@ const Orders = () => {
                                 <img
                                   src={imgUrl}
                                   alt={item.product_name || 'Product'}
-                                  className="w-16 h-16 object-cover rounded border border-white/10 flex-shrink-0"
+                                  className="w-16 h-16 object-cover rounded border border-white/10 flex-shrink-0 transition-opacity duration-200"
+                                  loading="lazy"
                                   onError={(e) => handleImageError(e, item.product_name)}
+                                  onLoad={(e) => {
+                                    e.target.style.opacity = '1';
+                                  }}
+                                  style={{ opacity: 0 }}
                                 />
                               );
                             })()}

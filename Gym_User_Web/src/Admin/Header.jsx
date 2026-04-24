@@ -69,7 +69,7 @@ const pageTitles = {
   "/admin/users": "Users",
 };
 
-const Header = ({ onMenuClick }) => {
+const Header = ({ onMenuClick, isLargeScreen }) => {
   const [activeDropdown, setActiveDropdown] = useState(null); // 'profile', 'notifications', 'orders', 'stock', 'expiry'
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -196,16 +196,20 @@ const Header = ({ onMenuClick }) => {
 
         {/* LEFT SECTION */}
         <div className="flex items-center gap-4 min-w-0 relative z-10">
-          <button
-            onClick={onMenuClick}
-            className="lg:hidden p-3 rounded-2xl 
-            bg-white/10 hover:bg-white/20 hover:scale-105
-            text-white transition-all duration-300 ease-out
-            hover:shadow-lg hover:shadow-blue-500/25
-            border border-white/10 hover:border-white/20"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
+          {/* MOBILE MENU BUTTON - Only show on mobile */}
+          {!isLargeScreen && (
+            <button
+              onClick={onMenuClick}
+              className="p-3 rounded-2xl 
+              bg-white/10 hover:bg-white/20 hover:scale-105
+              text-white transition-all duration-300 ease-out
+              hover:shadow-lg hover:shadow-blue-500/25
+              border border-white/10 hover:border-white/20"
+              aria-label="Toggle menu"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+          )}
 
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-orange-500 to-red-500 
