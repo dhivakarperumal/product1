@@ -73,14 +73,20 @@ async function getAllMembers(req, res) {
         gm.address,
         gm.plan,
         gm.status,
-        u.id AS user_id,
-        u.user_uuid AS u_id,
+        COALESCE(gm.user_id, u.id) AS user_id,
+        COALESCE(gm.user_id, u.id) AS u_id,
         (SELECT COUNT(*) FROM workout_programs wp WHERE wp.member_id = gm.id) AS workout_count,
         (SELECT COUNT(*) FROM diet_plans dp WHERE dp.member_id = gm.id) AS diet_count,
         gm.created_at,
         'members' AS source
       FROM ${membersTable} gm
-      LEFT JOIN users u ON (u.email = gm.email OR u.mobile = gm.phone)
+      LEFT JOIN users u ON (
+        (gm.user_id IS NULL AND (
+          (TRIM(u.email) = TRIM(gm.email) AND gm.email IS NOT NULL AND gm.email != '') OR
+          (TRIM(u.mobile) = TRIM(gm.phone) AND gm.phone IS NOT NULL AND gm.phone != '')
+        )) OR
+        (gm.user_id = u.id)
+      )
       ${whereClause}
       ORDER BY gm.created_at DESC
     `;
@@ -189,21 +195,36 @@ async function createMember(req, res) {
     const numBmi = bmi != null && !isNaN(bmi) ? Number(bmi) : null;
     const numDuration = duration != null && !isNaN(duration) ? Number(duration) : null;
 
+    // Try to find matching user by email or phone
+    let linkedUserId = null;
+    if (email || phone) {
+      const [userRows] = await connection.query(
+        `SELECT id FROM users WHERE 
+         (email = ? AND email IS NOT NULL AND email != '') OR 
+         (mobile = ? AND mobile IS NOT NULL AND mobile != '')
+         LIMIT 1`,
+        [email || null, phone || null]
+      );
+      if (userRows.length > 0) {
+        linkedUserId = userRows[0].id;
+      }
+    }
+
     // Generate UUID for member_id
     const memberId = randomUUID();
 
-    // Insert member with UUID
+    // Insert member with UUID and user_id link
     let result;
     try {
       [result] = await connection.query(
         `INSERT INTO ${membersTable}
       (member_id, name, phone, email, gender, height, weight, bmi, plan, duration,
-       join_date, expiry_date, status, photo, notes, address, created_by, updated_by)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       join_date, expiry_date, status, photo, notes, address, user_id, created_by, updated_by)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [
           memberId, name, phone, email, gender, numHeight, numWeight, numBmi,
           plan, numDuration, joinDate, expiryDate, status, photo, notes, address,
-          currentUserUuid, currentUserUuid
+          linkedUserId, currentUserUuid, currentUserUuid
         ]
       );
     } catch (err) {
@@ -227,7 +248,8 @@ async function createMember(req, res) {
       id: result.insertId,
       member_id: memberId,
       name, phone, email, gender, height: numHeight, weight: numWeight, bmi: numBmi, plan, duration: numDuration,
-      join_date: joinDate, expiry_date: expiryDate, status, photo, notes, address
+      join_date: joinDate, expiry_date: expiryDate, status, photo, notes, address,
+      user_id: linkedUserId
     };
 
     res.json(member);
@@ -321,31 +343,47 @@ async function updateMember(req, res) {
 
     let updateQuery;
     let updateParams;
+    
+    // Try to find matching user by email or phone
+    let linkedUserId = null;
+    if (email || phone) {
+      const [userRows] = await connection.query(
+        `SELECT id FROM users WHERE 
+         (email = ? AND email IS NOT NULL AND email != '') OR 
+         (mobile = ? AND mobile IS NOT NULL AND mobile != '')
+         LIMIT 1`,
+        [email || null, phone || null]
+      );
+      if (userRows.length > 0) {
+        linkedUserId = userRows[0].id;
+      }
+    }
+    
     if (isNum) {
       updateQuery = `UPDATE ${membersTable} SET
         name=?, phone=?, email=?, gender=?,
         height=?, weight=?, bmi=?, plan=?, duration=?,
         join_date=?, expiry_date=?, status=?,
-        photo=?, notes=?, address=?,
+        photo=?, notes=?, address=?, user_id=?,
         updated_by=?, updated_at=CURRENT_TIMESTAMP
        WHERE id=?`;
       updateParams = [
         name, phone, email, gender, numHeight, numWeight, numBmi,
         plan, numDuration, joinDate, expiryDate, status,
-        photo, notes, address, currentUserUuid, idNum
+        photo, notes, address, linkedUserId, currentUserUuid, idNum
       ];
     } else {
       updateQuery = `UPDATE ${membersTable} SET
         name=?, phone=?, email=?, gender=?,
         height=?, weight=?, bmi=?, plan=?, duration=?,
         join_date=?, expiry_date=?, status=?,
-        photo=?, notes=?, address=?,
+        photo=?, notes=?, address=?, user_id=?,
         updated_by=?, updated_at=CURRENT_TIMESTAMP
        WHERE member_id=?`;
       updateParams = [
         name, phone, email, gender, numHeight, numWeight, numBmi,
         plan, numDuration, joinDate, expiryDate, status,
-        photo, notes, address, currentUserUuid, id
+        photo, notes, address, linkedUserId, currentUserUuid, id
       ];
     }
 

@@ -229,21 +229,22 @@ const BuyPlanadmin = () => {
 
       // ===== OPTIONAL ASSIGN TRAINER =====
       if (selectedTrainer) {
-        const memberId = selectedUser.id;
+        // Use user_id from users table, not member id
+        const userId = selectedUser.user_id || selectedUser.u_id || null;
         const planId = selectedPlan.id;
 
-        // Validate IDs before creating assignment
-        if (isNaN(memberId) || isNaN(planId)) {
-          console.warn("Invalid memberId or planId for assignment", { 
-            memberId, 
+        // Validate IDs before creating assignment (check for null/undefined)
+        if (!userId || !planId) {
+          console.warn("Invalid userId or planId for assignment", { 
+            userId, 
             planId, 
             selectedUser, 
             selectedPlan 
           });
-          console.warn("Skipping trainer assignment due to invalid IDs");
+          console.warn("Skipping trainer assignment due to missing IDs");
         } else {
           const assignPayload = {
-            userId: memberId,
+            userId: userId,
             username: selectedUser.username || selectedUser.name || "",
             userEmail: selectedUser.userEmail || selectedUser.email || "",
             planId: planId,

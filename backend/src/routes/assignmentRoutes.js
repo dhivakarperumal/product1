@@ -11,6 +11,6 @@ const router = express.Router();
 router.get('/', authenticateToken, requireAdmin, getAllAssignments);
 
 // POST /api/assignments
-router.post('/', upsertAssignments);
+router.post('/', authenticateToken, requireAdmin, upsertAssignments);
 
 module.exports = router;

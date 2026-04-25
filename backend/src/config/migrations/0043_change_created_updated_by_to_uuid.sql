@@ -5,22 +5,34 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 -- Drop all foreign key constraints that reference created_by or updated_by
 ALTER TABLE gym_members 
-DROP FOREIGN KEY IF EXISTS gym_members_ibfk_1,
-DROP FOREIGN KEY IF EXISTS gym_members_ibfk_2,
-DROP FOREIGN KEY IF EXISTS fk_gym_members_created_by,
+DROP FOREIGN KEY IF EXISTS gym_members_ibfk_1;
+
+ALTER TABLE gym_members 
+DROP FOREIGN KEY IF EXISTS gym_members_ibfk_2;
+
+ALTER TABLE gym_members 
+DROP FOREIGN KEY IF EXISTS fk_gym_members_created_by;
+
+ALTER TABLE gym_members 
 DROP FOREIGN KEY IF EXISTS fk_gym_members_updated_by;
 
 ALTER TABLE users 
-DROP FOREIGN KEY IF EXISTS fk_users_created_by,
+DROP FOREIGN KEY IF EXISTS fk_users_created_by;
+
+ALTER TABLE users 
 DROP FOREIGN KEY IF EXISTS fk_users_updated_by;
 
 -- Drop indexes on these columns if they exist
 ALTER TABLE users 
-DROP INDEX IF EXISTS idx_users_created_by,
+DROP INDEX IF EXISTS idx_users_created_by;
+
+ALTER TABLE users 
 DROP INDEX IF EXISTS idx_users_updated_by;
 
 ALTER TABLE gym_members 
-DROP INDEX IF EXISTS idx_gym_members_created_by,
+DROP INDEX IF EXISTS idx_gym_members_created_by;
+
+ALTER TABLE gym_members 
 DROP INDEX IF EXISTS idx_gym_members_updated_by;
 
 -- Change column types from INT to CHAR(36) for UUID storage  
@@ -43,5 +55,3 @@ ADD INDEX idx_gym_members_updated_by (updated_by);
 
 -- Re-enable foreign key checks
 SET FOREIGN_KEY_CHECKS = 1;
-
-

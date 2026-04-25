@@ -2,9 +2,7 @@
 
 ALTER TABLE gym_members 
 ADD COLUMN created_by INT,
-ADD COLUMN updated_by INT,
-ADD FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
-ADD FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL;
+ADD COLUMN updated_by INT;
 
 -- Index for filtering members by admin
 ALTER TABLE gym_members 
