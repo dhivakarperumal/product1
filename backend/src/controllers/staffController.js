@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { randomUUID } = require('crypto');
+const bcrypt = require('bcryptjs');
 
 async function generateEmployeeId(req, res) {
   try {
@@ -59,12 +60,18 @@ async function createStaff(req, res) {
     // Auto-generate employee_id if not provided
     let employeeId = body.employee_id || randomUUID();
 
+    // Hash password if provided
+    let passwordHash = null;
+    if (body.password) {
+      passwordHash = await bcrypt.hash(body.password, 10);
+    }
+
     const query = `INSERT INTO staff
       (employee_id, username, name, email, phone, role, department, gender, blood_group,
        dob, joining_date, qualification, experience, shift, salary, address,
        emergency_name, emergency_phone, status, time_in, time_out,
-       photo, aadhar_doc, id_doc, certificate_doc, admin_uuid, created_by, updated_by, created_at, updated_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+       photo, aadhar_doc, id_doc, certificate_doc, password_hash, admin_uuid, created_by, updated_by, created_at, updated_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
 
     const params = [
       employeeId,
@@ -92,6 +99,7 @@ async function createStaff(req, res) {
       body.aadhar_doc || null,
       body.id_doc || null,
       body.certificate_doc || null,
+      passwordHash,
       adminUuid,
       createdBy,
       createdBy,
@@ -147,6 +155,12 @@ async function updateStaff(req, res) {
     // Extract admin UUID for audit trail
     const updatedBy = req.user?.adminUuid || req.user?.admin_uuid || req.user?.userUuid || req.user?.user_uuid || null;
 
+    // Hash password if provided in update
+    let passwordHash = null;
+    if (body.password) {
+      passwordHash = await bcrypt.hash(body.password, 10);
+    }
+
     const baseParams = [
       body.employee_id || null,
       body.username || null,
@@ -179,23 +193,45 @@ async function updateStaff(req, res) {
     let params;
     
     if (isNum) {
-      query = `UPDATE staff SET
-        employee_id = ?, username = ?, name = ?, email = ?, phone = ?, role = ?,
-        department = ?, gender = ?, blood_group = ?, dob = ?, joining_date = ?,
-        qualification = ?, experience = ?, shift = ?, salary = ?, address = ?,
-        emergency_name = ?, emergency_phone = ?, status = ?, time_in = ?, time_out = ?,
-        photo = ?, aadhar_doc = ?, id_doc = ?, certificate_doc = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?`;
-      params = [...baseParams, updatedBy, idNum];
+      if (passwordHash) {
+        query = `UPDATE staff SET
+          employee_id = ?, username = ?, name = ?, email = ?, phone = ?, role = ?,
+          department = ?, gender = ?, blood_group = ?, dob = ?, joining_date = ?,
+          qualification = ?, experience = ?, shift = ?, salary = ?, address = ?,
+          emergency_name = ?, emergency_phone = ?, status = ?, time_in = ?, time_out = ?,
+          photo = ?, aadhar_doc = ?, id_doc = ?, certificate_doc = ?, password_hash = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?`;
+        params = [...baseParams, passwordHash, updatedBy, idNum];
+      } else {
+        query = `UPDATE staff SET
+          employee_id = ?, username = ?, name = ?, email = ?, phone = ?, role = ?,
+          department = ?, gender = ?, blood_group = ?, dob = ?, joining_date = ?,
+          qualification = ?, experience = ?, shift = ?, salary = ?, address = ?,
+          emergency_name = ?, emergency_phone = ?, status = ?, time_in = ?, time_out = ?,
+          photo = ?, aadhar_doc = ?, id_doc = ?, certificate_doc = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?`;
+        params = [...baseParams, updatedBy, idNum];
+      }
     } else {
-      query = `UPDATE staff SET
-        employee_id = ?, username = ?, name = ?, email = ?, phone = ?, role = ?,
-        department = ?, gender = ?, blood_group = ?, dob = ?, joining_date = ?,
-        qualification = ?, experience = ?, shift = ?, salary = ?, address = ?,
-        emergency_name = ?, emergency_phone = ?, status = ?, time_in = ?, time_out = ?,
-        photo = ?, aadhar_doc = ?, id_doc = ?, certificate_doc = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE employee_id = ?`;
-      params = [...baseParams, updatedBy, id];
+      if (passwordHash) {
+        query = `UPDATE staff SET
+          employee_id = ?, username = ?, name = ?, email = ?, phone = ?, role = ?,
+          department = ?, gender = ?, blood_group = ?, dob = ?, joining_date = ?,
+          qualification = ?, experience = ?, shift = ?, salary = ?, address = ?,
+          emergency_name = ?, emergency_phone = ?, status = ?, time_in = ?, time_out = ?,
+          photo = ?, aadhar_doc = ?, id_doc = ?, certificate_doc = ?, password_hash = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE employee_id = ?`;
+        params = [...baseParams, passwordHash, updatedBy, id];
+      } else {
+        query = `UPDATE staff SET
+          employee_id = ?, username = ?, name = ?, email = ?, phone = ?, role = ?,
+          department = ?, gender = ?, blood_group = ?, dob = ?, joining_date = ?,
+          qualification = ?, experience = ?, shift = ?, salary = ?, address = ?,
+          emergency_name = ?, emergency_phone = ?, status = ?, time_in = ?, time_out = ?,
+          photo = ?, aadhar_doc = ?, id_doc = ?, certificate_doc = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE employee_id = ?`;
+        params = [...baseParams, updatedBy, id];
+      }
     }
 
     await db.query(query, params);

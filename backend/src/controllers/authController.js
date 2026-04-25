@@ -369,7 +369,7 @@ async function login(req, res) {
     const token = jwt.sign(payload, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
 
     const { password_hash, ...userData } = user;
-    userData.role = role;
+    userData.role = user.role || role;
     // Include the memberUuid in the frontend user object so it matches JWT
     if (payload.memberUuid) {
       userData.memberUuid = payload.memberUuid;

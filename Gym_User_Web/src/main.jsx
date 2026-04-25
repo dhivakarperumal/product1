@@ -108,19 +108,19 @@ const AdminReports = lazy(() => import("./Admin/Reports/Reports.jsx"));
 const Settings = lazy(() => import("./Admin/Settingss/Settings.jsx"));
 
 
-const TrainerAdminPanel = lazy(() => import("./TrainerAdminPanel/TrainerAdminPanel.jsx"));
-const TrainerDashboard = lazy(() => import("./TrainerAdminPanel/TrainerDashboard/TrainerDashboard.jsx"));
-const AddWorkout = lazy(() => import("./TrainerAdminPanel/AddWrokouts/AddWorkout.jsx"));
-const AllWorkouts = lazy(() => import("./TrainerAdminPanel/AddWrokouts/AllWorkouts.jsx"));
-const AddDietPlans = lazy(() => import("./TrainerAdminPanel/DietPlans/AddDietPlans.jsx"));
-const AllDietPlans = lazy(() => import("./TrainerAdminPanel/DietPlans/AllDietPlans.jsx"));
-const TrainerOverallAttendance = lazy(() => import("./TrainerAdminPanel/TrainerAttendance/OverallAttendance.jsx"));
-const TrainerReports = lazy(() => import("./TrainerAdminPanel/TrainerReports/Reports.jsx"));
-const TrainerSendMessage = lazy(() => import("./TrainerAdminPanel/TrainerSendMessage/TrainerSendMessage.jsx"));
+const TrainerPanel = lazy(() => import("./TrainerPanel/TrainerPanel.jsx"));
+const TrainerDashboard = lazy(() => import("./TrainerPanel/TrainerDashboard/TrainerDashboard.jsx"));
+const AddWorkout = lazy(() => import("./TrainerPanel/AddWrokouts/AddWorkout.jsx"));
+const AllWorkouts = lazy(() => import("./TrainerPanel/AddWrokouts/AllWorkouts.jsx"));
+const AddDietPlans = lazy(() => import("./TrainerPanel/DietPlans/AddDietPlans.jsx"));
+const AllDietPlans = lazy(() => import("./TrainerPanel/DietPlans/AllDietPlans.jsx"));
+const TrainerOverallAttendance = lazy(() => import("./TrainerPanel/TrainerAttendance/OverallAttendance.jsx"));
+const TrainerReports = lazy(() => import("./TrainerPanel/TrainerReports/Reports.jsx"));
+const TrainerSendMessage = lazy(() => import("./TrainerPanel/TrainerSendMessage/TrainerSendMessage.jsx"));
 const AssignedTrainers = lazy(() => import("./Admin/Payments/AssingnedTrainers.jsx"));
 const GymWorkoutManager = lazy(() => import("./Admin/CommenWorkDiet/CommenWorkDiet.jsx"));
-const UpdateWeight = lazy(() => import("./TrainerAdminPanel/UpdateWeight/UpdateWeight.jsx"));
-const ProfileSettings = lazy(() => import("./TrainerAdminPanel/Settingss/ProfileSettings.jsx"));
+const UpdateWeight = lazy(() => import("./TrainerPanel/UpdateWeight/UpdateWeight.jsx"));
+const ProfileSettings = lazy(() => import("./TrainerPanel/Settingss/ProfileSettings.jsx"));
 
 // ✅ Router setup
 const router = createHashRouter([
@@ -274,7 +274,7 @@ const router = createHashRouter([
     path: "/trainer",
     element: (
       <PrivateRoute allowedRoles={["trainer"]}>
-        <TrainerAdminPanel />
+        <TrainerPanel />
       </PrivateRoute>
     ),
     errorElement: <RouteError />,
