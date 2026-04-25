@@ -549,10 +549,3 @@ const TrainerDashboard = () => {
 };
 
 export default TrainerDashboard;
-
-      </div>
-    </div>
-  );
-};
-
-export default TrainerDashboard;
