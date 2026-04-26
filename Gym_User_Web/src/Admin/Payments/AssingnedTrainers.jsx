@@ -33,6 +33,7 @@ const AssingnedTrainers = () => {
       try {
         const res = await api.get("/memberships");
         const membershipsData = Array.isArray(res.data) ? res.data : [];
+        console.log('[AssingnedTrainers] Fetched memberships:', membershipsData.length, 'records');
  
         const usersData = membershipsData.map((m) => {
           const resolvedUserId = m.userId || m.user_id || null;
@@ -52,7 +53,7 @@ const AssingnedTrainers = () => {
             m.memberEmail ||
             "";
 
-          return {
+          const member = {
             uid: resolvedUserId ? String(resolvedUserId) : `membership_${m.id}`,
             userId: resolvedUserId ? String(resolvedUserId) : null,
             membershipId: m.id,
@@ -71,8 +72,16 @@ const AssingnedTrainers = () => {
             }],
             source: "memberships",
           };
+          
+          // Debug: log members without proper userId
+          if (!resolvedUserId) {
+            console.warn('[AssingnedTrainers] Member without userId:', resolvedUsername, member);
+          }
+          
+          return member;
         });
 
+        console.log('[AssingnedTrainers] Processed members:', usersData.length);
         setMembers(usersData);
         cache.adminAssignmentsMembers = usersData;
       } catch (error) {
@@ -114,20 +123,49 @@ const AssingnedTrainers = () => {
   useEffect(() => {
     const fetchAssignments = async () => {
       if (cache.adminAssignments) {
+        console.log('[AssingnedTrainers] Using cached assignments');
         setAssignments(cache.adminAssignments);
+        return;
       }
       try {
         const res = await api.get("/assignments");
         const assignData = {};
-        (Array.isArray(res.data) ? res.data : []).forEach((a) => {
-          const userId = a.userId?.toString();
-          if (!assignData[userId]) assignData[userId] = [];
-          assignData[userId].push(a);
+        
+        const assignmentsArray = Array.isArray(res.data) ? res.data : [];
+        console.log('[AssingnedTrainers] Fetched assignments:', assignmentsArray.length, 'records');
+        
+        // Log first few assignments to see structure
+        if (assignmentsArray.length > 0) {
+          console.log('[AssingnedTrainers] First assignment structure:', assignmentsArray[0]);
+        }
+        
+        assignmentsArray.forEach((a) => {
+          // Use userId, fallback to user_id, must have a value
+          const userId = a.userId || a.user_id;
+          if (!userId) {
+            console.warn('[AssingnedTrainers] Assignment without userId:', a);
+            return; // Skip assignments without userId
+          }
+          
+          const userIdKey = String(userId);
+          if (!assignData[userIdKey]) assignData[userIdKey] = [];
+          assignData[userIdKey].push(a);
         });
+        
+        console.log('[AssingnedTrainers] Assignment keys created:', Object.keys(assignData).length, 'unique users');
+        if (Object.keys(assignData).length > 0) {
+          console.log('[AssingnedTrainers] Sample assignment keys:', Object.keys(assignData).slice(0, 5));
+        }
+        
         setAssignments(assignData);
         cache.adminAssignments = assignData;
       } catch (error) {
         console.error("Error fetching assignments:", error);
+        // Check if it's an auth error
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          console.warn('[AssingnedTrainers] ⚠️  Authorization error fetching assignments - user may not be admin');
+        }
+        setAssignments({});
       }
     };
 
@@ -190,13 +228,22 @@ const AssingnedTrainers = () => {
     // refresh assignments list
     const res = await api.get("/assignments");
     const assignData = {};
-    (Array.isArray(res.data) ? res.data : []).forEach((a) => {
-      const userId = a.userId?.toString();
-      if (!assignData[userId]) assignData[userId] = [];
-      assignData[userId].push(a);
+    const refreshedAssignments = Array.isArray(res.data) ? res.data : [];
+    console.log('[AssingnedTrainers] Refreshed assignments after assignment:', refreshedAssignments.length, 'records');
+    
+    refreshedAssignments.forEach((a) => {
+      const userId = a.userId || a.user_id;
+      if (!userId) {
+        console.warn('[AssingnedTrainers] Assignment without userId in refresh:', a);
+        return;
+      }
+      const userIdKey = String(userId);
+      if (!assignData[userIdKey]) assignData[userIdKey] = [];
+      assignData[userIdKey].push(a);
     });
     setAssignments(assignData);
     cache.adminAssignments = assignData;
+    console.log('[AssingnedTrainers] Assignment refresh complete:', Object.keys(assignData).length, 'unique users');
   } catch (err) {
     console.error(err);
     alert("Assignment failed");
@@ -243,6 +290,39 @@ const AssingnedTrainers = () => {
     setFilterType(type);
     setCurrentPage(1);
   };
+
+  /* ================= DEBUG: LOG MATCHING PROCESS ================= */
+  useEffect(() => {
+    if (members.length > 0) {
+      console.log('\n' + '='.repeat(60));
+      console.log('[AssingnedTrainers] MATCHING DEBUG INFO');
+      console.log('='.repeat(60));
+      console.log(`Members: ${members.length}, Assignment Keys: ${Object.keys(assignments).length}`);
+      
+      // Show first few members and their uids
+      console.log('\n📋 Sample Members (first 3):');
+      members.slice(0, 3).forEach((m, i) => {
+        const hasAssignment = assignments[m.uid] ? '✅' : '❌';
+        console.log(`  [${i+1}] ${hasAssignment} uid=${m.uid} (userId=${m.userId}), name=${m.username}`);
+      });
+      
+      // Show assignment keys
+      const assignmentKeys = Object.keys(assignments);
+      console.log(`\n🔑 Assignment Keys (${assignmentKeys.length} total):`);
+      assignmentKeys.slice(0, 5).forEach((key, i) => {
+        const count = assignments[key].length;
+        console.log(`  [${i+1}] ${key}: ${count} assignment(s)`);
+      });
+      
+      // Check for mismatches
+      const unmatchedMembers = members.filter(m => !assignments[m.uid]);
+      if (unmatchedMembers.length > 0) {
+        console.log(`\n⚠️  ${unmatchedMembers.length} members have no matching assignments`);
+      }
+      
+      console.log('='.repeat(60) + '\n');
+    }
+  }, [members, assignments]);
 
   return (
     <div className="min-h-screen p-4 md:p-8 text-white" dir="ltr">

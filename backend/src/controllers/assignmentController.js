@@ -91,7 +91,8 @@ async function getAllAssignments(req, res) {
     if (!isSuperAdmin && req.user) {
       const adminUuid = getAdminUuid(req.user);
       if (adminUuid) {
-        sql += ' WHERE a.created_by = ?';
+        // Include assignments created by this admin OR assignments with NULL created_by (orphaned)
+        sql += ' WHERE (a.created_by = ? OR a.created_by IS NULL)';
         params.push(adminUuid);
       }
     } else if (staffId) {
@@ -99,7 +100,7 @@ async function getAllAssignments(req, res) {
       params.push(staffId);
     } else if (staffId && (!isSuperAdmin && req.user && getAdminUuid(req.user))) {
       const adminUuid = getAdminUuid(req.user);
-      sql += ' WHERE a.trainer_id = ? AND a.created_by = ?';
+      sql += ' WHERE a.trainer_id = ? AND (a.created_by = ? OR a.created_by IS NULL)';
       params.push(staffId, adminUuid);
     }
 
