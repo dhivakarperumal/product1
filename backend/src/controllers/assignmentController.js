@@ -135,6 +135,12 @@ async function upsertAssignments(req, res) {
       await connection.beginTransaction();
 
       for (const a of assignments) {
+        // Validate userId is numeric
+        if (!a.userId || isNaN(a.userId)) {
+          console.error('[assignments] Invalid userId:', a.userId, 'for user', a.username);
+          throw new Error(`Invalid userId: ${a.userId} for user ${a.username}`);
+        }
+
         // Get trainer employee_id from staff table
         let trainerEmployeeId = null;
         if (a.trainerId) {
@@ -153,10 +159,10 @@ async function upsertAssignments(req, res) {
 
         // Insert/update trainer_assignments table
         const params = [
-          a.userId,
+          Number(a.userId),
           a.username || null,
           a.userEmail || null,
-          a.planId || null,
+          Number(a.planId) || null,
           a.planName || null,
           a.planDuration || null,
           a.planStartDate || null,
@@ -201,8 +207,8 @@ async function upsertAssignments(req, res) {
             a.trainerId || null,
             a.trainerName || null,
             trainerEmployeeId || null,
-            a.userId,
-            a.planId,
+            Number(a.userId),
+            Number(a.planId),
           ];
 
           const sqlMemberships = `
@@ -213,7 +219,8 @@ async function upsertAssignments(req, res) {
             WHERE userId = ? AND planId = ?
           `;
 
-          await connection.query(sqlMemberships, membershipParams);
+          const result = await connection.query(sqlMemberships, membershipParams);
+          console.log('[assignments] Updated memberships:', result[0].affectedRows, 'rows for userId=', Number(a.userId), 'planId=', Number(a.planId));
         }
       }
 
