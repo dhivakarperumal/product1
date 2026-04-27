@@ -64,10 +64,15 @@ async function getAllMemberships(req, res) {
              u.role,
              gm.name AS member_name,
              gm.phone AS member_phone,
-             gm.email AS member_email
+             gm.email AS member_email,
+             s.name AS trainer_full_name,
+             s.employee_id AS trainer_emp_id,
+             s.email AS trainer_email,
+             s.phone AS trainer_phone
       FROM memberships m
       LEFT JOIN users u ON m.userId = u.id
       LEFT JOIN members gm ON m.memberId = gm.id
+      LEFT JOIN staff s ON m.trainerId = s.id
       ${whereClause}
       ORDER BY m.createdAt DESC
     `, params);

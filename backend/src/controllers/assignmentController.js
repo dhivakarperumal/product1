@@ -135,7 +135,23 @@ async function upsertAssignments(req, res) {
       await connection.beginTransaction();
 
       for (const a of assignments) {
-        // simple upsert using unique(user_id, plan_id)
+        // Get trainer employee_id from staff table
+        let trainerEmployeeId = null;
+        if (a.trainerId) {
+          const [staffRows] = await connection.query(
+            'SELECT employee_id, name FROM staff WHERE id = ?',
+            [a.trainerId]
+          );
+          if (staffRows.length > 0) {
+            trainerEmployeeId = staffRows[0].employee_id;
+            // Update trainerName with actual staff name if available
+            if (staffRows[0].name && !a.trainerName) {
+              a.trainerName = staffRows[0].name;
+            }
+          }
+        }
+
+        // Insert/update trainer_assignments table
         const params = [
           a.userId,
           a.username || null,
@@ -156,7 +172,7 @@ async function upsertAssignments(req, res) {
         const createdBy = getActorUuid(req.user) || null;
         const params_with_audit = [...params, createdBy, createdBy, createdBy];
 
-        const sql = `
+        const sqlAssignments = `
           INSERT INTO trainer_assignments
           (user_id, username, user_email, plan_id, plan_name, plan_duration, plan_start_date, plan_end_date, plan_price, trainer_id, trainer_name, trainer_source, session_time, status, created_by, updated_by)
           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
@@ -177,7 +193,28 @@ async function upsertAssignments(req, res) {
             updated_at=CURRENT_TIMESTAMP
         `;
 
-        await connection.query(sql, params_with_audit);
+        await connection.query(sqlAssignments, params_with_audit);
+
+        // Also update memberships table with trainer info
+        if (a.planId) {
+          const membershipParams = [
+            a.trainerId || null,
+            a.trainerName || null,
+            trainerEmployeeId || null,
+            a.userId,
+            a.planId,
+          ];
+
+          const sqlMemberships = `
+            UPDATE memberships
+            SET trainerId = ?,
+                trainerName = ?,
+                trainerEmployeeId = ?
+            WHERE userId = ? AND planId = ?
+          `;
+
+          await connection.query(sqlMemberships, membershipParams);
+        }
       }
 
       await connection.commit();

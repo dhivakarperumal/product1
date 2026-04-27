@@ -55,20 +55,30 @@ const AssingnedTrainers = () => {
 
           const member = {
             uid: resolvedUserId ? String(resolvedUserId) : `membership_${m.id}`,
-            userId: resolvedUserId ? String(resolvedUserId) : null,
+            userId: resolvedUserId ? Number(resolvedUserId) : null,
             membershipId: m.id,
             username: resolvedUsername,
             email: resolvedEmail,
             userEmail: resolvedEmail,
             workoutCount: 0,
             dietCount: 0,
+            // Include trainer info from memberships table
+            trainerId: m.trainerId || null,
+            trainerName: m.trainerName || null,
+            trainerEmployeeId: m.trainerEmployeeId || m.trainer_emp_id || null,
+            trainerEmail: m.trainer_email || null,
+            trainerPhone: m.trainer_phone || null,
             plans: [{
-              id: String(resolvedPlanId),
+              id: Number(resolvedPlanId),
               planName: m.planName || m.plan_name || "Unknown Plan",
               duration: m.duration || m.planDuration || m.plan_duration || "N/A",
               startDate: m.startDate || m.start_date || null,
               endDate: m.endDate || m.end_date || null,
               pricePaid: Number(m.pricePaid ?? m.price ?? 0),
+              // Trainer info per plan
+              trainerId: m.trainerId || null,
+              trainerName: m.trainerName || null,
+              trainerEmployeeId: m.trainerEmployeeId || m.trainer_emp_id || null,
             }],
             source: "memberships",
           };
@@ -107,8 +117,11 @@ const AssingnedTrainers = () => {
           id: t.id.toString(),
           name: t.name || t.username || "Trainer",
           email: t.email || "",
+          employeeId: t.employee_id || "",
+          phone: t.phone || "",
           source: "staff",
         }));
+        console.log('[AssingnedTrainers] Fetched trainers:', normalized.length, 'records');
         setTrainers(normalized);
         cache.adminTrainers = normalized;
       } catch (err) {
@@ -193,14 +206,22 @@ const AssingnedTrainers = () => {
   }
 
   const safeTrainerName = trainer.name || trainer.username || trainer.email || "Trainer";
+  const safeTrainerEmployeeId = trainer.employeeId || "";
 
   setAssigning(true);
   try {
     const payload = [];
     for (const member of members.filter((m) => selectedUsers.includes(m.uid))) {
+      // Skip members without valid numeric userId
+      if (!member.userId) {
+        console.warn('[AssingnedTrainers] Skipping member without userId:', member.uid);
+        alert(`Cannot assign trainer: Member ${member.username} has no valid user ID`);
+        continue;
+      }
+      
       for (const plan of member.plans) {
         payload.push({
-          userId: member.uid,
+          userId: member.userId,
           username: member.username || "No Name",
           userEmail: member.email || "",
           planId: plan.id,
@@ -211,6 +232,7 @@ const AssingnedTrainers = () => {
           planPrice: plan.pricePaid,
           trainerId: trainer.id,
           trainerName: safeTrainerName,
+          trainerEmployeeId: safeTrainerEmployeeId,
           trainerSource: trainer.source || "staff",
           status: "active",
           updatedAt: new Date().toISOString(),
@@ -218,6 +240,13 @@ const AssingnedTrainers = () => {
       }
     }
 
+    if (payload.length === 0) {
+      alert("No valid members to assign");
+      setAssigning(false);
+      return;
+    }
+
+    console.log('[AssingnedTrainers] Sending payload:', payload.length, 'assignments');
     await api.post("/assignments", { assignments: payload });
 
     alert("Trainer assigned / reassigned successfully");
@@ -263,11 +292,17 @@ const AssingnedTrainers = () => {
     if (!matchesSearch) return false;
 
     let matchesType = true;
+    // Check trainerId from memberships table (source of truth)
+    const hasTrainer = m.trainerId && m.trainerId !== null;
+    
     if (filterType === "assigned") {
-      matchesType = assignments[m.uid] && assignments[m.uid].length > 0;
+      // Show only members with assigned trainers
+      matchesType = hasTrainer;
     } else if (filterType === "unassigned") {
-      matchesType = !assignments[m.uid] || assignments[m.uid].length === 0;
+      // Show only members without trainers
+      matchesType = !hasTrainer;
     }
+    // filterType === "all" - show all members regardless of trainer assignment
 
     if (!matchesType) return false;
 
@@ -308,7 +343,7 @@ const AssingnedTrainers = () => {
       
       // Show assignment keys
       const assignmentKeys = Object.keys(assignments);
-      console.log(`\n🔑 Assignment Keys (${assignmentKeys.length} total):`);
+      console.log(`\n� Assignment Keys (${assignmentKeys.length} total):`);
       assignmentKeys.slice(0, 5).forEach((key, i) => {
         const count = assignments[key].length;
         console.log(`  [${i+1}] ${key}: ${count} assignment(s)`);
@@ -495,9 +530,16 @@ const AssingnedTrainers = () => {
                           </div>
                           <div className="flex-1">
                             <p className="font-bold text-green-300">{assign.trainerName || "Trainer"}</p>
-                            <p className="text-xs text-gray-400">
-                              {assign.planName} • {assign.planDuration}
-                            </p>
+                            <div className="flex items-center gap-2 flex-wrap mt-1">
+                              {assign.trainerEmployeeId && (
+                                <span className="text-[11px] bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded border border-blue-400/30">
+                                  ID: {assign.trainerEmployeeId}
+                                </span>
+                              )}
+                              <p className="text-xs text-gray-400">
+                                {assign.planName} • {assign.planDuration}
+                              </p>
+                            </div>
                           </div>
                           <div className="text-right">
                             <p className="text-xs font-bold text-cyan-300">₹ {assign.planPrice}</p>
@@ -541,8 +583,11 @@ const AssingnedTrainers = () => {
                       <td className="px-6 py-4">
                         {assigned.length > 0 ? (
                           assigned.map((a) => (
-                            <div key={a.id} className="text-green-300 font-medium">
-                              {a.trainerName}
+                            <div key={a.id} className="space-y-1">
+                              <p className="text-green-300 font-medium">{a.trainerName}</p>
+                              {a.trainerEmployeeId && (
+                                <p className="text-[11px] text-blue-300">ID: {a.trainerEmployeeId}</p>
+                              )}
                             </div>
                           ))
                         ) : (
@@ -725,11 +770,32 @@ const AssingnedTrainers = () => {
                 ) : (
                   trainers.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {t.name || t.username} 
+                      {t.name || t.username} {t.employeeId ? `(${t.employeeId})` : ""}
                     </option>
                   ))
                 )}
               </select>
+              {selectedTrainer && (
+                <div className="mt-3 bg-blue-500/20 border border-blue-400/30 rounded-lg p-3">
+                  {trainers.find((t) => t.id === selectedTrainer) && (
+                    <div className="text-sm">
+                      <p className="text-blue-300 font-semibold">
+                        {trainers.find((t) => t.id === selectedTrainer)?.name}
+                      </p>
+                      {trainers.find((t) => t.id === selectedTrainer)?.employeeId && (
+                        <p className="text-blue-300 text-xs mt-1">
+                          Employee ID: {trainers.find((t) => t.id === selectedTrainer)?.employeeId}
+                        </p>
+                      )}
+                      {trainers.find((t) => t.id === selectedTrainer)?.email && (
+                        <p className="text-blue-300 text-xs">
+                          Email: {trainers.find((t) => t.id === selectedTrainer)?.email}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* 🔹 ACTION BUTTONS */}
