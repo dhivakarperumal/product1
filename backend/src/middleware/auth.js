@@ -46,4 +46,17 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-module.exports = { authenticateToken, optionalAuthenticateToken, requireAdmin };
+const requireTrainerOrAdmin = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  const normalizedRole = String(req.user.role || '').toLowerCase();
+  if (!['admin', 'super admin', 'superadmin', 'trainer'].includes(normalizedRole)) {
+    return res.status(403).json({ error: 'Trainer or admin access required' });
+  }
+
+  next();
+};
+
+module.exports = { authenticateToken, optionalAuthenticateToken, requireAdmin, requireTrainerOrAdmin };

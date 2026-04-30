@@ -1,6 +1,44 @@
 const db = require('../config/db');
 const { getActorUuid } = require('../utils/auditTrail');
 
+async function resolveTrainerStaffId(trainerUserId) {
+  if (!trainerUserId) return null;
+  const numericId = Number(trainerUserId);
+  if (!Number.isNaN(numericId) && numericId > 0) {
+    const [staffById] = await db.query('SELECT id FROM staff WHERE id = ?', [numericId]);
+    if (staffById.length > 0) return numericId;
+  }
+
+  const [userRows] = await db.query(
+    'SELECT id, email, username, employee_id FROM users WHERE id = ?',
+    [trainerUserId]
+  );
+  if (userRows.length === 0) return null;
+
+  const u = userRows[0];
+  const conditions = [];
+  const params = [];
+  if (u.email) {
+    conditions.push('email = ?');
+    params.push(u.email);
+  }
+  if (u.username) {
+    conditions.push('username = ?');
+    params.push(u.username);
+  }
+  if (u.employee_id) {
+    conditions.push('employee_id = ?');
+    params.push(u.employee_id);
+  }
+  if (conditions.length === 0) return null;
+
+  const [staffRows] = await db.query(
+    `SELECT id FROM staff WHERE ${conditions.join(' OR ')} LIMIT 1`,
+    params
+  );
+  return staffRows.length > 0 ? staffRows[0].id : null;
+}
+
 // Extract admin UUID from request user
 const getAdminUuid = (user) =>
   user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
@@ -32,41 +70,19 @@ function normalizeAssignment(row) {
 async function getAllAssignments(req, res) {
   try {
     const { trainerUserId } = req.query;
+    let staffIdForFilter = null;
 
-    let staffId = null;
-
-    // If called by a trainer, resolve their users.id → staff.id
+    // If called by a trainer (dashboard), resolve their users.id → staff.id
     if (trainerUserId) {
-      const [userRows] = await db.query(
-        'SELECT id, email, username FROM users WHERE id = ?',
-        [trainerUserId]
-      );
-
-      if (userRows.length === 0) {
-        // User not found — return nothing
+      staffIdForFilter = await resolveTrainerStaffId(trainerUserId);
+      if (!staffIdForFilter) {
+        console.warn('[assignments] Could not resolve staff for trainerUserId:', trainerUserId);
         return res.json([]);
       }
-
-      const u = userRows[0];
-      console.log('[assignments] resolving trainer user:', u.id, u.email, u.username);
-
-      // Find matching staff record by email or username
-      const [staffRows] = await db.query(
-        'SELECT id, name FROM staff WHERE email = ? OR username = ? LIMIT 1',
-        [u.email, u.username]
-      );
-
-      console.log('[assignments] staff match:', staffRows.length, staffRows[0]);
-
-      if (staffRows.length > 0) {
-        staffId = staffRows[0].id;
-      } else {
-        // staffId couldn't be resolved — return empty to avoid leaking all assignments
-        console.warn('[assignments] Could not resolve staff for user', u.id, '- returning empty');
-        return res.json([]);
-      }
+      console.log('[assignments] Resolved trainerUserId to staff.id:', staffIdForFilter);
     }
 
+    // Build the main query
     let sql = `
       SELECT a.*,
              m.id as member_db_id,
@@ -82,39 +98,36 @@ async function getAllAssignments(req, res) {
                               OR (m.phone = u.mobile AND m.phone IS NOT NULL AND m.phone != '')
       LEFT JOIN staff s ON s.id = a.trainer_id
     `;
-    const params = [];
-    
-    // Check if user is super admin
-    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
-    
-    // If not super admin, filter by created_by (admin_uuid)
-    if (!isSuperAdmin && req.user) {
-      const adminUuid = getAdminUuid(req.user);
-      if (adminUuid) {
-        // Include assignments created by this admin OR assignments with NULL created_by (orphaned)
-        sql += ' WHERE (a.created_by = ? OR a.created_by IS NULL)';
-        params.push(adminUuid);
-      }
-    } else if (staffId) {
-      sql += ' WHERE a.trainer_id = ?';
-      params.push(staffId);
-    } else if (staffId && (!isSuperAdmin && req.user && getAdminUuid(req.user))) {
-      const adminUuid = getAdminUuid(req.user);
-      sql += ' WHERE a.trainer_id = ? AND (a.created_by = ? OR a.created_by IS NULL)';
-      params.push(staffId, adminUuid);
+    const whereConditions = [];
+    const queryParams = [];
+
+    // If trainer is filtering for their own assignments
+    if (staffIdForFilter) {
+      whereConditions.push('a.trainer_id = ?');
+      queryParams.push(staffIdForFilter);
     }
 
-    if (staffId && (!isSuperAdmin && req.user && getAdminUuid(req.user))) {
-      // Already added above
-    } else if (staffId) {
-      sql += sql.includes('WHERE') ? ' AND a.trainer_id = ?' : ' WHERE a.trainer_id = ?';
-      params.push(staffId);
+    // Check if user is super admin
+    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+
+    // If not super admin and not filtering by trainer, filter by created_by (admin_uuid)
+    if (!isSuperAdmin && req.user && !staffIdForFilter) {
+      const adminUuid = getAdminUuid(req.user);
+      if (adminUuid) {
+        whereConditions.push('(a.created_by = ? OR a.created_by IS NULL)');
+        queryParams.push(adminUuid);
+      }
+    }
+
+    // Build WHERE clause
+    if (whereConditions.length > 0) {
+      sql += ' WHERE ' + whereConditions.join(' AND ');
     }
 
     sql += ' GROUP BY a.id ORDER BY a.updated_at DESC';
 
-    const [rows] = await db.query(sql, params);
-    console.log('[assignments] returning', rows.length, 'rows for staffId', staffId);
+    const [rows] = await db.query(sql, queryParams);
+    console.log('[assignments] returning', rows.length, 'rows for staffId:', staffIdForFilter);
     res.json(rows.map(normalizeAssignment));
   } catch (err) {
     console.error('getAllAssignments error', err);
@@ -143,10 +156,12 @@ async function upsertAssignments(req, res) {
 
         // Get trainer employee_id from staff table
         let trainerEmployeeId = null;
-        if (a.trainerId) {
+        const numericTrainerId = a.trainerId ? Number(a.trainerId) : null;
+        
+        if (numericTrainerId) {
           const [staffRows] = await connection.query(
             'SELECT employee_id, name FROM staff WHERE id = ?',
-            [a.trainerId]
+            [numericTrainerId]
           );
           if (staffRows.length > 0) {
             trainerEmployeeId = staffRows[0].employee_id;
@@ -168,7 +183,7 @@ async function upsertAssignments(req, res) {
           a.planStartDate || null,
           a.planEndDate || null,
           a.planPrice || null,
-          a.trainerId,
+          numericTrainerId,
           a.trainerName || null,
           a.trainerSource || 'unknown',
           a.sessionTime || null,
@@ -204,7 +219,7 @@ async function upsertAssignments(req, res) {
         // Also update memberships table with trainer info
         if (a.planId) {
           const membershipParams = [
-            a.trainerId || null,
+            numericTrainerId,
             a.trainerName || null,
             trainerEmployeeId || null,
             Number(a.userId),
@@ -220,7 +235,7 @@ async function upsertAssignments(req, res) {
           `;
 
           const result = await connection.query(sqlMemberships, membershipParams);
-          console.log('[assignments] Updated memberships:', result[0].affectedRows, 'rows for userId=', Number(a.userId), 'planId=', Number(a.planId));
+          console.log('[assignments] Updated memberships:', result[0].affectedRows, 'rows for userId=', Number(a.userId), 'planId=', Number(a.planId), 'trainerId=', numericTrainerId);
         }
       }
 

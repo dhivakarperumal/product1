@@ -90,6 +90,12 @@ const fetchPayments = useCallback(async (adminUuid = null) => {
           m.createdAt || m.created_at || m.startDate || m.start_date,
         status: m.status || "active",
         paymentStatus: m.paymentId ? "Paid" : "Unpaid",
+        // Add trainer info from memberships table
+        trainerId: m.trainerId || null,
+        trainerName: m.trainerName || m.trainer_full_name || null,
+        trainerEmployeeId: m.trainerEmployeeId || m.trainer_emp_id || null,
+        trainerEmail: m.trainer_email || null,
+        trainerPhone: m.trainer_phone || null,
       });
     });
 
@@ -366,6 +372,8 @@ const fetchPayments = useCallback(async (adminUuid = null) => {
         Name: member.username,
         Email: member.email,
         Plan: plan.planName,
+        Trainer: plan.trainerName || "No Trainer",
+        "Trainer Email": plan.trainerEmail || "-",
         Amount: plan.pricePaid,
         "Start Date": formatDate(plan.startDate),
         "End Date": formatDate(plan.endDate),
@@ -674,6 +682,12 @@ const fetchPayments = useCallback(async (adminUuid = null) => {
                       <p className="text-white font-medium">{plan.planName}</p>
                     </div>
                     <div>
+                      <p className="text-gray-400 text-xs uppercase tracking-wide mb-1">Trainer</p>
+                      <p className="text-white font-medium">
+                        {plan.trainerName ? plan.trainerName : <span className="text-gray-500 italic">No Trainer</span>}
+                      </p>
+                    </div>
+                    <div>
                       <p className="text-gray-400 text-xs uppercase tracking-wide mb-1">Amount</p>
                       <p className="text-white font-medium">₹ {plan.pricePaid}</p>
                     </div>
@@ -702,6 +716,12 @@ const fetchPayments = useCallback(async (adminUuid = null) => {
                         {getRemainingDays(plan.endDate)}
                       </span>
                     </div>
+                    {plan.trainerEmail && (
+                      <div>
+                        <p className="text-gray-400 text-xs uppercase tracking-wide mb-1">Trainer Email</p>
+                        <p className="text-white text-xs break-all">{plan.trainerEmail}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -754,6 +774,7 @@ const fetchPayments = useCallback(async (adminUuid = null) => {
                     <th className="px-6 py-4 text-gray-300 font-medium">S.No</th>
                     <th className="px-6 py-4 text-gray-300 font-medium">Name</th>
                     <th className="px-6 py-4 text-gray-300 font-medium">Plan</th>
+                    <th className="px-6 py-4 text-gray-300 font-medium">Trainer</th>
                     <th className="px-6 py-4 text-gray-300 font-medium">Amount</th>
                     <th className="px-6 py-4 text-gray-300 font-medium">Start Date</th>
                     <th className="px-6 py-4 text-gray-300 font-medium">End Date</th>
@@ -785,6 +806,18 @@ const fetchPayments = useCallback(async (adminUuid = null) => {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-white">{plan.planName}</td>
+                      <td className="px-6 py-4 text-white">
+                        {plan.trainerName ? (
+                          <div>
+                            <p className="text-white font-medium">{plan.trainerName}</p>
+                            {plan.trainerEmail && (
+                              <p className="text-gray-400 text-xs">{plan.trainerEmail}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-500 italic">No Trainer</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-white font-medium">₹ {plan.pricePaid}</td>
                       <td className="px-6 py-4 text-white whitespace-nowrap">{formatDate(plan.startDate)}</td>
                       <td className="px-6 py-4 text-white whitespace-nowrap">{formatDate(plan.endDate)}</td>

@@ -165,6 +165,8 @@ const TrainerDashboard = () => {
           ? memberRes.data
           : memberRes.data?.data || memberRes.data?.assignments || [];
 
+        console.log('[TrainerDashboard] Fetched assignments:', membersRaw.length, 'records');
+
         const activeMembers = membersRaw.filter(
           (m) => !m.status || (m.status || "").toLowerCase() === "active"
         );
@@ -175,6 +177,7 @@ const TrainerDashboard = () => {
           ).values()
         );
 
+        console.log('[TrainerDashboard] Active unique members:', uniqueMembers.length);
         setAssignedMembers(uniqueMembers);
         const assignedMemberIds = uniqueMembers.map(m => String(m.userId || m.user_id));
 
@@ -183,25 +186,19 @@ const TrainerDashboard = () => {
         let checkinCount = 0;
 
         try {
-          const workoutRes = await api.get("/workouts");
+          const workoutRes = await api.get(`/workouts?trainerId=${encodeURIComponent(trainerId)}`);
           const workoutData = workoutRes.data;
           const workoutsRaw = Array.isArray(workoutData) ? workoutData : workoutData?.data || [];
-          const userWorkouts = assignedMemberIds.length > 0
-            ? workoutsRaw.filter(w => assignedMemberIds.includes(String(w.member_id || w.memberId)))
-            : workoutsRaw;
-          workoutCount = userWorkouts.length;
+          workoutCount = workoutsRaw.length;
         } catch (e) {
           console.error("Workout fetch error:", e);
         }
 
         try {
-          const dietRes = await api.get("/diet-plans");
+          const dietRes = await api.get(`/diet-plans?trainerId=${encodeURIComponent(trainerId)}`);
           const dietData = dietRes.data;
           const dietsRaw = Array.isArray(dietData) ? dietData : dietData?.data || [];
-          const userDiets = assignedMemberIds.length > 0
-            ? dietsRaw.filter(d => assignedMemberIds.includes(String(d.member_id || d.memberId)))
-            : dietsRaw;
-          dietCount = userDiets.length;
+          dietCount = dietsRaw.length;
         } catch (e) {
           console.error("Diet fetch error:", e);
         }

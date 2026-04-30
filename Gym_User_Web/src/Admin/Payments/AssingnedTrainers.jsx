@@ -359,6 +359,37 @@ const AssingnedTrainers = () => {
     }
   }, [members, assignments]);
 
+  /* ================= HELPER: Group assignments by trainer ================= */
+  const groupAssignmentsByTrainer = (assignmentsArray) => {
+    if (!assignmentsArray || assignmentsArray.length === 0) return [];
+    
+    const grouped = {};
+    assignmentsArray.forEach((assign) => {
+      const trainerId = assign.trainerId || 'unassigned';
+      if (!grouped[trainerId]) {
+        grouped[trainerId] = {
+          trainerId: assign.trainerId,
+          trainerName: assign.trainerName,
+          trainerEmployeeId: assign.trainerEmployeeId,
+          trainerSource: assign.trainerSource,
+          plans: [],
+        };
+      }
+      // Add plan info to the grouped trainer
+      grouped[trainerId].plans.push({
+        id: assign.id,
+        planId: assign.planId,
+        planName: assign.planName,
+        planDuration: assign.planDuration,
+        planPrice: assign.planPrice,
+        planStartDate: assign.planStartDate,
+        planEndDate: assign.planEndDate,
+      });
+    });
+    
+    return Object.values(grouped);
+  };
+
   return (
     <div className="min-h-screen p-4 md:p-8 text-white" dir="ltr">
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
@@ -519,32 +550,44 @@ const AssingnedTrainers = () => {
                 {/* ASSIGNED TRAINERS */}
                 {assignments[m.uid] && assignments[m.uid].length > 0 ? (
                   <div className="space-y-3">
-                    {assignments[m.uid].map((assign) => (
+                    {groupAssignmentsByTrainer(assignments[m.uid]).map((trainer) => (
                       <div
-                        key={assign.id}
+                        key={`trainer-${trainer.trainerId || 'unassigned'}`}
                         className="bg-white/5 border border-green-400/30 rounded-xl p-4 space-y-3"
                       >
                         <div className="flex items-center gap-3 pb-3 border-b border-white/10">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center flex-shrink-0">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shrink-0">
                             <Dumbbell size={18} className="text-white" />
                           </div>
                           <div className="flex-1">
-                            <p className="font-bold text-green-300">{assign.trainerName || "Trainer"}</p>
+                            <p className="font-bold text-green-300">{trainer.trainerName || "Trainer"}</p>
                             <div className="flex items-center gap-2 flex-wrap mt-1">
-                              {assign.trainerEmployeeId && (
+                              {trainer.trainerEmployeeId && (
                                 <span className="text-[11px] bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded border border-blue-400/30">
-                                  ID: {assign.trainerEmployeeId}
+                                  ID: {trainer.trainerEmployeeId}
                                 </span>
                               )}
-                              <p className="text-xs text-gray-400">
-                                {assign.planName} • {assign.planDuration}
-                              </p>
+                              <span className="text-[11px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded border border-purple-400/30">
+                                {trainer.plans.length} plan{trainer.plans.length !== 1 ? 's' : ''}
+                              </span>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-xs font-bold text-cyan-300">₹ {assign.planPrice}</p>
-                            <p className="text-[10px] text-gray-500">{new Date(assign.planEndDate).toLocaleDateString()}</p>
-                          </div>
+                        </div>
+                        
+                        {/* Plans under this trainer */}
+                        <div className="space-y-2">
+                          {trainer.plans.map((plan) => (
+                            <div key={plan.id} className="flex items-start justify-between text-xs bg-white/5 p-2 rounded border border-white/10">
+                              <div>
+                                <p className="text-gray-300 font-medium">{plan.planName}</p>
+                                <p className="text-gray-500">{plan.planDuration}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-cyan-300 font-bold">₹ {plan.planPrice}</p>
+                                <p className="text-gray-500">{new Date(plan.planEndDate).toLocaleDateString()}</p>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     ))}
@@ -574,6 +617,7 @@ const AssingnedTrainers = () => {
               <tbody className="divide-y divide-white/5">
                 {paginatedData.map((m) => {
                   const assigned = assignments[m.uid] || [];
+                  const groupedTrainers = groupAssignmentsByTrainer(assigned);
                   return (
                     <tr key={m.uid} className="hover:bg-white/5 transition">
                       <td className="px-6 py-4">
@@ -581,13 +625,16 @@ const AssingnedTrainers = () => {
                         <p className="text-xs text-gray-400">{m.email}</p>
                       </td>
                       <td className="px-6 py-4">
-                        {assigned.length > 0 ? (
-                          assigned.map((a) => (
-                            <div key={a.id} className="space-y-1">
-                              <p className="text-green-300 font-medium">{a.trainerName}</p>
-                              {a.trainerEmployeeId && (
-                                <p className="text-[11px] text-blue-300">ID: {a.trainerEmployeeId}</p>
-                              )}
+                        {groupedTrainers.length > 0 ? (
+                          groupedTrainers.map((trainer) => (
+                            <div key={`trainer-${trainer.trainerId || 'unassigned'}`} className="space-y-1 mb-2 pb-2 border-b border-white/10 last:border-0 last:mb-0 last:pb-0">
+                              <p className="text-green-300 font-medium">{trainer.trainerName}</p>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {trainer.trainerEmployeeId && (
+                                  <span className="text-[10px] text-blue-300">ID: {trainer.trainerEmployeeId}</span>
+                                )}
+                                <span className="text-[10px] text-purple-300">{trainer.plans.length} plan(s)</span>
+                              </div>
                             </div>
                           ))
                         ) : (

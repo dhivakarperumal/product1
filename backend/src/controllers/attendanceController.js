@@ -5,6 +5,44 @@ const { getActorUuid } = require('../utils/auditTrail');
 const getAdminUuid = (user) =>
   user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
 
+async function resolveTrainerStaffId(trainerId) {
+  if (!trainerId) return null;
+  const numericId = Number(trainerId);
+  if (!Number.isNaN(numericId) && numericId > 0) {
+    const [staffById] = await db.query('SELECT id FROM staff WHERE id = ?', [numericId]);
+    if (staffById.length > 0) return numericId;
+  }
+
+  const [userRows] = await db.query(
+    'SELECT id, email, username, employee_id FROM users WHERE id = ?',
+    [trainerId]
+  );
+  if (userRows.length === 0) return null;
+
+  const u = userRows[0];
+  const conditions = [];
+  const params = [];
+  if (u.email) {
+    conditions.push('email = ?');
+    params.push(u.email);
+  }
+  if (u.username) {
+    conditions.push('username = ?');
+    params.push(u.username);
+  }
+  if (u.employee_id) {
+    conditions.push('employee_id = ?');
+    params.push(u.employee_id);
+  }
+  if (conditions.length === 0) return null;
+
+  const [staffRows] = await db.query(
+    `SELECT id FROM staff WHERE ${conditions.join(' OR ')} LIMIT 1`,
+    params
+  );
+  return staffRows.length > 0 ? staffRows[0].id : null;
+}
+
 /**
  * GET /api/attendance?date=YYYY-MM-DD&trainerId=...
  * Returns all attendance records for a specific date.
@@ -48,13 +86,10 @@ async function getAttendance(req, res) {
     }
 
     if (trainerId) {
-      // Resolve trainerUserId (users.id) to staffId (staff.id)
-      const [staffRows] = await db.query(
-        "SELECT s.id FROM staff s JOIN users u ON (s.email = u.email OR s.username = u.username) WHERE u.id = ?",
-        [trainerId]
-      );
-      const resolvedStaffId = staffRows.length > 0 ? staffRows[0].id : null;
-
+      const resolvedStaffId = await resolveTrainerStaffId(trainerId);
+      if (!resolvedStaffId) {
+        return res.json([]);
+      }
       sql += " AND a.trainer_id = ?";
       params.push(resolvedStaffId);
     }
@@ -117,14 +152,12 @@ async function markAttendance(req, res) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Resolve trainerUserId (users.id) to staffId (staff.id)
     let resolvedStaffId = null;
     if (trainerId) {
-      const [staffRows] = await db.query(
-        "SELECT s.id FROM staff s JOIN users u ON (s.email = u.email OR s.username = u.username) WHERE u.id = ?",
-        [trainerId]
-      );
-      resolvedStaffId = staffRows.length > 0 ? staffRows[0].id : null;
+      resolvedStaffId = await resolveTrainerStaffId(trainerId);
+      if (!resolvedStaffId) {
+        return res.status(400).json({ error: 'Invalid trainer id' });
+      }
     }
 
     // Check if record already exists for this member and date that hasn't been checked out yet
