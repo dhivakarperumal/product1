@@ -55,31 +55,37 @@ const parseOrder = (order) => {
 // fetch all orders (most recent first) with their items
 async function getAllOrders(req, res) {
   try {
-    // Check if user is super admin
+    // User must be authenticated and admin (checked by middleware)
     const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
     const adminUuid = getAdminUuid(req.user);
+    
     // Get optional admin filter from query params (for super admin)
     const filterAdminUuid = req.query.adminUuid || req.query.admin_uuid || null;
 
     let ordersQuery = '';
     let params = [];
 
+    // If super admin with filter, show orders for specific admin's members
     if (isSuperAdmin && filterAdminUuid) {
-      // Super admin filtering by specific admin: show orders for members managed by that admin
-      ordersQuery = `SELECT o.* FROM orders o
+      ordersQuery = `SELECT DISTINCT o.* FROM orders o
         LEFT JOIN members m ON o.member_uuid = m.member_id
         WHERE m.created_by = ?
         ORDER BY o.created_at DESC`;
       params.push(filterAdminUuid);
-    } else if (req.user && adminUuid) {
-      // Both super admin (no filter) and regular admin: show only orders for members managed by this admin
+    } 
+    // If regular admin, show orders they created or orders for members they manage
+    else if (adminUuid) {
       ordersQuery = `SELECT o.* FROM orders o
-        LEFT JOIN members m ON o.member_uuid = m.member_id
-        WHERE m.created_by = ?
+        WHERE o.created_by = ? OR o.updated_by = ?
         ORDER BY o.created_at DESC`;
-      params.push(adminUuid);
-    } else {
-      // Fallback: show all orders (shouldn't happen in normal cases)
+      params.push(adminUuid, adminUuid);
+    }
+    // Super admin without filter - show all orders
+    else if (isSuperAdmin) {
+      ordersQuery = 'SELECT * FROM orders ORDER BY created_at DESC';
+    }
+    // If user is authenticated but no admin UUID found, still allow them to see orders
+    else {
       ordersQuery = 'SELECT * FROM orders ORDER BY created_at DESC';
     }
 

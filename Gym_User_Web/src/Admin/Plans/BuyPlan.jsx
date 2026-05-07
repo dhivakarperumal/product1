@@ -130,42 +130,37 @@ const BuyPlanadmin = () => {
   }, []);
 
   // ================= WHATSAPP =================
-  const sendWhatsApp = () => {
+  const sendWhatsApp = async () => {
     if (!selectedUser || !selectedPlan) return;
-    const phone = selectedUser.phone?.replace(/\D/g, "");
-    if (!phone) return;
-
-    const messageLines = [
-      "Gym Membership Activated",
-      "",
-      `Name: ${selectedUser.name}`,
-      `Phone: ${form.phone}`,
-      "",
-      `Plan: ${selectedPlan.name}`,
-      `Duration: ${selectedPlan.duration} Months`,
-      "",
-      `Start Date: ${form.startDate}`,
-      `End Date: ${form.endDate}`,
-      "",
-      `Paid: ₹${selectedPlan.finalPrice ?? selectedPlan.final_price}`,
-      `Mode: ${form.paymentMode}`,
-      "",
-      `Height: ${form.height}`,
-      `Weight: ${form.weight}`,
-      `BMI: ${form.bmi}`,
-      "",
-      "Status: Active",
-      "",
-      "Thank you for joining",
-    ];
-
-    const url = `https://api.whatsapp.com/send?phone=91${phone}&text=${encodeURIComponent(messageLines.join("\n"))}`;
-    const newWindow = window.open("about:blank", "_blank");
-    if (newWindow) {
-      newWindow.location.href = url;
+    
+    const clientPhone = selectedUser.phone?.replace(/\D/g, "");
+    if (!clientPhone) {
+      console.warn("No phone number available for WhatsApp message");
       return;
     }
-    window.location.href = url;
+
+    try {
+      const response = await api.post("/whatsapp/send-plan-message", {
+        clientPhone: clientPhone,
+        clientName: selectedUser.name,
+        planName: selectedPlan.name,
+        duration: selectedPlan.duration,
+        price: selectedPlan.finalPrice ?? selectedPlan.final_price,
+        startDate: form.startDate,
+        endDate: form.endDate,
+      });
+
+      if (response.data.success) {
+        console.log("✅ WhatsApp message sent successfully");
+      } else if (response.data.whatsappNotConfigured) {
+        console.log("⚠️ WhatsApp API not configured, but plan was assigned successfully");
+      } else {
+        console.warn("⚠️ Failed to send WhatsApp message:", response.data.message);
+      }
+    } catch (error) {
+      console.error("❌ Error sending WhatsApp message:", error);
+      // Don't throw error - plan assignment already succeeded
+    }
   };
 
   // ================= ASSIGN PLAN =================
@@ -290,7 +285,8 @@ const BuyPlanadmin = () => {
 
       resetBuyPlanForm();
       fetchMembers();
-      sendWhatsApp();
+      await sendWhatsApp();
+      setIsSubmitting(false);
     } catch (err) {
       setIsSubmitting(false);
       const errorMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message || "Plan save failed";
