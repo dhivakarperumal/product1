@@ -13,12 +13,9 @@ const BuyPlanadmin = () => {
 
   const [members, setMembers] = useState([]);
   const [plans, setPlans] = useState([]);
-  const [trainers, setTrainers] = useState([]);
 
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState(null);
-  const [selectedTrainer, setSelectedTrainer] = useState(null);
-  const [sessionTime, setSessionTime] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
@@ -40,8 +37,6 @@ const BuyPlanadmin = () => {
   const resetBuyPlanForm = () => {
     setSelectedUser(null);
     setSelectedPlan(null);
-    setSelectedTrainer(null);
-    setSessionTime("");
     setForm(createInitialForm());
   };
 
@@ -75,25 +70,6 @@ const BuyPlanadmin = () => {
     };
 
     fetchPlans();
-  }, []);
-
-  // ================= FETCH TRAINERS =================
-  useEffect(() => {
-    const fetchTrainers = async () => {
-      try {
-        const res = await api.get("/staff", { params: { role: "trainer" } });
-        const data = res.data || [];
-        const normalized = Array.isArray(data)
-          ? data.map((t) => ({ id: t.id, name: t.name || t.username || "Trainer" }))
-          : [];
-        setTrainers(normalized);
-      } catch (err) {
-        console.error(err);
-        alert("Failed to load trainers");
-      }
-    };
-
-    fetchTrainers();
   }, []);
 
   // ================= CALCULATE BMI =================
@@ -221,49 +197,6 @@ const BuyPlanadmin = () => {
         notes: selectedUser.notes || "",
         address: form.address,
       };
-
-      // ===== OPTIONAL ASSIGN TRAINER =====
-      if (selectedTrainer) {
-        // Use user_id from users table, not member id
-        const userId = selectedUser.user_id || selectedUser.u_id || null;
-        const planId = selectedPlan.id;
-
-        // Validate IDs before creating assignment (check for null/undefined)
-        if (!userId || !planId) {
-          console.warn("Invalid userId or planId for assignment", { 
-            userId, 
-            planId, 
-            selectedUser, 
-            selectedPlan 
-          });
-          console.warn("Skipping trainer assignment due to missing IDs");
-        } else {
-          const assignPayload = {
-            userId: userId,
-            username: selectedUser.username || selectedUser.name || "",
-            userEmail: selectedUser.userEmail || selectedUser.email || "",
-            planId: planId,
-            planName: selectedPlan.name,
-            planDuration: selectedPlan.duration,
-            planStartDate: form.startDate,
-            planEndDate: form.endDate,
-            planPrice: selectedPlan.finalPrice ?? selectedPlan.final_price,
-            trainerId: selectedTrainer,
-            trainerName:
-              trainers.find((t) => t.id === selectedTrainer)?.name || "",
-            trainerSource: "staff",
-            status: "active",
-            sessionTime: sessionTime || null,
-          };
-          console.log('Sending assignment payload:', assignPayload);
-          try {
-            await api.post("/assignments", { assignments: [assignPayload] });
-          } catch (assignErr) {
-            console.error('Trainer assignment failed:', assignErr);
-            alert(`Trainer assignment warning: ${assignErr?.response?.data?.error || assignErr?.message}`);
-          }
-        }
-      }
 
       // create or update member with assigned plan
       try {
@@ -451,31 +384,6 @@ const BuyPlanadmin = () => {
             <option value="cash">Cash</option>
             <option value="upi">UPI</option>
           </select>
-
-          {/* TRAINER */}
-          <select
-            className="w-full p-3 bg-gray-900 rounded-lg mt-4"
-            value={selectedTrainer || ""}
-            onChange={(e) => {
-              const val = e.target.value;
-              setSelectedTrainer(val === "" ? null : Number(val));
-            }}
-          >
-            <option value="">Select Trainer (optional)</option>
-            {trainers.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-
-          {/* SESSION TIME */}
-          <input
-            type="time"
-            className="w-full p-3 bg-gray-900 rounded-lg mt-4"
-            value={sessionTime}
-            onChange={(e) => setSessionTime(e.target.value)}
-          />
 
           <div className="flex flex-col gap-3">
             <button
