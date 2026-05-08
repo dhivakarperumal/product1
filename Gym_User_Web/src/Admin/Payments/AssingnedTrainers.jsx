@@ -211,17 +211,28 @@ const AssingnedTrainers = () => {
   setAssigning(true);
   try {
     const payload = [];
+    const failedMembers = [];
+    
     for (const member of members.filter((m) => selectedUsers.includes(m.uid))) {
-      // Skip members without valid numeric userId
-      if (!member.userId) {
-        console.warn('[AssingnedTrainers] Skipping member without userId:', member.uid);
-        alert(`Cannot assign trainer: Member ${member.username} has no valid user ID`);
+      // Try to resolve userId even if missing
+      let resolvedUserId = member.userId;
+      
+      if (!resolvedUserId && member.email) {
+        console.log('[AssingnedTrainers] Member', member.username, 'has no userId, will attempt assignment with available data');
+        // Note: We'll let the backend try to resolve this
+        resolvedUserId = null;
+      }
+      
+      // Skip only if we have no email to match on
+      if (!resolvedUserId && !member.email) {
+        console.warn('[AssingnedTrainers] Skipping member without userId and email:', member.uid);
+        failedMembers.push(member.username);
         continue;
       }
       
       for (const plan of member.plans) {
         payload.push({
-          userId: member.userId,
+          userId: resolvedUserId || undefined,  // Allow undefined for backend to resolve
           username: member.username || "No Name",
           userEmail: member.email || "",
           planId: plan.id,
@@ -241,15 +252,27 @@ const AssingnedTrainers = () => {
     }
 
     if (payload.length === 0) {
-      alert("No valid members to assign");
+      if (failedMembers.length > 0) {
+        alert(`Cannot assign trainer to: ${failedMembers.join(", ")}. These members lack required identification (email/ID).`);
+      } else {
+        alert("No valid members to assign");
+      }
       setAssigning(false);
       return;
+    }
+
+    if (failedMembers.length > 0) {
+      console.warn('[AssingnedTrainers] Some members could not be assigned:', failedMembers);
     }
 
     console.log('[AssingnedTrainers] Sending payload:', payload.length, 'assignments');
     await api.post("/assignments", { assignments: payload });
 
-    alert("Trainer assigned / reassigned successfully");
+    let message = `Trainer assigned / reassigned successfully for ${payload.length} records`;
+    if (failedMembers.length > 0) {
+      message += `. Failed for: ${failedMembers.join(", ")}`;
+    }
+    alert(message);
     setShowAssignModal(false);
     setSelectedUsers([]);
     setSelectedTrainer("");
@@ -275,7 +298,7 @@ const AssingnedTrainers = () => {
     console.log('[AssingnedTrainers] Assignment refresh complete:', Object.keys(assignData).length, 'unique users');
   } catch (err) {
     console.error(err);
-    alert("Assignment failed");
+    alert("Assignment failed: " + (err?.response?.data?.message || err?.message || "Unknown error"));
   } finally {
     setAssigning(false);
   }
@@ -817,7 +840,7 @@ const AssingnedTrainers = () => {
                 ) : (
                   trainers.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {t.name || t.username} {t.employeeId ? `(${t.employeeId})` : ""}
+                      {t.name || t.username}
                     </option>
                   ))
                 )}

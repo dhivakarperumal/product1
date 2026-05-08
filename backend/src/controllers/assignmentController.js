@@ -143,23 +143,41 @@ async function upsertAssignments(req, res) {
       return res.status(400).json({ error: 'No assignments provided' });
     }
 
-    const connection = await db.getConnection();
-    try {
-      await connection.beginTransaction();
-
-      for (const a of assignments) {
-        // Validate userId is numeric
-        if (!a.userId || isNaN(a.userId)) {
-          console.error('[assignments] Invalid userId:', a.userId, 'for user', a.username);
-          throw new Error(`Invalid userId: ${a.userId} for user ${a.username}`);
+    for (const a of assignments) {
+      let resolvedUserId = a.userId ? Number(a.userId) : null;
+      
+      // If userId is missing, try to resolve it from email
+      if (!resolvedUserId && a.userEmail) {
+        console.log('[assignments] userId missing for', a.username, '- attempting to resolve from email:', a.userEmail);
+        try {
+          const [userRows] = await db.query(
+            'SELECT id FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(?)) LIMIT 1',
+            [a.userEmail]
+          );
+          if (userRows.length > 0) {
+            resolvedUserId = userRows[0].id;
+            console.log('[assignments] Resolved userId:', resolvedUserId, 'for email:', a.userEmail);
+          } else {
+            console.warn('[assignments] No user found with email:', a.userEmail);
+          }
+        } catch (queryErr) {
+          console.warn('[assignments] Error resolving user from email:', queryErr.message);
         }
+      }
+      
+      // Validate userId is numeric after resolution attempts
+      if (!resolvedUserId || isNaN(resolvedUserId)) {
+        console.error('[assignments] Could not resolve userId for:', a.username, 'email:', a.userEmail);
+        return res.status(400).json({ error: `Cannot assign trainer: Member ${a.username} has no valid user ID and could not be resolved from email` });
+      }
 
-        // Get trainer employee_id from staff table
-        let trainerEmployeeId = null;
-        const numericTrainerId = a.trainerId ? Number(a.trainerId) : null;
-        
-        if (numericTrainerId) {
-          const [staffRows] = await connection.query(
+      // Get trainer employee_id from staff table
+      let trainerEmployeeId = null;
+      const numericTrainerId = a.trainerId ? Number(a.trainerId) : null;
+      
+      if (numericTrainerId) {
+        try {
+          const [staffRows] = await db.query(
             'SELECT employee_id, name FROM staff WHERE id = ?',
             [numericTrainerId]
           );
@@ -170,87 +188,92 @@ async function upsertAssignments(req, res) {
               a.trainerName = staffRows[0].name;
             }
           }
-        }
-
-        // Insert/update trainer_assignments table
-        const params = [
-          Number(a.userId),
-          a.username || null,
-          a.userEmail || null,
-          Number(a.planId) || null,
-          a.planName || null,
-          a.planDuration || null,
-          a.planStartDate || null,
-          a.planEndDate || null,
-          a.planPrice || null,
-          numericTrainerId,
-          a.trainerName || null,
-          a.trainerSource || 'unknown',
-          a.sessionTime || null,
-          a.status || 'active',
-        ];
-
-        const createdBy = getActorUuid(req.user) || null;
-        const params_with_audit = [...params, createdBy, createdBy, createdBy];
-
-        const sqlAssignments = `
-          INSERT INTO trainer_assignments
-          (user_id, username, user_email, plan_id, plan_name, plan_duration, plan_start_date, plan_end_date, plan_price, trainer_id, trainer_name, trainer_source, session_time, status, created_by, updated_by)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-          ON DUPLICATE KEY UPDATE
-            username=VALUES(username),
-            user_email=VALUES(user_email),
-            plan_name=VALUES(plan_name),
-            plan_duration=VALUES(plan_duration),
-            plan_start_date=VALUES(plan_start_date),
-            plan_end_date=VALUES(plan_end_date),
-            plan_price=VALUES(plan_price),
-            trainer_id=VALUES(trainer_id),
-            trainer_name=VALUES(trainer_name),
-            trainer_source=VALUES(trainer_source),
-            session_time=VALUES(session_time),
-            status=VALUES(status),
-            updated_by=VALUES(updated_by),
-            updated_at=CURRENT_TIMESTAMP
-        `;
-
-        await connection.query(sqlAssignments, params_with_audit);
-
-        // Also update memberships table with trainer info
-        if (a.planId) {
-          const membershipParams = [
-            numericTrainerId,
-            a.trainerName || null,
-            trainerEmployeeId || null,
-            Number(a.userId),
-            Number(a.planId),
-          ];
-
-          const sqlMemberships = `
-            UPDATE memberships
-            SET trainerId = ?,
-                trainerName = ?,
-                trainerEmployeeId = ?
-            WHERE userId = ? AND planId = ?
-          `;
-
-          const result = await connection.query(sqlMemberships, membershipParams);
-          console.log('[assignments] Updated memberships:', result[0].affectedRows, 'rows for userId=', Number(a.userId), 'planId=', Number(a.planId), 'trainerId=', numericTrainerId);
+        } catch (queryErr) {
+          console.warn('[assignments] Error fetching trainer info:', queryErr.message);
         }
       }
 
-      await connection.commit();
-      res.json({ success: true });
-    } catch (err) {
-      await connection.rollback();
-      console.error('upsertAssignments error', err);
-      res.status(500).json({ error: 'Failed to save assignments' });
-    } finally {
-      connection.release();
+      // Insert/update trainer_assignments table
+      const params = [
+        resolvedUserId,
+        a.username || null,
+        a.userEmail || null,
+        Number(a.planId) || null,
+        a.planName || null,
+        a.planDuration || null,
+        a.planStartDate || null,
+        a.planEndDate || null,
+        a.planPrice || null,
+        numericTrainerId,
+        a.trainerName || null,
+        a.trainerSource || 'unknown',
+        a.sessionTime || null,
+        a.status || 'active',
+      ];
+
+      const createdBy = getActorUuid(req.user) || null;
+      const params_with_audit = [...params, createdBy, createdBy, createdBy];
+
+      const sqlAssignments = `
+        INSERT INTO trainer_assignments
+        (user_id, username, user_email, plan_id, plan_name, plan_duration, plan_start_date, plan_end_date, plan_price, trainer_id, trainer_name, trainer_source, session_time, status, created_by, updated_by)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ON DUPLICATE KEY UPDATE
+          username=VALUES(username),
+          user_email=VALUES(user_email),
+          plan_name=VALUES(plan_name),
+          plan_duration=VALUES(plan_duration),
+          plan_start_date=VALUES(plan_start_date),
+          plan_end_date=VALUES(plan_end_date),
+          plan_price=VALUES(plan_price),
+          trainer_id=VALUES(trainer_id),
+          trainer_name=VALUES(trainer_name),
+          trainer_source=VALUES(trainer_source),
+          session_time=VALUES(session_time),
+          status=VALUES(status),
+          updated_by=VALUES(updated_by),
+          updated_at=CURRENT_TIMESTAMP
+      `;
+
+      try {
+        await db.query(sqlAssignments, params_with_audit);
+      } catch (queryErr) {
+        console.error('[assignments] Error inserting trainer assignment:', queryErr.message);
+        return res.status(500).json({ error: 'Failed to save assignment: ' + queryErr.message });
+      }
+
+      // Also update memberships table with trainer info
+      if (a.planId) {
+        const membershipParams = [
+          numericTrainerId,
+          a.trainerName || null,
+          trainerEmployeeId || null,
+          resolvedUserId,
+          Number(a.planId),
+        ];
+
+        const sqlMemberships = `
+          UPDATE memberships
+          SET trainerId = ?,
+              trainerName = ?,
+              trainerEmployeeId = ?
+          WHERE userId = ? AND planId = ?
+        `;
+
+        try {
+          const result = await db.query(sqlMemberships, membershipParams);
+          console.log('[assignments] Updated memberships:', result[0].affectedRows, 'rows for userId=', resolvedUserId, 'planId=', Number(a.planId), 'trainerId=', numericTrainerId);
+        } catch (queryErr) {
+          console.warn('[assignments] Warning - failed to update memberships table:', queryErr.message);
+          // Don't fail the entire assignment if memberships update fails
+        }
+      }
     }
+
+    res.json({ success: true });
   } catch (err) {
-    console.error('upsertAssignments outer error', err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('upsertAssignments error', err);
+    res.status(500).json({ error: err.message || 'Server error' });
   }
 }
 

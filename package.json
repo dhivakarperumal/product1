@@ -39,6 +39,7 @@
     "yargs-parser": "^21.1.1"
   },
   "scripts": {
+    
     "backend": "cd backend && npm start",
 
     

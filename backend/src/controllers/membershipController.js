@@ -58,25 +58,35 @@ async function getAllMemberships(req, res) {
 
     const [rows] = await db.query(`
       SELECT m.*, 
+             u.id AS user_id_resolved,
              u.username, 
              u.email AS user_email, 
              u.mobile AS user_mobile, 
              u.role,
              gm.name AS member_name,
              gm.phone AS member_phone,
-             gm.email AS member_email,
+             gm.email AS gym_member_email,
              s.name AS trainer_full_name,
              s.employee_id AS trainer_emp_id,
              s.email AS trainer_email,
              s.phone AS trainer_phone
       FROM memberships m
-      LEFT JOIN users u ON m.userId = u.id
+      LEFT JOIN users u ON m.userId = u.id OR (m.userId IS NULL AND LOWER(TRIM(m.member_email)) = LOWER(TRIM(u.email)))
       LEFT JOIN members gm ON m.memberId = gm.id
       LEFT JOIN staff s ON m.trainerId = s.id
       ${whereClause}
       ORDER BY m.createdAt DESC
     `, params);
-    res.json(rows);
+    
+    // Post-process to ensure userId is populated
+    const processedRows = rows.map(row => {
+      if (!row.userId && row.user_id_resolved) {
+        row.userId = row.user_id_resolved;
+      }
+      return row;
+    });
+    
+    res.json(processedRows);
   } catch (error) {
     console.error("Error fetching all memberships:", error);
     res.status(500).json({ error: "Failed to fetch memberships" });
