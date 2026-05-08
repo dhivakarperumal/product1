@@ -18,6 +18,11 @@ getDaysTillDue = emiUtils.getDaysTillDue || ((dueDate) => {
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 });
 
+const formatCurrency = (value) => {
+  const number = Number(value);
+  return `₹${Number.isFinite(number) ? number.toFixed(2) : '0.00'}`;
+};
+
 const EMITracking = () => {
   const [memberships, setMemberships] = useState([]);
   const [selectedMembership, setSelectedMembership] = useState(null);
@@ -102,7 +107,7 @@ const EMITracking = () => {
     const headers = ['Installment', 'Amount', 'Due Date', 'Paid Date', 'Status'];
     const rows = emiPayments.map(p => [
       p.installmentNumber,
-      `₹${p.amount.toFixed(2)}`,
+      formatCurrency(p.amount),
       formatDate(p.dueDate),
       p.paidDate ? formatDate(p.paidDate) : 'N/A',
       p.status.toUpperCase()
@@ -168,7 +173,7 @@ const EMITracking = () => {
                     >
                       <p className="font-semibold text-white text-sm">{m.member_name || 'Unknown'}</p>
                       <p className="text-xs text-gray-400 mt-1">{m.planName}</p>
-                      <p className="text-xs text-orange-400 mt-1">₹{m.emiAmount?.toFixed(2) || 0}/month</p>
+                      <p className="text-xs text-orange-400 mt-1">{formatCurrency(m.emiAmount)}/month</p>
                     </button>
                   ))
                 )}
@@ -187,11 +192,11 @@ const EMITracking = () => {
                   <div className="grid grid-cols-2 gap-4 mb-6">
                     <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
                       <p className="text-xs text-gray-400 mb-2">Total Amount</p>
-                      <p className="text-2xl font-bold text-blue-400">₹{selectedMembership.totalAmount?.toFixed(2) || 0}</p>
+                      <p className="text-2xl font-bold text-blue-400">{formatCurrency(selectedMembership.totalAmount)}</p>
                     </div>
                     <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
                       <p className="text-xs text-gray-400 mb-2">Monthly EMI</p>
-                      <p className="text-2xl font-bold text-orange-400">₹{selectedMembership.emiAmount?.toFixed(2) || 0}</p>
+                      <p className="text-2xl font-bold text-orange-400">{formatCurrency(selectedMembership.emiAmount)}</p>
                     </div>
                   </div>
 
@@ -202,11 +207,11 @@ const EMITracking = () => {
                     </div>
                     <div>
                       <p className="text-xs text-gray-400 mb-2">Start Date</p>
-                      <p className="text-lg font-bold text-white">{formatDate(selectedMembership.emiStartDate)}</p>
+                      <p className="text-lg font-bold text-white">{selectedMembership.emiStartDate ? formatDate(selectedMembership.emiStartDate) : 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-400 mb-2">Next Payment</p>
-                      <p className="text-lg font-bold text-orange-400">{formatDate(selectedMembership.nextEMIDate)}</p>
+                      <p className="text-lg font-bold text-orange-400">{selectedMembership.nextEMIDate ? formatDate(selectedMembership.nextEMIDate) : 'N/A'}</p>
                     </div>
                   </div>
                 </div>
@@ -242,8 +247,8 @@ const EMITracking = () => {
                           return (
                             <tr key={payment.id} className="border-b border-slate-700 hover:bg-slate-700/30 transition-colors">
                               <td className="py-3 px-4 font-bold text-white">#{payment.installmentNumber}</td>
-                              <td className="py-3 px-4 font-bold text-orange-400">₹{payment.amount?.toFixed(2) || 0}</td>
-                              <td className="py-3 px-4 text-gray-300">{formatDate(payment.dueDate)}</td>
+                              <td className="py-3 px-4 font-bold text-orange-400">{formatCurrency(payment.amount)}</td>
+                              <td className="py-3 px-4 text-gray-300">{payment.dueDate ? formatDate(payment.dueDate) : 'N/A'}</td>
                               <td className="py-3 px-4 text-gray-400">{payment.paidDate ? formatDate(payment.paidDate) : '—'}</td>
                               <td className="py-3 px-4">
                                 <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${statusInfo.color}`}>

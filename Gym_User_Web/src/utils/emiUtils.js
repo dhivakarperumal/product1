@@ -93,12 +93,56 @@ export const getEMIStatusSummary = (payments) => {
 };
 
 /**
+ * Parse a date input into a valid Date object.
+ * @param {Date|string|null|undefined} value
+ * @returns {Date|null}
+ */
+const parseDateValue = (value) => {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isFinite(value.getTime()) ? value : null;
+  }
+  if (typeof value !== 'string') return null;
+
+  let normalized = value.trim();
+  if (!normalized) return null;
+
+  if (!normalized.includes('T')) {
+    if (normalized.includes(' ')) {
+      normalized = normalized.replace(' ', 'T');
+    } else {
+      normalized = `${normalized}T00:00:00`;
+    }
+  }
+
+  const date = new Date(normalized);
+  return Number.isFinite(date.getTime()) ? date : null;
+};
+
+/**
+ * Format date to readable format
+ * @param {Date|string|null|undefined} dateStr - Date input
+ * @returns {string}
+ */
+export const formatDate = (dateStr) => {
+  const date = parseDateValue(dateStr);
+  if (!date) return 'N/A';
+
+  return new Intl.DateTimeFormat('en-IN', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  }).format(date);
+};
+
+/**
  * Check if payment is overdue
  * @param {string} dueDate - Due date in YYYY-MM-DD format
  * @returns {boolean}
  */
 export const isOverdue = (dueDate) => {
-  const due = new Date(dueDate);
+  const due = parseDateValue(dueDate);
+  if (!due) return false;
   const today = new Date();
   return due < today;
 };
@@ -109,25 +153,12 @@ export const isOverdue = (dueDate) => {
  * @returns {number} Number of days
  */
 export const getDaysTillDue = (dueDate) => {
-  const due = new Date(dueDate);
+  const due = parseDateValue(dueDate);
+  if (!due) return NaN;
   const today = new Date();
   const diffTime = due - today;
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return diffDays;
-};
-
-/**
- * Format date to readable format
- * @param {string} dateStr - Date string in YYYY-MM-DD format
- * @returns {string}
- */
-export const formatDate = (dateStr) => {
-  const date = new Date(dateStr + 'T00:00:00');
-  return new Intl.DateTimeFormat('en-IN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  }).format(date);
 };
 
 export default {

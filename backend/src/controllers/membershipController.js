@@ -175,9 +175,10 @@ async function createMembership(req, res) {
 
     if (resolvedUserId) {
       const [validUser] = await db.query(
-        "SELECT id FROM users WHERE id = ?",
+        "SELECT id, email, mobile, phone FROM users WHERE id = ?",
         [resolvedUserId]
       );
+
       if (validUser.length === 0) {
         const [memberRow] = await db.query(
           `SELECT id, member_id, name, email, phone FROM ${membersTable} WHERE id = ? OR member_id = ?`,
@@ -186,13 +187,31 @@ async function createMembership(req, res) {
         if (memberRow.length > 0) {
           requestedMembershipMemberId = resolvedUserId;
           resolvedMemberId = memberRow[0].id;
-          resolvedMemberExternalId = memberRow[0].member_id || null;
+          resolvedMemberExternalId = memberRow[0].member_id || String(resolvedUserId) || null;
           resolvedMemberName = memberRow[0].name || null;
           resolvedMemberEmail = memberRow[0].email || null;
           resolvedMemberPhone = memberRow[0].phone || null;
           resolvedUserId = null;
         } else {
           return res.status(400).json({ success: false, message: "Invalid userId for membership" });
+        }
+      } else {
+        const userInfo = validUser[0];
+        const userEmail = userInfo.email || null;
+        const userPhone = userInfo.mobile || userInfo.phone || null;
+
+        if (userEmail || userPhone) {
+          const [memberRow] = await db.query(
+            `SELECT id, member_id, name, email, phone FROM ${membersTable} WHERE email = ? OR phone = ? OR member_id = ? LIMIT 1`,
+            [userEmail, userPhone, String(resolvedUserId)]
+          );
+          if (memberRow.length > 0) {
+            resolvedMemberId = memberRow[0].id;
+            resolvedMemberExternalId = memberRow[0].member_id || null;
+            resolvedMemberName = resolvedMemberName || memberRow[0].name || null;
+            resolvedMemberEmail = resolvedMemberEmail || memberRow[0].email || null;
+            resolvedMemberPhone = resolvedMemberPhone || memberRow[0].phone || null;
+          }
         }
       }
     }
@@ -206,7 +225,7 @@ async function createMembership(req, res) {
         return res.status(400).json({ success: false, message: "Invalid memberId for membership" });
       }
       resolvedMemberId = validMember[0].id;
-      resolvedMemberExternalId = validMember[0].member_id || null;
+      resolvedMemberExternalId = validMember[0].member_id || requestedMembershipMemberId || null;
       resolvedMemberName = validMember[0].name || null;
       resolvedMemberEmail = validMember[0].email || null;
       resolvedMemberPhone = validMember[0].phone || null;
@@ -410,8 +429,7 @@ async function updateMembership(req, res) {
 /* ================= GET EXPIRING SOON ================= */
 async function getExpiringSoon(req, res) {
   try {
-    console.log('getExpiringSoon called with query', req.query);
-    const { trainerUserId } = req.query;
+    const { trainerUserId, userId, daysAhead = 3 } = req.query;
     let staffId = null;
 
     if (trainerUserId) {
@@ -436,18 +454,26 @@ async function getExpiringSoon(req, res) {
       FROM memberships m
       LEFT JOIN users u ON m.userId = u.id
     `;
-    
+
+    const params = [];
     if (staffId) {
       sql += ` INNER JOIN trainer_assignments ta ON ta.user_id = m.userId AND ta.trainer_id = ? `;
+      params.push(staffId);
     }
 
-    // Add filter: expiring in next 5 days
     sql += ` WHERE m.status = 'active' 
              AND m.endDate >= CURDATE() 
-             AND m.endDate <= DATE_ADD(CURDATE(), INTERVAL 5 DAY)
-             ORDER BY m.endDate ASC `;
+             AND m.endDate <= DATE_ADD(CURDATE(), INTERVAL ? DAY) `;
+    params.push(daysAhead);
 
-    const [rows] = await db.query(sql, staffId ? [staffId] : []);
+    if (!staffId && userId) {
+      sql += ` AND (m.userId = ? OR m.memberId = ? OR m.member_id = ? OR m.member_email = ?)`;
+      params.push(userId, userId, userId, userId);
+    }
+
+    sql += ` ORDER BY m.endDate ASC `;
+
+    const [rows] = await db.query(sql, params);
     res.json(rows);
   } catch (error) {
     console.error("Error fetching expiring memberships:", error);
@@ -586,19 +612,25 @@ async function getEMIPayments(req, res) {
 // Get upcoming EMI payments (for notifications)
 async function getUpcomingEMIPayments(req, res) {
   try {
-    const { daysAhead = 7 } = req.query;
+    const { daysAhead = 7, userId } = req.query;
 
-    const [payments] = await db.query(
-      `SELECT ep.*, m.*, gm.name AS member_name, gm.email AS member_email, gm.phone AS member_phone
+    let query = `SELECT ep.*, m.*, gm.name AS member_name, gm.email AS member_email, gm.phone AS member_phone
        FROM emi_payments ep
        JOIN memberships m ON ep.membershipId = m.id
        LEFT JOIN members gm ON m.memberId = gm.id
-       WHERE ep.status = 'pending' 
+       WHERE ep.status = 'pending'
        AND ep.dueDate >= CURDATE()
-       AND ep.dueDate <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
-       ORDER BY ep.dueDate ASC`,
-      [daysAhead]
-    );
+       AND ep.dueDate <= DATE_ADD(CURDATE(), INTERVAL ? DAY)`;
+
+    const params = [daysAhead];
+    if (userId) {
+      query += ` AND (m.userId = ? OR m.memberId = ? OR m.member_id = ? OR m.member_email = ?)`;
+      params.push(userId, userId, userId, userId);
+    }
+
+    query += ` ORDER BY ep.dueDate ASC`;
+
+    const [payments] = await db.query(query, params);
 
     res.json(payments);
 

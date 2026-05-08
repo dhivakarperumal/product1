@@ -41,11 +41,13 @@ const UserHeader = ({ onMenuClick, isLargeScreen }) => {
   const [fetchingAlerts, setFetchingAlerts] = useState(false);
   const [messages, setMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [emiReminders, setEmiReminders] = useState([]);
+  const [loadingEmiReminders, setLoadingEmiReminders] = useState(false);
   const [orderCount, setOrderCount] = useState(0);
   const [fetchingOrders, setFetchingOrders] = useState(false);
 
 
-  const totalNotifications = alerts.length + messages.length;
+  const totalNotifications = alerts.length + messages.length + emiReminders.length;
 
   const { user, role, profileName, email, logout } = useAuth();
   const { cartCount, fetchCart } = useCart();
@@ -204,6 +206,31 @@ const UserHeader = ({ onMenuClick, isLargeScreen }) => {
     return () => abortController.abort();
   }, [userEmail]);
 
+  useEffect(() => {
+    const abortController = new AbortController();
+
+    const fetchEmiReminders = async () => {
+      if (!user?.id) return;
+
+      try {
+        setLoadingEmiReminders(true);
+        const res = await api.get(`/memberships/emi/upcoming?daysAhead=3&userId=${user.id}`, {
+          signal: abortController.signal,
+        });
+        setEmiReminders(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        if (err.name !== 'CanceledError') {
+          console.error('Failed to fetch EMI reminders:', err);
+        }
+      } finally {
+        setLoadingEmiReminders(false);
+      }
+    };
+
+    fetchEmiReminders();
+    return () => abortController.abort();
+  }, [user?.id]);
+
 
 
   /* ---- Render ------------------------------------------------------- */
@@ -350,11 +377,11 @@ const UserHeader = ({ onMenuClick, isLargeScreen }) => {
 
                   <div className="flex-1 overflow-y-auto scrollbar-hide">
 
-                    {(fetchingAlerts || loadingMessages) ? (
+                    {(fetchingAlerts || loadingMessages || loadingEmiReminders) ? (
                       <div className="p-10 text-center">
                         <div className="w-6 h-6 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mx-auto" />
                       </div>
-                    ) : (alerts.length === 0 && messages.length === 0) ? (
+                    ) : (alerts.length === 0 && messages.length === 0 && emiReminders.length === 0) ? (
 
                       <div className="p-10 text-center">
                         <Bell className="w-8 h-8 text-white/10 mx-auto mb-3" />
@@ -390,7 +417,31 @@ const UserHeader = ({ onMenuClick, isLargeScreen }) => {
                           );
                         })}
 
-                        {/* 📩 MESSAGES */}
+                        {/* � EMI REMINDERS */}
+                        {emiReminders.map((reminder, idx) => {
+                          const dueDate = new Date(reminder.dueDate);
+                          const daysLeft = Math.max(
+                            0,
+                            Math.ceil((dueDate - new Date()) / (1000 * 60 * 60 * 24))
+                          );
+
+                          return (
+                            <div key={`emi-${idx}`} className="p-4 hover:bg-white/5 transition">
+                              <p className="text-xs font-bold text-cyan-400">
+                                EMI Payment Due {daysLeft <= 0 ? 'Today' : `in ${daysLeft} day${daysLeft > 1 ? 's' : ''}`}
+                              </p>
+                              <p className="text-[12px] text-gray-300 mt-1">
+                                Installment #{reminder.installmentNumber} • ₹{Number(reminder.amount || 0).toFixed(2)}
+                              </p>
+                              <div className="flex justify-between mt-2 text-[10px]">
+                                <span className="text-white/60">{reminder.member_name || reminder.member_email || 'Your EMI'}</span>
+                                <span className="text-gray-500">{dueDate.toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {/* �📩 MESSAGES */}
                         {messages.map((msg, idx) => (
                           <div
                             key={`msg-${idx}`}
