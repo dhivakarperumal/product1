@@ -279,6 +279,7 @@ async function updateMember(req, res) {
     const { name, phone, email, gender, height, weight, bmi,
       plan, duration, joinDate, expiryDate, status,
       photo, notes, address } = req.body;
+
     // ensure numeric values are correctly typed
     const numHeight = height != null && !isNaN(height) ? Number(height) : null;
     const numWeight = weight != null && !isNaN(weight) ? Number(weight) : null;

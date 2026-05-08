@@ -22,6 +22,7 @@ import {
   Package,
   MessageSquare,
   Send,
+  TrendingUp,
 } from "lucide-react";
 
 import { useAuth } from "../PrivateRouter/AuthContext";
@@ -35,6 +36,8 @@ const navItems = [
   { path: "/admin/enquiry", label: "Enquiry", icon: MessageSquare },
 
     { path: "/admin/payments", label: "Payments", icon: CreditCard },
+
+  { path: "/admin/emi-tracking", label: "EMI Tracking", icon: TrendingUp },
 
   { path: "/admin/members", label: "Members", icon: Users },
 
@@ -102,6 +105,7 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
     "/admin/plansall": ["/admin/plansall", "/admin/addplan"],
     "/admin/fecilities": ["/admin/fecilities", "/admin/addfecilities"],
     "/admin/stockdetails": ["/admin/stockdetails", "/admin/add-stock"],
+    "/admin/emi-tracking": ["/admin/emi-tracking"],
     // Each attendance route is only active for its own exact path
     "/admin/overall-attendance": ["/admin/overall-attendance"],
     "/admin/member-attendance": ["/admin/member-attendance"],

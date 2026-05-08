@@ -36,6 +36,7 @@ const cartRoutes = require("./routes/cartRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
 const checkinRoutes = require("./routes/checkinRoutes");
 const membershipRoutes = require("./routes/membershipRoutes");
+const emiNotificationRoutes = require("./routes/emiNotificationRoutes");
 
 
 
@@ -125,6 +126,7 @@ app.use("/api/send-message", messageRoutes);
 app.use("/api/whatsapp", whatsappRoutes);
 
 app.use("/api/memberships", membershipRoutes);
+app.use("/api/emi-notifications", emiNotificationRoutes);
 
 const PORT = process.env.PORT || 5000;
 if (process.env.NODE_ENV !== 'production') {

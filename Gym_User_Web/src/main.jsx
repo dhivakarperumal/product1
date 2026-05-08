@@ -106,6 +106,7 @@ const AdminPayments = lazy(() => import("./Admin/Payments/Payments.jsx"));
 const CommenWorkoutDiet = lazy(() => import("./Admin/CommenWorkDiet/CommenWorkDiet.jsx"));
 const AdminReports = lazy(() => import("./Admin/Reports/Reports.jsx"));
 const Settings = lazy(() => import("./Admin/Settingss/Settings.jsx"));
+const EMITracking = lazy(() => import("./Admin/Pages/EMITracking.jsx"));
 
 
 const TrainerPanel = lazy(() => import("./TrainerPanel/TrainerPanel.jsx"));
@@ -254,6 +255,9 @@ const router = createHashRouter([
 
       // Payments route
       { path: "payments", element: <AdminPayments /> },
+
+      // EMI Tracking route
+      { path: "emi-tracking", element: <EMITracking /> },
 
       // Workout & Diet route
       { path: "commenworkoutdiet", element: <CommenWorkoutDiet /> },

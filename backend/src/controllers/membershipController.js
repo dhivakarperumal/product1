@@ -477,13 +477,248 @@ async function getTodayRegistrations(req, res) {
   }
 }
 
+/* ================= EMI FUNCTIONS ================= */
+
+// Helper function to calculate EMI
+function calculateEMIAmount(principal, months) {
+  if (months <= 0 || principal <= 0) return 0;
+  return Math.ceil((principal / months) * 100) / 100; // Round up to nearest paise
+}
+
+// Create EMI schedule for a membership
+async function createEMISchedule(req, res) {
+  try {
+    const { membershipId, emiMonths } = req.body;
+
+    if (!membershipId || !emiMonths || emiMonths < 2) {
+      return res.status(400).json({ success: false, message: "Valid membershipId and emiMonths (min 2) required" });
+    }
+
+    // Get membership details
+    const [membership] = await db.query(
+      "SELECT * FROM memberships WHERE id = ?",
+      [membershipId]
+    );
+
+    if (membership.length === 0) {
+      return res.status(404).json({ success: false, message: "Membership not found" });
+    }
+
+    const m = membership[0];
+    const totalAmount = m.totalAmount || m.pricePaid;
+    const emiAmount = calculateEMIAmount(totalAmount, emiMonths);
+    const emiStartDate = new Date(m.startDate);
+
+    // Update membership with EMI details
+    await db.query(
+      `UPDATE memberships 
+       SET isEMI = 1, emiMonths = ?, emiAmount = ?, emiStartDate = ?, totalAmount = ?, nextEMIDate = ?
+       WHERE id = ?`,
+      [emiMonths, emiAmount, m.startDate, totalAmount, m.startDate, membershipId]
+    );
+
+    // Create EMI payments schedule
+    const today = new Date();
+    const payments = [];
+
+    for (let i = 1; i <= emiMonths; i++) {
+      const dueDate = new Date(emiStartDate);
+      dueDate.setMonth(dueDate.getMonth() + i);
+
+      let emiPaymentAmount = emiAmount;
+      if (i === emiMonths) {
+        // Last payment - adjust for rounding differences
+        const totalPaid = emiAmount * (emiMonths - 1);
+        emiPaymentAmount = totalAmount - totalPaid;
+      }
+
+      const [result] = await db.query(
+        `INSERT INTO emi_payments 
+         (membershipId, installmentNumber, amount, dueDate, status)
+         VALUES (?, ?, ?, ?, ?)`,
+        [membershipId, i, emiPaymentAmount, dueDate, 'pending']
+      );
+
+      payments.push({
+        id: result.insertId,
+        installmentNumber: i,
+        amount: emiPaymentAmount,
+        dueDate: dueDate.toISOString().split('T')[0],
+        status: 'pending'
+      });
+    }
+
+    res.json({
+      success: true,
+      membershipId,
+      emiAmount,
+      emiMonths,
+      totalAmount,
+      payments
+    });
+
+  } catch (error) {
+    console.error("Create EMI schedule error:", error);
+    res.status(500).json({ success: false, message: "Failed to create EMI schedule" });
+  }
+}
+
+// Get EMI payments for a membership
+async function getEMIPayments(req, res) {
+  try {
+    const { membershipId } = req.params;
+
+    const [payments] = await db.query(
+      `SELECT * FROM emi_payments 
+       WHERE membershipId = ?
+       ORDER BY installmentNumber ASC`,
+      [membershipId]
+    );
+
+    res.json(payments);
+
+  } catch (error) {
+    console.error("Get EMI payments error:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch EMI payments" });
+  }
+}
+
+// Get upcoming EMI payments (for notifications)
+async function getUpcomingEMIPayments(req, res) {
+  try {
+    const { daysAhead = 7 } = req.query;
+
+    const [payments] = await db.query(
+      `SELECT ep.*, m.*, gm.name AS member_name, gm.email AS member_email, gm.phone AS member_phone
+       FROM emi_payments ep
+       JOIN memberships m ON ep.membershipId = m.id
+       LEFT JOIN members gm ON m.memberId = gm.id
+       WHERE ep.status = 'pending' 
+       AND ep.dueDate >= CURDATE()
+       AND ep.dueDate <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
+       ORDER BY ep.dueDate ASC`,
+      [daysAhead]
+    );
+
+    res.json(payments);
+
+  } catch (error) {
+    console.error("Get upcoming EMI payments error:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch upcoming EMI payments" });
+  }
+}
+
+// Update EMI payment status
+async function updateEMIPayment(req, res) {
+  try {
+    const { paymentId } = req.params;
+    const { status, paymentMethod, paidDate } = req.body;
+
+    if (!status || !['pending', 'completed', 'overdue', 'cancelled'].includes(status)) {
+      return res.status(400).json({ success: false, message: "Invalid status" });
+    }
+
+    const [result] = await db.query(
+      `UPDATE emi_payments 
+       SET status = ?, paymentMethod = ?, paidDate = ?, updatedAt = NOW()
+       WHERE id = ?`,
+      [status, paymentMethod || null, paidDate || null, paymentId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Payment not found" });
+    }
+
+    // Update membership nextEMIDate
+    const [payment] = await db.query(
+      "SELECT membershipId FROM emi_payments WHERE id = ?",
+      [paymentId]
+    );
+
+    if (payment.length > 0) {
+      const [nextPayment] = await db.query(
+        `SELECT dueDate FROM emi_payments 
+         WHERE membershipId = ? AND status = 'pending'
+         ORDER BY dueDate ASC LIMIT 1`,
+        [payment[0].membershipId]
+      );
+
+      if (nextPayment.length > 0) {
+        await db.query(
+          "UPDATE memberships SET nextEMIDate = ? WHERE id = ?",
+          [nextPayment[0].dueDate, payment[0].membershipId]
+        );
+      }
+    }
+
+    res.json({ success: true, message: "EMI payment updated successfully" });
+
+  } catch (error) {
+    console.error("Update EMI payment error:", error);
+    res.status(500).json({ success: false, message: "Failed to update EMI payment" });
+  }
+}
+
+// Get EMI status for membership
+async function getEMIStatus(req, res) {
+  try {
+    const { membershipId } = req.params;
+
+    const [membership] = await db.query(
+      `SELECT id, isEMI, emiMonths, emiAmount, emiStartDate, totalAmount, nextEMIDate, pricePaid
+       FROM memberships
+       WHERE id = ?`,
+      [membershipId]
+    );
+
+    if (membership.length === 0) {
+      return res.status(404).json({ success: false, message: "Membership not found" });
+    }
+
+    const m = membership[0];
+
+    if (!m.isEMI) {
+      return res.json({ success: true, isEMI: false, message: "This is not an EMI membership" });
+    }
+
+    const [payments] = await db.query(
+      `SELECT COUNT(*) as total, 
+              SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+              SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+              SUM(CASE WHEN status = 'overdue' THEN 1 ELSE 0 END) as overdue
+       FROM emi_payments
+       WHERE membershipId = ?`,
+      [membershipId]
+    );
+
+    res.json({
+      success: true,
+      isEMI: true,
+      emiMonths: m.emiMonths,
+      emiAmount: m.emiAmount,
+      totalAmount: m.totalAmount,
+      nextEMIDate: m.nextEMIDate,
+      stats: payments[0]
+    });
+
+  } catch (error) {
+    console.error("Get EMI status error:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch EMI status" });
+  }
+}
+
 module.exports = {
   createMembership,
   getUserMemberships,
   getMembershipById,
   getAllMemberships,
   getExpiringSoon,
-  getTodayRegistrations, // Added
+  getTodayRegistrations,
   updateMembership,
   deleteMembership,
+  createEMISchedule,
+  getEMIPayments,
+  getUpcomingEMIPayments,
+  updateEMIPayment,
+  getEMIStatus,
 };

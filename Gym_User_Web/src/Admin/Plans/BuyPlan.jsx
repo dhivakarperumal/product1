@@ -30,6 +30,8 @@ const BuyPlanadmin = () => {
     startDate: today,
     endDate: "",
     paymentMode: "cash",
+    useEMI: false,
+    emiMonths: 3,
   });
 
   const [form, setForm] = useState(createInitialForm());
@@ -160,6 +162,9 @@ const BuyPlanadmin = () => {
     }
 
     try {
+      const planPrice = parseFloat(selectedPlan.finalPrice ?? selectedPlan.final_price);
+      const useEMI = form.useEMI && planPrice > 4000;
+      
       // ===== SAVE MEMBERSHIP HISTORY =====
       const membershipData = {
         userId: selectedUser.user_id || selectedUser.u_id || null,
@@ -168,16 +173,33 @@ const BuyPlanadmin = () => {
         planId: selectedPlan.id,
         plan_id: selectedPlan.plan_id || null,
         planName: selectedPlan.name,
-        price: parseFloat(selectedPlan.finalPrice ?? selectedPlan.final_price),
-        pricePaid: parseFloat(selectedPlan.finalPrice ?? selectedPlan.final_price),
+        price: planPrice,
+        pricePaid: planPrice,
         duration: parseInt(selectedPlan.duration, 10),
         startDate: form.startDate,
         endDate: form.endDate,
         paymentMode: form.paymentMode,
         status: "active",
+        isEMI: useEMI ? 1 : 0,
+        emiMonths: useEMI ? form.emiMonths : 0,
+        totalAmount: planPrice,
       };
 
-      await api.post("/memberships", membershipData);
+      const membershipRes = await api.post("/memberships", membershipData);
+      const membershipId = membershipRes.data.membershipId;
+
+      // ===== CREATE EMI SCHEDULE IF NEEDED =====
+      if (useEMI && membershipId) {
+        try {
+          await api.post("/memberships/emi/create-schedule", {
+            membershipId: membershipId,
+            emiMonths: form.emiMonths
+          });
+          console.log("✅ EMI schedule created");
+        } catch (error) {
+          console.error("⚠️ Failed to create EMI schedule:", error);
+        }
+      }
 
       // ===== UPDATE MEMBER =====
       const updatedMember = {
@@ -214,7 +236,8 @@ const BuyPlanadmin = () => {
         // Continue anyway - membership is already created
       }
 
-      alert("Plan assigned successfully");
+      const emiText = useEMI ? ` (EMI: ₹${Math.ceil((planPrice / form.emiMonths) * 100) / 100} x ${form.emiMonths} months)` : "";
+      alert(`Plan assigned successfully${emiText}`);
 
       resetBuyPlanForm();
       fetchMembers();
@@ -385,16 +408,78 @@ const BuyPlanadmin = () => {
             <option value="upi">UPI</option>
           </select>
 
+          {/* EMI OPTION - Show only if plan > 4000 */}
+          {selectedPlan && (parseFloat(selectedPlan.finalPrice ?? selectedPlan.final_price) > 4000) && (
+            <div className="mt-4 p-4 bg-gray-800 rounded-lg border border-orange-400">
+              <label className="flex items-center text-white mb-3">
+                <input
+                  type="checkbox"
+                  checked={form.useEMI}
+                  onChange={(e) =>
+                    setForm({ ...form, useEMI: e.target.checked })
+                  }
+                  className="mr-3 w-4 h-4"
+                />
+                <span>Pay via EMI</span>
+              </label>
+
+              {form.useEMI && (
+                <div>
+                  <label className="text-white text-sm mb-2 block">
+                    EMI Months:
+                  </label>
+                  <select
+                    className="w-full p-2 bg-gray-900 rounded-lg text-white mb-3"
+                    value={form.emiMonths}
+                    onChange={(e) =>
+                      setForm({ ...form, emiMonths: parseInt(e.target.value) })
+                    }
+                  >
+                    <option value={3}>3 Months</option>
+                    <option value={6}>6 Months</option>
+                    <option value={12}>12 Months</option>
+                    <option value={18}>18 Months</option>
+                    <option value={24}>24 Months</option>
+                  </select>
+
+                  {/* EMI Breakdown */}
+                  <div className="bg-gray-700 p-3 rounded-lg text-sm">
+                    <p className="text-gray-300 mb-2">
+                      Total Amount: ₹
+                      {parseFloat(selectedPlan.finalPrice ?? selectedPlan.final_price).toFixed(2)}
+                    </p>
+                    <p className="text-orange-400 font-bold">
+                      Monthly EMI: ₹
+                      {(
+                        Math.ceil(
+                          ((parseFloat(selectedPlan.finalPrice ?? selectedPlan.final_price) / form.emiMonths) * 100)
+                        ) / 100
+                      ).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex flex-col gap-3">
             <button
               onClick={handleAssignPlan}
               disabled={isSubmitting || !selectedUser || !selectedPlan}
               className={`mt-5 w-full py-3 rounded-lg text-white ${isSubmitting || !selectedUser || !selectedPlan ? 'bg-orange-300 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600'}`}
             >
-              {isSubmitting ? 'Assigning...' : 'Assign Plan '}₹
-              {selectedPlan
-                ? selectedPlan.finalPrice ?? selectedPlan.final_price
-                : 0}
+              {isSubmitting ? 'Assigning...' : (
+                <>
+                  Assign Plan ₹
+                  {selectedPlan
+                    ? selectedPlan.finalPrice ?? selectedPlan.final_price
+                    : 0}
+                  {form.useEMI && selectedPlan && (parseFloat(selectedPlan.finalPrice ?? selectedPlan.final_price) > 4000) ? 
+                    ` (EMI: ₹${Math.ceil(((parseFloat(selectedPlan.finalPrice ?? selectedPlan.final_price) / form.emiMonths) * 100)) / 100} x ${form.emiMonths}m)` 
+                    : ''
+                  }
+                </>
+              )}
             </button>
 
             <button

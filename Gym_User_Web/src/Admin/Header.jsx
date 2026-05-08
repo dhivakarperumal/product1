@@ -54,6 +54,7 @@ const pageTitles = {
   "/admin/addtreatments": "Add Treatments",
   "/admin/billing": "Billing",
   "/admin/addbillings": "Add Billing",
+  "/admin/emi-tracking": "EMI Tracking",
   "/admin/stockdetails": "Inventory",
   "/admin/add-stock": "Add Inventory",
   "/admin/equipment": "Gym Equipments",
