@@ -6,6 +6,11 @@ export const resolveUserId = (user) => {
     user.user_id ||
     user.memberId ||
     user.member_id ||
+    user.userUuid ||
+    user.user_uuid ||
+    user.memberUuid ||
+    user.member_uuid ||
+    user.uuid ||
     null
   );
 };

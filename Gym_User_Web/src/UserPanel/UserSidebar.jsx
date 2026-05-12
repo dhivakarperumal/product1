@@ -16,6 +16,8 @@ import {
   User,
   Fan,
   Gem,
+  CreditCard,
+  History,
 } from "lucide-react";
 import { useAuth} from "../PrivateRouter/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -48,6 +50,16 @@ const navItems = [
     path: "/user/pricing",
     label: "Pricing Plans",
     icon: Gem,
+  },
+  {
+    path: "/user/emi",
+    label: "EMI Payments",
+    icon: CreditCard,
+  },
+  {
+    path: "/user/payment-history",
+    label: "Payment History",
+    icon: History,
   },
   {
     label: "About Gym",
