@@ -60,9 +60,9 @@ async function getTodayCheckins(req, res) {
       sql = `
         SELECT COUNT(DISTINCT a.member_id) as count
         FROM attendance a
-        INNER JOIN trainer_assignments ta ON ta.user_id = a.member_id
+        INNER JOIN memberships m ON m.userId = a.member_id
         WHERE (DATE(a.check_in) = CURDATE() OR a.date = CURDATE())
-          AND ta.trainer_id = ?
+          AND m.trainerId = ?
           AND a.status = 'Present'
       `;
       params = [resolvedStaffId];

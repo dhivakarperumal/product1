@@ -173,13 +173,23 @@ const TrainerDashboard = () => {
 
         const uniqueMembers = Array.from(
           new Map(
-            activeMembers.map((m) => [m.userId || m.user_id, m])
+            activeMembers.map((m) => {
+              const key =
+                m.membershipId ||
+                m.membership_id ||
+                m.memberId ||
+                m.member_id ||
+                m.userId ||
+                m.user_id ||
+                `${m.username || m.user_name || 'member'}-${m.planId || m.plan_id || ''}`;
+              return [String(key), m];
+            })
           ).values()
         );
 
         console.log('[TrainerDashboard] Active unique members:', uniqueMembers.length);
         setAssignedMembers(uniqueMembers);
-        const assignedMemberIds = uniqueMembers.map(m => String(m.userId || m.user_id));
+        const assignedMemberIds = uniqueMembers.map(m => String(m.membershipId || m.membership_id || m.memberId || m.member_id || m.userId || m.user_id));
 
         let workoutCount = 0;
         let dietCount = 0;

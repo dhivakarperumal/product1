@@ -22,95 +22,92 @@ const AssingnedTrainers = () => {
   const [dateRange, setDateRange] = useState({ type: 'All Time', range: null });
 
   /* ================= FETCH MEMBERSHIPS ================= */
-  useEffect(() => {
-    const fetchMembers = async () => {
-      if (cache.adminAssignmentsMembers) {
-        setMembers(cache.adminAssignmentsMembers);
-      } else {
-        setLoading(true);
-      }
+  const fetchMembersData = async () => {
+    if (cache.adminAssignmentsMembers) {
+      setMembers(cache.adminAssignmentsMembers);
+    } else {
+      setLoading(true);
+    }
 
-      try {
-        const res = await api.get("/memberships");
-        const membershipsData = Array.isArray(res.data) ? res.data : [];
-        console.log('[AssingnedTrainers] Fetched memberships:', membershipsData.length, 'records');
- 
-        const usersData = membershipsData.map((m) => {
-          const resolvedUserId =
-            m.userId ||
-            m.user_id ||
-            m.user_id_resolved ||
-            m.userIdResolved ||
-            m.memberId ||
-            m.member_id ||
-            null;
-          const resolvedPlanId = m.planId || m.plan_id || m.id;
-          const resolvedUsername =
-            m.username ||
-            m.userName ||
-            m.member_name ||
-            m.memberName ||
-            m.name ||
-            "No Name";
-          const resolvedEmail =
-            m.user_email ||
-            m.userEmail ||
-            m.email ||
-            m.member_email ||
-            m.memberEmail ||
-            m.gym_member_email ||
-            "";
+    try {
+      const res = await api.get("/memberships");
+      const membershipsData = Array.isArray(res.data) ? res.data : [];
+      console.log('[AssingnedTrainers] Fetched memberships:', membershipsData.length, 'records');
 
-          const member = {
-            uid: resolvedUserId ? String(resolvedUserId) : `membership_${m.id}`,
-            userId: resolvedUserId ? Number(resolvedUserId) : null,
-            memberId: m.memberId || m.member_id || null,
-            membershipId: m.id,
-            username: resolvedUsername,
-            email: resolvedEmail,
-            userEmail: resolvedEmail,
-            workoutCount: 0,
-            dietCount: 0,
-            // Include trainer info from memberships table
+      const usersData = membershipsData.map((m) => {
+        const resolvedUserId =
+          m.userId ||
+          m.user_id ||
+          m.user_id_resolved ||
+          m.userIdResolved ||
+          m.memberId ||
+          m.member_id ||
+          null;
+        const resolvedPlanId = m.planId || m.plan_id || m.id;
+        const resolvedUsername =
+          m.username ||
+          m.userName ||
+          m.member_name ||
+          m.memberName ||
+          m.name ||
+          "No Name";
+        const resolvedEmail =
+          m.user_email ||
+          m.userEmail ||
+          m.email ||
+          m.member_email ||
+          m.memberEmail ||
+          m.gym_member_email ||
+          "";
+
+        const member = {
+          uid: resolvedUserId ? String(resolvedUserId) : `membership_${m.id}`,
+          userId: resolvedUserId ? Number(resolvedUserId) : null,
+          memberId: m.memberId || m.member_id || null,
+          membershipId: m.id,
+          username: resolvedUsername,
+          email: resolvedEmail,
+          userEmail: resolvedEmail,
+          workoutCount: 0,
+          dietCount: 0,
+          trainerId: m.trainerId || null,
+          trainerName: m.trainerName || m.trainer_full_name || null,
+          trainerEmployeeId: m.trainerEmployeeId || m.trainer_emp_id || null,
+          trainerEmail: m.trainer_email || null,
+          trainerPhone: m.trainer_phone || null,
+          plans: [{
+            id: Number(resolvedPlanId),
+            planName: m.planName || m.plan_name || "Unknown Plan",
+            duration: m.duration || m.planDuration || m.plan_duration || "N/A",
+            startDate: m.startDate || m.start_date || null,
+            endDate: m.endDate || m.end_date || null,
+            pricePaid: Number(m.pricePaid ?? m.price ?? 0),
             trainerId: m.trainerId || null,
             trainerName: m.trainerName || null,
             trainerEmployeeId: m.trainerEmployeeId || m.trainer_emp_id || null,
-            trainerEmail: m.trainer_email || null,
-            trainerPhone: m.trainer_phone || null,
-            plans: [{
-              id: Number(resolvedPlanId),
-              planName: m.planName || m.plan_name || "Unknown Plan",
-              duration: m.duration || m.planDuration || m.plan_duration || "N/A",
-              startDate: m.startDate || m.start_date || null,
-              endDate: m.endDate || m.end_date || null,
-              pricePaid: Number(m.pricePaid ?? m.price ?? 0),
-              // Trainer info per plan
-              trainerId: m.trainerId || null,
-              trainerName: m.trainerName || null,
-              trainerEmployeeId: m.trainerEmployeeId || m.trainer_emp_id || null,
-            }],
-            source: "memberships",
-          };
-          
-          // Debug: log members without proper userId
-          if (!resolvedUserId) {
-            console.warn('[AssingnedTrainers] Member without userId:', resolvedUsername, member);
-          }
-          
-          return member;
-        });
+          }],
+          source: "memberships",
+        };
 
-        console.log('[AssingnedTrainers] Processed members:', usersData.length);
-        setMembers(usersData);
-        cache.adminAssignmentsMembers = usersData;
-      } catch (error) {
-        console.error("Error fetching memberships:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+        if (!resolvedUserId) {
+          console.warn('[AssingnedTrainers] Member without userId:', resolvedUsername, member);
+        }
 
-    fetchMembers();
+        return member;
+      });
+
+      console.log('[AssingnedTrainers] Processed members:', usersData.length);
+      setMembers(usersData);
+      cache.adminAssignmentsMembers = usersData;
+    } catch (error) {
+      console.error("Error fetching memberships:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMembersData();
   }, []);
 
   /* ================= FETCH TRAINERS ================= */
@@ -162,16 +159,25 @@ const AssingnedTrainers = () => {
         }
         
         assignmentsArray.forEach((a) => {
-          // Use userId, fallback to user_id, must have a value
           const userId = a.userId || a.user_id;
-          if (!userId) {
-            console.warn('[AssingnedTrainers] Assignment without userId:', a);
-            return; // Skip assignments without userId
+          const membershipId = a.membershipId || a.membership_id || a.id;
+
+          if (!userId && !membershipId) {
+            console.warn('[AssingnedTrainers] Assignment missing both userId and membershipId:', a);
+            return;
           }
-          
-          const userIdKey = String(userId);
-          if (!assignData[userIdKey]) assignData[userIdKey] = [];
-          assignData[userIdKey].push(a);
+
+          const addAssignmentKey = (key) => {
+            if (!assignData[key]) assignData[key] = [];
+            assignData[key].push(a);
+          };
+
+          if (userId) {
+            addAssignmentKey(String(userId));
+          }
+          if (membershipId) {
+            addAssignmentKey(`membership_${membershipId}`);
+          }
         });
         
         console.log('[AssingnedTrainers] Assignment keys created:', Object.keys(assignData).length, 'unique users');
@@ -296,17 +302,33 @@ const AssingnedTrainers = () => {
     
     refreshedAssignments.forEach((a) => {
       const userId = a.userId || a.user_id;
-      if (!userId) {
-        console.warn('[AssingnedTrainers] Assignment without userId in refresh:', a);
+      const membershipId = a.membershipId || a.membership_id || a.id;
+
+      if (!userId && !membershipId) {
+        console.warn('[AssingnedTrainers] Refreshed assignment missing both userId and membershipId:', a);
         return;
       }
-      const userIdKey = String(userId);
-      if (!assignData[userIdKey]) assignData[userIdKey] = [];
-      assignData[userIdKey].push(a);
+
+      const addAssignmentKey = (key) => {
+        if (!assignData[key]) assignData[key] = [];
+        assignData[key].push(a);
+      };
+
+      if (userId) {
+        addAssignmentKey(String(userId));
+      }
+      if (membershipId) {
+        addAssignmentKey(`membership_${membershipId}`);
+      }
     });
     setAssignments(assignData);
     cache.adminAssignments = assignData;
     console.log('[AssingnedTrainers] Assignment refresh complete:', Object.keys(assignData).length, 'unique users');
+
+    // Refresh membership list so the modal and main view show updated trainer assignments
+    cache.adminAssignmentsMembers = null;
+    await fetchMembersData();
+    setCurrentPage(1);
   } catch (err) {
     console.error(err);
     alert("Assignment failed: " + (err?.response?.data?.message || err?.message || "Unknown error"));
@@ -314,6 +336,14 @@ const AssingnedTrainers = () => {
     setAssigning(false);
   }
 };
+
+  const openAssignModal = (memberIds = []) => {
+    const selectedMembers = members.filter((m) => memberIds.includes(m.uid));
+    const trainerIds = [...new Set(selectedMembers.map((m) => m.trainerId).filter(Boolean))];
+    setSelectedUsers(memberIds);
+    setSelectedTrainer(trainerIds.length === 1 ? String(trainerIds[0]) : "");
+    setShowAssignModal(true);
+  };
 
   /* ================= FILTER & SEARCH LOGIC ================= */
   const filteredMembers = members.filter((m) => {
@@ -326,15 +356,12 @@ const AssingnedTrainers = () => {
     if (!matchesSearch) return false;
 
     let matchesType = true;
-    // Check trainerId from memberships table (source of truth)
-    const hasTrainer = m.trainerId && m.trainerId !== null;
+    const hasAssignment = getMemberAssignments(m).length > 0;
     
     if (filterType === "assigned") {
-      // Show only members with assigned trainers
-      matchesType = hasTrainer;
+      matchesType = hasAssignment;
     } else if (filterType === "unassigned") {
-      // Show only members without trainers
-      matchesType = !hasTrainer;
+      matchesType = !hasAssignment;
     }
     // filterType === "all" - show all members regardless of trainer assignment
 
@@ -384,7 +411,7 @@ const AssingnedTrainers = () => {
       });
       
       // Check for mismatches
-      const unmatchedMembers = members.filter(m => !assignments[m.uid]);
+      const unmatchedMembers = members.filter(m => !assignments[m.uid] && !m.trainerId && !m.trainerName);
       if (unmatchedMembers.length > 0) {
         console.log(`\n⚠️  ${unmatchedMembers.length} members have no matching assignments`);
       }
@@ -392,6 +419,29 @@ const AssingnedTrainers = () => {
       console.log('='.repeat(60) + '\n');
     }
   }, [members, assignments]);
+
+  function getMemberAssignments(member) {
+    const directAssignments = assignments[member.uid] || [];
+    if (directAssignments.length > 0) return directAssignments;
+
+    if (member.trainerId || member.trainerName) {
+      return [{
+        trainerId: member.trainerId,
+        trainerName: member.trainerName || 'Trainer',
+        trainerEmployeeId: member.trainerEmployeeId || null,
+        trainerSource: member.trainerSource || 'staff',
+        id: member.membershipId || member.uid,
+        planId: member.plans?.[0]?.id || null,
+        planName: member.plans?.[0]?.planName || null,
+        planDuration: member.plans?.[0]?.duration || null,
+        planPrice: member.plans?.[0]?.pricePaid || null,
+        planStartDate: member.plans?.[0]?.startDate || null,
+        planEndDate: member.plans?.[0]?.endDate || null,
+      }];
+    }
+
+    return [];
+  }
 
   /* ================= HELPER: Group assignments by trainer ================= */
   const groupAssignmentsByTrainer = (assignmentsArray) => {
@@ -433,11 +483,11 @@ const AssingnedTrainers = () => {
         </div>
 
         <button
-          onClick={() => setShowAssignModal(true)}
+          onClick={() => openAssignModal([])}
           className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg hover:shadow-lg hover:scale-105 transition-all font-semibold"
         >
           <Dumbbell size={20} />
-          Assign New Trainer
+          Assign / Reassign Trainer
         </button>
       </div>
 
@@ -540,7 +590,9 @@ const AssingnedTrainers = () => {
           </div>
         ) : viewMode === "card" ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {paginatedData.map((m) => (
+            {paginatedData.map((m) => {
+              const memberAssignments = getMemberAssignments(m);
+              return (
               <div
                 key={m.uid}
                 className="bg-gradient-to-br from-white/10 to-white/5 border border-white/20 rounded-2xl p-6 hover:border-white/40 transition backdrop-blur-lg"
@@ -568,7 +620,7 @@ const AssingnedTrainers = () => {
                     </div>
                   </div>
 
-                  <div className="flex gap-3 text-sm">
+                  <div className="flex flex-wrap gap-3 text-sm">
                     <div className="bg-blue-500/20 px-3 py-1 rounded-full border border-blue-400/30">
                       <span className="text-blue-300 font-medium">Plans: {m.plans?.length || 0}</span>
                     </div>
@@ -578,13 +630,20 @@ const AssingnedTrainers = () => {
                     <div className="bg-green-500/20 px-3 py-1 rounded-full border border-green-400/30">
                       <span className="text-green-300 font-medium">D: {m.dietCount || 0}</span>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => openAssignModal([m.uid])}
+                      className="px-3 py-1 rounded-full border border-white/20 bg-white/5 text-white text-xs transition hover:bg-white/10"
+                    >
+                      Reassign
+                    </button>
                   </div>
                 </div>
 
                 {/* ASSIGNED TRAINERS */}
-                {assignments[m.uid] && assignments[m.uid].length > 0 ? (
+                {memberAssignments.length > 0 ? (
                   <div className="space-y-3">
-                    {groupAssignmentsByTrainer(assignments[m.uid]).map((trainer) => (
+                    {groupAssignmentsByTrainer(memberAssignments).map((trainer) => (
                       <div
                         key={`trainer-${trainer.trainerId || 'unassigned'}`}
                         className="bg-white/5 border border-green-400/30 rounded-xl p-4 space-y-3"
@@ -633,7 +692,8 @@ const AssingnedTrainers = () => {
                   </div>
                 )}
               </div>
-            ))}
+            );
+          })}
           </div>
         ) : (
           /* ================= TABLE VIEW ================= */
@@ -646,11 +706,12 @@ const AssingnedTrainers = () => {
                   <th className="px-6 py-4 text-left font-semibold text-gray-300">Plan</th>
                   <th className="px-6 py-4 text-left font-semibold text-gray-300">Dates</th>
                   <th className="px-6 py-4 text-left font-semibold text-gray-300">Status</th>
+                  <th className="px-6 py-4 text-left font-semibold text-gray-300">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 {paginatedData.map((m) => {
-                  const assigned = assignments[m.uid] || [];
+                  const assigned = getMemberAssignments(m);
                   const groupedTrainers = groupAssignmentsByTrainer(assigned);
                   return (
                     <tr key={m.uid} className="hover:bg-white/5 transition">
@@ -697,6 +758,15 @@ const AssingnedTrainers = () => {
                         }`}>
                           {assigned.length > 0 ? "Assigned" : "Pending"}
                         </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          type="button"
+                          onClick={() => openAssignModal([m.uid])}
+                          className="px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-xs font-semibold hover:bg-white/20 transition"
+                        >
+                          Reassign
+                        </button>
                       </td>
                     </tr>
                   );
@@ -791,38 +861,46 @@ const AssingnedTrainers = () => {
             <div className="mb-6">
               <label className="block text-sm font-semibold text-gray-300 mb-3">Select Members (Only members with active plans):</label>
               <div className="max-h-56 overflow-y-auto space-y-2 pr-1 bg-black/20 rounded-xl p-3 border border-white/10">
-                {members.filter((m) => (m.plans?.length || 0) > 0 && (!assignments[m.uid] || assignments[m.uid].length === 0)).length === 0 ? (
-                  <p className="text-gray-400 text-sm text-center py-4">No unassigned members with plans found</p>
+                {members.filter((m) => (m.plans?.length || 0) > 0).length === 0 ? (
+                  <p className="text-gray-400 text-sm text-center py-4">No members with active plans found</p>
                 ) : (
                   members
-                    .filter((m) => (m.plans?.length || 0) > 0 && (!assignments[m.uid] || assignments[m.uid].length === 0))
-                    .map((m) => (
-                    <label
-                      key={m.uid}
-                      className="flex items-start gap-3 bg-white/5 p-3 rounded-lg cursor-pointer hover:bg-white/10 transition border border-white/10"
-                    >
-                      <input
-                        type="checkbox"
-                        className="accent-orange-500 mt-1 shrink-0"
-                        disabled={assigning}
-                        checked={selectedUsers.includes(m.uid)}
-                        onChange={(e) => {
-                          setSelectedUsers((prev) =>
-                            e.target.checked
-                              ? [...new Set([...prev, m.uid])]
-                              : prev.filter((id) => id !== m.uid)
-                          );
-                        }}
-                      />
-                      <div className="flex-1 text-sm">
-                        <p className="font-semibold text-white">{m.username || "No Name"}</p>
-                        <p className="text-xs text-gray-400">{m.email}</p>
-                        <p className="text-xs text-cyan-400 mt-1">
-                          {m.plans?.length || 0} plans
-                        </p>
-                      </div>
-                    </label>
-                  ))
+                    .filter((m) => (m.plans?.length || 0) > 0)
+                    .map((m) => {
+                      const memberAssignments = getMemberAssignments(m);
+                      return (
+                      <label
+                        key={m.uid}
+                        className="flex items-start gap-3 bg-white/5 p-3 rounded-lg cursor-pointer hover:bg-white/10 transition border border-white/10"
+                      >
+                        <input
+                          type="checkbox"
+                          className="accent-orange-500 mt-1 shrink-0"
+                          disabled={assigning}
+                          checked={selectedUsers.includes(m.uid)}
+                          onChange={(e) => {
+                            setSelectedUsers((prev) =>
+                              e.target.checked
+                                ? [...new Set([...prev, m.uid])]
+                                : prev.filter((id) => id !== m.uid)
+                            );
+                          }}
+                        />
+                        <div className="flex-1 text-sm">
+                          <p className="font-semibold text-white">{m.username || "No Name"}</p>
+                          <p className="text-xs text-gray-400">{m.email}</p>
+                          <p className="text-xs text-cyan-400 mt-1">
+                            {m.plans?.length || 0} plans
+                          </p>
+                          {memberAssignments.length > 0 && (
+                            <p className="text-xs text-green-300 mt-1">
+                              Assigned to {memberAssignments[0].trainerName || 'Trainer'}
+                            </p>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })
                 )}
               </div>
             </div>

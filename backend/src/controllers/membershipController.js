@@ -66,7 +66,7 @@ async function getAllMemberships(req, res) {
              gm.name AS member_name,
              gm.phone AS member_phone,
              gm.email AS gym_member_email,
-             s.name AS trainer_full_name,
+             s.name AS trainerName,
              s.employee_id AS trainer_emp_id,
              s.email AS trainer_email,
              s.phone AS trainer_phone
@@ -465,16 +465,15 @@ async function getExpiringSoon(req, res) {
       LEFT JOIN users u ON m.userId = u.id
     `;
 
-    const params = [];
+    const conditions = ['m.status = \'active\'', 'm.endDate >= CURDATE()', 'm.endDate <= DATE_ADD(CURDATE(), INTERVAL ? DAY)'];
+    const params = [daysAhead];
+
     if (staffId) {
-      sql += ` INNER JOIN trainer_assignments ta ON ta.user_id = m.userId AND ta.trainer_id = ? `;
-      params.push(staffId);
+      conditions.push('m.trainerId = ?');
+      params.unshift(staffId);
     }
 
-    sql += ` WHERE m.status = 'active' 
-             AND m.endDate >= CURDATE() 
-             AND m.endDate <= DATE_ADD(CURDATE(), INTERVAL ? DAY) `;
-    params.push(daysAhead);
+    sql += ` WHERE ${conditions.join(' AND ')}`;
 
     if (!staffId && userId) {
       sql += ` AND (m.userId = ? OR m.memberId = ? OR m.member_id = ? OR m.member_email = ?)`;

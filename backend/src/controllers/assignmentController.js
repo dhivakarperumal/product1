@@ -46,24 +46,26 @@ const getAdminUuid = (user) =>
 function normalizeAssignment(row) {
   return {
     id: row.id,
-    userId: row.user_id,
-    username: row.member_name || row.username,
-    userEmail: row.member_email || row.user_email,
-    userMobile: row.member_mobile || row.user_mobile,
+    membershipId: row.id,
+    userId: row.userId || row.user_id_resolved || null,
+    username: row.member_name || row.username || null,
+    userEmail: row.member_email || row.user_email || null,
+    userMobile: row.member_mobile || row.user_mobile || null,
     userWeight: (row.member_weight !== null && row.member_weight !== undefined) ? row.member_weight : null,
+    memberId: row.memberId || row.member_id || null,
     gymMemberId: row.member_db_id || null,
-    planId: row.plan_id,
-    planName: row.plan_name,
-    planDuration: row.plan_duration,
-    planStartDate: row.plan_start_date,
-    planEndDate: row.plan_end_date,
-    planPrice: row.plan_price,
-    trainerId: row.trainer_id,
-    trainerName: row.current_trainer_name || row.trainer_name,
-    trainerSource: row.trainer_source,
+    planId: row.planId || row.plan_id || null,
+    planName: row.planName || row.plan_name || null,
+    planDuration: row.duration || row.plan_duration || null,
+    planStartDate: row.startDate || row.plan_start_date || null,
+    planEndDate: row.endDate || row.plan_end_date || null,
+    planPrice: row.pricePaid || row.plan_price || null,
+    trainerId: row.trainerId || row.trainer_id || null,
+    trainerName: row.trainerName || row.trainer_name || null,
+    trainerSource: row.trainer_source || 'staff',
     sessionTime: row.session_time || null,
     status: row.status,
-    updatedAt: row.updated_at,
+    updatedAt: row.updatedAt || row.updated_at || null,
   };
 }
 
@@ -72,7 +74,6 @@ async function getAllAssignments(req, res) {
     const { trainerUserId } = req.query;
     let staffIdForFilter = null;
 
-    // If called by a trainer (dashboard), resolve their users.id → staff.id
     if (trainerUserId) {
       staffIdForFilter = await resolveTrainerStaffId(trainerUserId);
       if (!staffIdForFilter) {
@@ -82,49 +83,47 @@ async function getAllAssignments(req, res) {
       console.log('[assignments] Resolved trainerUserId to staff.id:', staffIdForFilter);
     }
 
-    // Build the main query
+    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    const adminUuid = getAdminUuid(req.user);
+
     let sql = `
-      SELECT a.*,
-             m.id as member_db_id,
-             m.name as member_name,
-             m.email as member_email,
-             m.phone as member_mobile,
-             m.weight as member_weight,
-             s.name as current_trainer_name,
-             s.role as trainer_source
-      FROM trainer_assignments a
-      LEFT JOIN users u ON u.id = a.user_id
-      LEFT JOIN members m ON (m.email = u.email AND m.email IS NOT NULL AND m.email != '') 
-                              OR (m.phone = u.mobile AND m.phone IS NOT NULL AND m.phone != '')
-      LEFT JOIN staff s ON s.id = a.trainer_id
+      SELECT m.*, 
+             u.id AS user_id_resolved,
+             u.username,
+             u.email AS user_email,
+             u.mobile AS user_mobile,
+             gm.name AS member_name,
+             gm.phone AS member_mobile,
+             gm.email AS member_email,
+             s.name AS trainer_name,
+             s.role AS trainer_source,
+             s.employee_id AS trainer_employee_id
+      FROM memberships m
+      LEFT JOIN users u ON m.userId = u.id OR (m.userId IS NULL AND LOWER(TRIM(m.member_email)) = LOWER(TRIM(u.email)))
+      LEFT JOIN members gm ON m.memberId = gm.id
+      LEFT JOIN staff s ON m.trainerId = s.id
     `;
-    const whereConditions = [];
+
+    const whereConditions = ['m.trainerId IS NOT NULL'];
     const queryParams = [];
 
-    // If trainer is filtering for their own assignments
     if (staffIdForFilter) {
-      whereConditions.push('a.trainer_id = ?');
+      whereConditions.push('m.trainerId = ?');
       queryParams.push(staffIdForFilter);
     }
 
-    // Check if user is super admin
-    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
-
-    // If not super admin and not filtering by trainer, filter by created_by (admin_uuid)
-    if (!isSuperAdmin && req.user && !staffIdForFilter) {
-      const adminUuid = getAdminUuid(req.user);
+    if (!isSuperAdmin && req.user) {
       if (adminUuid) {
-        whereConditions.push('(a.created_by = ? OR a.created_by IS NULL)');
+        whereConditions.push('(m.created_by = ? OR m.created_by IS NULL)');
         queryParams.push(adminUuid);
       }
     }
 
-    // Build WHERE clause
     if (whereConditions.length > 0) {
       sql += ' WHERE ' + whereConditions.join(' AND ');
     }
 
-    sql += ' GROUP BY a.id ORDER BY a.updated_at DESC';
+    sql += ' ORDER BY m.updatedAt DESC';
 
     const [rows] = await db.query(sql, queryParams);
     console.log('[assignments] returning', rows.length, 'rows for staffId:', staffIdForFilter);
@@ -135,7 +134,6 @@ async function getAllAssignments(req, res) {
   }
 }
 
-// accepts { assignments: [ {userId, planId, planName,..., trainerId, trainerName, trainerSource, status} ] }
 async function upsertAssignments(req, res) {
   try {
     const { assignments } = req.body;
@@ -143,13 +141,14 @@ async function upsertAssignments(req, res) {
       return res.status(400).json({ error: 'No assignments provided' });
     }
 
+    const errors = [];
+
     for (const a of assignments) {
       let resolvedUserId = a.userId ? Number(a.userId) : null;
       if (resolvedUserId && Number.isNaN(resolvedUserId)) {
         resolvedUserId = null;
       }
 
-      // If userId is numeric but not a valid user, allow it as a member ID
       if (resolvedUserId) {
         const [userRows] = await db.query('SELECT id FROM users WHERE id = ?', [resolvedUserId]);
         if (userRows.length === 0) {
@@ -157,15 +156,12 @@ async function upsertAssignments(req, res) {
             'SELECT id FROM members WHERE id = ? OR member_id = ? LIMIT 1',
             [resolvedUserId, resolvedUserId]
           );
-          if (memberRows.length > 0) {
-            console.log('[assignments] Using member id for userId:', resolvedUserId);
-          } else {
+          if (memberRows.length === 0) {
             resolvedUserId = null;
           }
         }
       }
 
-      // If userId is still missing, try memberId next
       if (!resolvedUserId && a.memberId) {
         const numericMemberId = Number(a.memberId);
         if (!Number.isNaN(numericMemberId)) {
@@ -180,9 +176,7 @@ async function upsertAssignments(req, res) {
         }
       }
 
-      // If still missing, try to resolve it from email
       if (!resolvedUserId && a.userEmail) {
-        console.log('[assignments] userId missing for', a.username, '- attempting to resolve from email:', a.userEmail);
         try {
           const [userRows] = await db.query(
             'SELECT id FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(?)) LIMIT 1',
@@ -191,32 +185,19 @@ async function upsertAssignments(req, res) {
           if (userRows.length > 0) {
             resolvedUserId = userRows[0].id;
             console.log('[assignments] Resolved userId from email:', resolvedUserId, 'for', a.userEmail);
-          } else {
-            console.warn('[assignments] No user found with email:', a.userEmail);
           }
         } catch (queryErr) {
           console.warn('[assignments] Error resolving user from email:', queryErr.message);
         }
       }
 
-      if (!resolvedUserId || isNaN(resolvedUserId)) {
-        console.error('[assignments] Could not resolve userId for:', a.username, 'email:', a.userEmail, 'memberId:', a.memberId);
-        return res.status(400).json({ error: `Cannot assign trainer: Member ${a.username} has no valid user ID and could not be resolved from provided identifiers` });
-      }
-
-      // Get trainer employee_id from staff table
-      let trainerEmployeeId = null;
       const numericTrainerId = a.trainerId ? Number(a.trainerId) : null;
-      
+      let trainerEmployeeId = null;
       if (numericTrainerId) {
         try {
-          const [staffRows] = await db.query(
-            'SELECT employee_id, name FROM staff WHERE id = ?',
-            [numericTrainerId]
-          );
+          const [staffRows] = await db.query('SELECT employee_id, name FROM staff WHERE id = ?', [numericTrainerId]);
           if (staffRows.length > 0) {
             trainerEmployeeId = staffRows[0].employee_id;
-            // Update trainerName with actual staff name if available
             if (staffRows[0].name && !a.trainerName) {
               a.trainerName = staffRows[0].name;
             }
@@ -226,120 +207,79 @@ async function upsertAssignments(req, res) {
         }
       }
 
-      // Insert/update trainer_assignments table
-      const params = [
-        resolvedUserId,
-        a.username || null,
-        a.userEmail || null,
-        Number(a.planId) || null,
-        a.planName || null,
-        a.planDuration || null,
-        a.planStartDate || null,
-        a.planEndDate || null,
-        a.planPrice || null,
-        numericTrainerId,
-        a.trainerName || null,
-        a.trainerSource || 'unknown',
-        a.sessionTime || null,
-        a.status || 'active',
-      ];
+      if (!a.membershipId && !resolvedUserId && !a.memberId) {
+        errors.push(`Cannot assign trainer for member ${a.username || a.userEmail || 'unknown'}: no valid identifier provided.`);
+        continue;
+      }
 
-      const createdBy = getActorUuid(req.user) || null;
-      const params_with_audit = [...params, createdBy, createdBy, createdBy];
-
-      const sqlAssignments = `
-        INSERT INTO trainer_assignments
-        (user_id, username, user_email, plan_id, plan_name, plan_duration, plan_start_date, plan_end_date, plan_price, trainer_id, trainer_name, trainer_source, session_time, status, created_by, updated_by)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        ON DUPLICATE KEY UPDATE
-          username=VALUES(username),
-          user_email=VALUES(user_email),
-          plan_name=VALUES(plan_name),
-          plan_duration=VALUES(plan_duration),
-          plan_start_date=VALUES(plan_start_date),
-          plan_end_date=VALUES(plan_end_date),
-          plan_price=VALUES(plan_price),
-          trainer_id=VALUES(trainer_id),
-          trainer_name=VALUES(trainer_name),
-          trainer_source=VALUES(trainer_source),
-          session_time=VALUES(session_time),
-          status=VALUES(status),
-          updated_by=VALUES(updated_by),
-          updated_at=CURRENT_TIMESTAMP
-      `;
+      let sqlMemberships;
+      let membershipParams;
+      if (a.membershipId) {
+        sqlMemberships = `
+          UPDATE memberships
+          SET trainerId = ?,
+              trainerName = ?,
+              trainerEmployeeId = ?
+          WHERE id = ?
+        `;
+        membershipParams = [
+          numericTrainerId,
+          a.trainerName || null,
+          trainerEmployeeId || null,
+          Number(a.membershipId),
+        ];
+      } else if (resolvedUserId && a.planId) {
+        sqlMemberships = `
+          UPDATE memberships
+          SET trainerId = ?,
+              trainerName = ?,
+              trainerEmployeeId = ?
+          WHERE userId = ? AND planId = ?
+        `;
+        membershipParams = [
+          numericTrainerId,
+          a.trainerName || null,
+          trainerEmployeeId || null,
+          resolvedUserId,
+          Number(a.planId),
+        ];
+      } else if (a.memberId && a.planId) {
+        sqlMemberships = `
+          UPDATE memberships
+          SET trainerId = ?,
+              trainerName = ?,
+              trainerEmployeeId = ?
+          WHERE memberId = ? AND planId = ?
+        `;
+        membershipParams = [
+          numericTrainerId,
+          a.trainerName || null,
+          trainerEmployeeId || null,
+          Number(a.memberId),
+          Number(a.planId),
+        ];
+      } else {
+        errors.push(`Cannot assign trainer for member ${a.username || a.userEmail || 'unknown'}: missing plan or membership information.`);
+        continue;
+      }
 
       try {
-        await db.query(sqlAssignments, params_with_audit);
+        const [result] = await db.query(sqlMemberships, membershipParams);
+        if (!result || result.affectedRows === 0) {
+          errors.push(`No matching membership updated for ${a.username || a.userEmail || a.memberId || a.membershipId || 'unknown'}`);
+          continue;
+        }
+        console.log('[assignments] Updated memberships:', result.affectedRows, 'rows for',
+          a.membershipId ? `membershipId=${a.membershipId}` : a.memberId ? `memberId=${a.memberId}` : `userId=${resolvedUserId}`,
+          'planId=', Number(a.planId), 'trainerId=', numericTrainerId);
       } catch (queryErr) {
-        console.error('[assignments] Error inserting trainer assignment:', queryErr.message);
-        return res.status(500).json({ error: 'Failed to save assignment: ' + queryErr.message });
+        console.warn('[assignments] Warning - failed to update memberships table:', queryErr.message);
+        errors.push(`Failed to update membership for ${a.username || a.userEmail || a.memberId || a.membershipId || 'unknown'}: ${queryErr.message}`);
       }
+    }
 
-      // Also update memberships table with trainer info
-      if (a.membershipId || a.planId) {
-        let sqlMemberships;
-        let membershipParams;
-
-        if (a.membershipId) {
-          sqlMemberships = `
-            UPDATE memberships
-            SET trainerId = ?,
-                trainerName = ?,
-                trainerEmployeeId = ?
-            WHERE id = ?
-          `;
-          membershipParams = [
-            numericTrainerId,
-            a.trainerName || null,
-            trainerEmployeeId || null,
-            Number(a.membershipId),
-          ];
-        } else if (resolvedUserId) {
-          sqlMemberships = `
-            UPDATE memberships
-            SET trainerId = ?,
-                trainerName = ?,
-                trainerEmployeeId = ?
-            WHERE userId = ? AND planId = ?
-          `;
-          membershipParams = [
-            numericTrainerId,
-            a.trainerName || null,
-            trainerEmployeeId || null,
-            resolvedUserId,
-            Number(a.planId),
-          ];
-        } else if (a.memberId) {
-          sqlMemberships = `
-            UPDATE memberships
-            SET trainerId = ?,
-                trainerName = ?,
-                trainerEmployeeId = ?
-            WHERE (memberId = ? OR member_id = ?) AND planId = ?
-          `;
-          const numericMemberId = Number(a.memberId);
-          membershipParams = [
-            numericTrainerId,
-            a.trainerName || null,
-            trainerEmployeeId || null,
-            numericMemberId,
-            numericMemberId,
-            Number(a.planId),
-          ];
-        }
-
-        if (sqlMemberships) {
-          try {
-            const result = await db.query(sqlMemberships, membershipParams);
-            console.log('[assignments] Updated memberships:', result[0].affectedRows, 'rows for',
-              a.membershipId ? `membershipId=${a.membershipId}` : a.memberId ? `memberId=${a.memberId}` : `userId=${resolvedUserId}`,
-              'planId=', Number(a.planId), 'trainerId=', numericTrainerId);
-          } catch (queryErr) {
-            console.warn('[assignments] Warning - failed to update memberships table:', queryErr.message);
-            // Don't fail the entire assignment if memberships update fails
-          }
-        }
-      }
+    if (errors.length > 0) {
+      return res.status(400).json({ error: 'Some assignments failed', details: errors });
     }
 
     res.json({ success: true });
