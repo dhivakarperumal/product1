@@ -1,8 +1,93 @@
 const db = require('../config/db');
+const { getActorUuid } = require('../utils/auditTrail');
 
 // Extract admin UUID from request user
 const getAdminUuid = (user) =>
   user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+
+function isNumeric(value) {
+  return typeof value === 'number' || (/^\d+$/.test(String(value || '').trim()));
+}
+
+async function normalizeTrainerId(trainerId) {
+  if (!trainerId) return null;
+  const requested = String(trainerId).trim();
+  if (isNumeric(requested)) {
+    const [staffRows] = await db.query(
+      'SELECT employee_id FROM staff WHERE id = ? LIMIT 1',
+      [requested]
+    );
+    if (staffRows.length > 0 && staffRows[0].employee_id) {
+      return staffRows[0].employee_id;
+    }
+  }
+  return requested;
+}
+
+async function resolveTrainerDetails(trainerId, trainerName) {
+  if (!trainerId) {
+    return { trainerUuid: null, trainerName };
+  }
+
+  const requested = String(trainerId).trim();
+  const [staffRows] = await db.query(
+    'SELECT id, employee_id, name FROM staff WHERE id = ? OR employee_id = ? LIMIT 1',
+    [requested, requested]
+  );
+
+  if (staffRows.length === 0) {
+    if (isNumeric(requested)) {
+      throw new Error('Invalid trainerId for workout');
+    }
+    return { trainerUuid: requested, trainerName };
+  }
+
+  const staff = staffRows[0];
+  return {
+    trainerUuid: staff.employee_id || String(staff.id),
+    trainerName: trainerName || staff.name || null,
+  };
+}
+
+async function resolveMemberDetails(memberId, memberName, memberEmail, memberMobile) {
+  if (!memberId) {
+    return {
+      memberUuid: null,
+      memberName,
+      memberEmail,
+      memberMobile,
+      userId: null,
+    };
+  }
+
+  const requested = String(memberId).trim();
+  const [memberRows] = await db.query(
+    'SELECT id, member_id, name, email, phone FROM members WHERE id = ? OR member_id = ? LIMIT 1',
+    [requested, requested]
+  );
+
+  if (memberRows.length === 0) {
+    if (isNumeric(requested)) {
+      throw new Error('Invalid memberId for workout');
+    }
+    return {
+      memberUuid: requested,
+      memberName,
+      memberEmail,
+      memberMobile,
+      userId: null,
+    };
+  }
+
+  const member = memberRows[0];
+  return {
+    memberUuid: member.member_id || String(member.id),
+    memberName: memberName || member.name || null,
+    memberEmail: memberEmail || member.email || null,
+    memberMobile: memberMobile || member.phone || null,
+    userId: member.id,
+  };
+}
 
 // helper to parse JSON columns
 function parseWorkout(row) {
@@ -39,13 +124,14 @@ async function getAllWorkouts(req, res) {
     }
     // If requester is a member, show only workouts assigned to them
     else if (req.user?.role === 'user' || req.user?.role === 'member') {
-      sql += ' AND member_id = (SELECT id FROM members WHERE email = ? OR phone = ?)';
+      sql += ' AND member_id = (SELECT member_id FROM members WHERE email = ? OR phone = ? LIMIT 1)';
       params.push(req.user.email || '', req.user.phone || '');
     }
 
     if (req.query.trainerId) {
+      const trainerUuid = await normalizeTrainerId(req.query.trainerId);
       sql += ' AND trainer_id = ?';
-      params.push(req.query.trainerId);
+      params.push(trainerUuid);
     }
 
     sql += ' ORDER BY created_at DESC';
@@ -90,8 +176,14 @@ async function createWorkout(req, res) {
       status,
     } = req.body;
 
+    const requestedTrainerId = trainerId || req.body.trainer_id || null;
+    const requestedMemberId = memberId || req.body.member_id || null;
+
+    const trainerDetails = await resolveTrainerDetails(requestedTrainerId, trainerName);
+    const memberDetails = await resolveMemberDetails(requestedMemberId, memberName, memberEmail, memberMobile);
+
     const adminId = req.user?.role === 'admin' ? req.user.userId : null;
-    const createdBy = getAdminUuid(req.user) || null;
+    const auditActor = trainerDetails.trainerUuid || getActorUuid(req.user) || null;
 
     const [result] = await db.query(
       `INSERT INTO workout_programs
@@ -101,23 +193,23 @@ async function createWorkout(req, res) {
        duration_weeks, days, status, user_id, admin_id, created_by, updated_by)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
-        trainerId,
-        trainerName || null,
+        trainerDetails.trainerUuid,
+        trainerDetails.trainerName || null,
         trainerSource || null,
-        memberId,
-        memberName || null,
-        memberEmail || null,
-        memberMobile || null,
+        memberDetails.memberUuid,
+        memberDetails.memberName || null,
+        memberDetails.memberEmail || null,
+        memberDetails.memberMobile || null,
         category || null,
         level || null,
         goal || null,
         durationWeeks ? Number(durationWeeks) : null,
         JSON.stringify(days || {}),
         status || 'active',
-        memberId || null,
+        memberDetails.userId || null,
         adminId,
-        createdBy,
-        createdBy,
+        auditActor,
+        auditActor,
       ]
     );
 
@@ -148,8 +240,13 @@ async function updateWorkout(req, res) {
       status,
     } = req.body;
 
-    // Get admin UUID for updated_by field
-    const updatedBy = getAdminUuid(req.user) || null;
+    const requestedTrainerId = trainerId || req.body.trainer_id || null;
+    const requestedMemberId = memberId || req.body.member_id || null;
+
+    const trainerDetails = await resolveTrainerDetails(requestedTrainerId, trainerName);
+    const memberDetails = await resolveMemberDetails(requestedMemberId, memberName, memberEmail, memberMobile);
+
+    const updatedBy = trainerDetails.trainerUuid || getActorUuid(req.user) || null;
 
     const [result] = await db.query(
       `UPDATE workout_programs SET
@@ -160,20 +257,20 @@ async function updateWorkout(req, res) {
         updated_by=?, updated_at=CURRENT_TIMESTAMP
        WHERE id=?`,
       [
-        trainerId,
-        trainerName || null,
+        trainerDetails.trainerUuid,
+        trainerDetails.trainerName || null,
         trainerSource || null,
-        memberId,
-        memberName || null,
-        memberEmail || null,
-        memberMobile || null,
+        memberDetails.memberUuid,
+        memberDetails.memberName || null,
+        memberDetails.memberEmail || null,
+        memberDetails.memberMobile || null,
         category || null,
         level || null,
         goal || null,
         durationWeeks ? Number(durationWeeks) : null,
         JSON.stringify(days || {}),
         status || 'active',
-        memberId || null,
+        memberDetails.userId || null,
         updatedBy,
         id,
       ]

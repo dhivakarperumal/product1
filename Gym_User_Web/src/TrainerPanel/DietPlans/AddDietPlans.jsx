@@ -74,14 +74,18 @@ const AddDietPlans = () => {
           ? data
           : data.data || data.assignments || [];
 
-        const formatted = assignments.map((d) => ({
-          id: String(d.userId || d.user_id),
-          name: d.username || d.user_name || "Member",
-          email: d.userEmail || d.user_email || "",
-          mobile: d.userMobile || d.user_mobile || "",
-          weight: d.userWeight || d.member_weight || "",
-          planName: d.planName || d.plan_name || "Plan",
-        }));
+        const formatted = assignments.map((d, index) => {
+          const fallbackId = d.memberId || d.member_id || d.membershipId || d.membership_id || d.userId || d.user_id || d.id || index;
+          return {
+            id: String(fallbackId),
+            memberId: String(d.memberId || d.member_id || d.membershipId || d.membership_id || d.userId || d.user_id || d.id || fallbackId),
+            name: d.username || d.user_name || "Member",
+            email: d.userEmail || d.user_email || "",
+            mobile: d.userMobile || d.user_mobile || "",
+            weight: d.userWeight || d.member_weight || "",
+            planName: d.planName || d.plan_name || "Plan",
+          };
+        });
 
         setMembers(formatted);
         setAllAssignments(assignments);
@@ -310,7 +314,7 @@ const AddDietPlans = () => {
               trainerId,
               trainerName,
               trainerSource: user?.role || "trainer",
-              memberId: m.id,
+              memberId: m.memberId || m.id,
               memberName: m.name,
               memberEmail: m.email,
               memberMobile: m.mobile,

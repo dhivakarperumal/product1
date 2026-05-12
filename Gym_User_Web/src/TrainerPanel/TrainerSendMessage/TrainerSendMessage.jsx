@@ -45,12 +45,15 @@ const TrainerSendMessage = () => {
 
         const assignedMembers = assignments
           .filter((a) => a.userEmail || a.user_email || a.userMobile || a.user_mobile)
-          .map((a) => ({
-            id: String(a.userId || a.user_id),
-            name: a.username || a.user_name || "Member",
-            email: a.userEmail || a.user_email || "",
-            phone: a.userMobile || a.user_mobile || "",
-          }));
+          .map((a, index) => {
+            const fallbackId = a.memberId || a.member_id || a.membershipId || a.membership_id || a.userId || a.user_id || a.id || index;
+            return {
+              id: String(fallbackId),
+              name: a.username || a.user_name || "Member",
+              email: a.userEmail || a.user_email || "",
+              phone: a.userMobile || a.user_mobile || "",
+            };
+          });
 
         // Remove duplicates
         const uniqueIds = new Set();

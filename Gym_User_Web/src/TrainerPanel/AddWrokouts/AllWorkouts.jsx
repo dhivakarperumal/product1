@@ -26,7 +26,6 @@ const AllWorkouts = () => {
   const trainerId = user ? Number(user.id) : undefined;
 
   const [workouts, setWorkouts] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [selectedWorkout, setSelectedWorkout] = useState(null);
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [search, setSearch] = useState("");
@@ -51,7 +50,6 @@ const AllWorkouts = () => {
   /* ---------------- FETCH WORKOUT PROGRAMS ---------------- */
   useEffect(() => {
     if (!trainerId) return;
-    setLoading(true);
 
     api.get(`/workouts?trainerId=${encodeURIComponent(trainerId)}`)
       .then((res) => {
@@ -78,8 +76,7 @@ const AllWorkouts = () => {
       .catch((err) => {
         console.error(err);
         toast.error("Failed to load workouts");
-      })
-      .finally(() => setLoading(false));
+      });
   }, [trainerId]);
 
   /* ---------------- DELETE ---------------- */
@@ -160,10 +157,7 @@ const AllWorkouts = () => {
   {/* Add Button */}
   <button
     onClick={() => navigate('/trainer/addworkouts')}
-    className="w-full sm:w-auto px-4 py-2 
-               bg-orange-500 hover:bg-orange-600 
-               rounded-lg flex items-center 
-               justify-center gap-2 transition"
+    className="w-full sm:w-auto px-4 py-2 rounded-lg flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 transition"
   >
     <Plus size={16} />
     Add New

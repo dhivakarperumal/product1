@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import imageCompression from "browser-image-compression";
@@ -48,11 +48,54 @@ const AddWorkout = () => {
     Day1: [{ time: "", type: "Weight Training", name: "", sets: "", count: "", media: "", mediaType: "url" }],
   });
 
-  // For debugging - show all assignments
-  const [allAssignments, setAllAssignments] = useState([]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(new Set());
   const [submitting, setSubmitting] = useState(false);
+  const [blockedMembers, setBlockedMembers] = useState({});
+
+  const normalizeMemberId = (value) => {
+    if (value === undefined || value === null) return null;
+    return String(value).trim();
+  };
+
+  const getWorkoutExpiry = useCallback((workout) => {
+    const createdAt = new Date(workout.created_at || workout.createdAt || workout.createdAt);
+    if (Number.isNaN(createdAt.getTime())) return null;
+    const weeks = Number(workout.duration_weeks || workout.durationWeeks || 1) || 1;
+    return new Date(createdAt.getTime() + weeks * 7 * 24 * 60 * 60 * 1000);
+  }, []);
+
+  const getMemberBlockExpiry = useCallback((member) => {
+    return (
+      blockedMembers[normalizeMemberId(member.id)] ||
+      blockedMembers[normalizeMemberId(member.memberId)]
+    );
+  }, [blockedMembers]);
+
+  const isMemberBlocked = useCallback(
+    (member) => Boolean(getMemberBlockExpiry(member)),
+    [getMemberBlockExpiry]
+  );
+
+  const getActiveMemberBlocks = useCallback((workouts) => {
+    const now = Date.now();
+    const blocks = {};
+
+    workouts.forEach((workout) => {
+      const expiry = getWorkoutExpiry(workout);
+      if (!expiry || expiry.getTime() <= now) return;
+
+      const keys = [workout.member_id, workout.memberId].map(normalizeMemberId).filter(Boolean);
+      keys.forEach((key) => {
+        const existing = blocks[key];
+        if (!existing || expiry.getTime() > existing.getTime()) {
+          blocks[key] = expiry;
+        }
+      });
+    });
+
+    return blocks;
+  }, [getWorkoutExpiry]);
 
   /* ---------------- FETCH MEMBERS/USERS ---------------- */
   useEffect(() => {
@@ -72,18 +115,21 @@ const AddWorkout = () => {
           ? aData
           : aData.data || aData.assignments || [];
 
-        const assignedMembers = assignments.map((a) => ({
-          id: String(a.userId || a.user_id),
-          name: a.username || a.user_name || "Member",
-          planName: a.planName || a.plan_name || "Plan",
-          email: a.userEmail || a.user_email || "",
-          mobile: a.userMobile || a.user_mobile || "",
-          source: "assign",
-        }));
+        const assignedMembers = assignments.map((a, index) => {
+          const fallbackId = a.memberId || a.member_id || a.membershipId || a.membership_id || a.userId || a.user_id || a.id || index;
+          return {
+            id: String(fallbackId),
+            memberId: normalizeMemberId(a.memberId || a.member_id || a.membershipId || a.membership_id || a.userId || a.user_id || a.id || fallbackId),
+            name: a.username || a.user_name || "Member",
+            planName: a.planName || a.plan_name || "Plan",
+            email: a.userEmail || a.user_email || "",
+            mobile: a.userMobile || a.user_mobile || "",
+            source: "assign",
+          };
+        });
 
         console.log("🔍 Assigned members list:", assignedMembers.length);
         setMembers(assignedMembers);
-        setAllAssignments(assignments);
       } catch (err) {
         console.error("❌ Error fetching members/users:", err);
         toast.error("Failed to load members");
@@ -92,8 +138,19 @@ const AddWorkout = () => {
       }
     };
 
+    const fetchTrainerWorkouts = async () => {
+      try {
+        const res = await api.get(`/workouts?trainerId=${encodeURIComponent(user.id)}`);
+        const data = Array.isArray(res.data) ? res.data : res.data.data || res.data.workouts || [];
+        setBlockedMembers(getActiveMemberBlocks(data));
+      } catch (err) {
+        console.error('Failed to fetch trainer workouts for block state', err);
+      }
+    };
+
     fetchMembers();
-  }, [user]);
+    fetchTrainerWorkouts();
+  }, [user, getActiveMemberBlocks]);
 
   /* ---------------- FETCH WORKOUT IF EDIT ---------------- */
   useEffect(() => {
@@ -119,7 +176,7 @@ const AddWorkout = () => {
     };
 
     fetchWorkout();
-  }, [id]);
+  }, [id, isEditMode, navigate]);
 
   /* ---------------- ADD DAY ---------------- */
   const addDay = () => {
@@ -165,8 +222,9 @@ const AddWorkout = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!isEditMode && selected.size === 0) {
-      toast.error("Please select at least one member");
+    const selectedMembers = members.filter((m) => selected.has(m.id) && !isMemberBlocked(m));
+    if (!isEditMode && selectedMembers.length === 0) {
+      toast.error("Please select at least one member who does not already have an active workout.");
       return;
     }
     if (isEditMode && !form.memberId) {
@@ -193,7 +251,11 @@ const AddWorkout = () => {
         navigate("/trainer/alladdworkouts");
       } else {
         // Bulk Create
-        const selectedMembers = members.filter((m) => selected.has(m.id));
+        const selectedMembers = members.filter((m) => selected.has(m.id) && !isMemberBlocked(m));
+        if (selectedMembers.length === 0) {
+          toast.error("No valid members selected for workout creation.");
+          return;
+        }
         let successCount = 0;
         let failCount = 0;
 
@@ -202,7 +264,7 @@ const AddWorkout = () => {
             const payload = {
               trainerId,
               trainerName,
-              memberId: m.id,
+              memberId: m.memberId || m.id,
               memberName: m.name,
               memberEmail: m.email,
               memberMobile: m.mobile,
@@ -248,24 +310,33 @@ const AddWorkout = () => {
     );
   });
 
-  const toggleOne = (mId) => {
+  const eligibleMembers = filteredMembers.filter((m) => !isMemberBlocked(m));
+  const blockedCount = filteredMembers.filter((m) => isMemberBlocked(m)).length;
+
+  const toggleOne = (member) => {
+    if (isMemberBlocked(member)) {
+      toast.error("This member already has an active workout schedule.");
+      return;
+    }
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(mId)) next.delete(mId);
-      else next.add(mId);
+      if (next.has(member.id)) next.delete(member.id);
+      else next.add(member.id);
       return next;
     });
   };
 
   const selectAll = () => {
-    if (selected.size === filteredMembers.length && filteredMembers.length > 0) {
+    const selectableMembers = eligibleMembers;
+    if (selected.size === selectableMembers.length && selectableMembers.length > 0) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(filteredMembers.map((m) => m.id)));
+      setSelected(new Set(selectableMembers.map((m) => m.id)));
     }
   };
 
-  const allSelected = filteredMembers.length > 0 && selected.size === filteredMembers.length;
+  const selectableMembers = eligibleMembers;
+  const allSelected = selectableMembers.length > 0 && selected.size === selectableMembers.length;
 
   /* ---------------- FILE UPLOAD HANDLER ---------------- */
   const handleFileUpload = async (dayKey, index, e) => {
@@ -329,7 +400,7 @@ const AddWorkout = () => {
               <div className="flex items-center justify-between">
                 <label className="text-sm font-semibold flex items-center gap-2">
                   <Users size={18} className="text-orange-400" />
-                  Select Members ({selected.size} / {members.length})
+                  Select Members ({selected.size} / {eligibleMembers.length})
                 </label>
                 <div
                   onClick={selectAll}
@@ -345,6 +416,11 @@ const AddWorkout = () => {
                   </span>
                 </div>
               </div>
+              {blockedCount > 0 && eligibleMembers.length > 0 && (
+                <p className="text-xs text-white/50">
+                  {blockedCount} member(s) are hidden because they currently have active workout schedules.
+                </p>
+              )}
 
               {/* Member Search */}
               <div className="relative">
@@ -374,19 +450,22 @@ const AddWorkout = () => {
                     <RefreshCw size={16} className="animate-spin" />
                     Loading members...
                   </div>
-                ) : filteredMembers.length === 0 ? (
+                ) : eligibleMembers.length === 0 ? (
                   <div className="col-span-full py-4 text-center text-white/40 text-sm">
-                    No members found
+                    {blockedCount > 0
+                      ? "All assigned members currently have active workout schedules. New workout programs can be added only after the existing duration completes."
+                      : "No members found."}
                   </div>
                 ) : (
                   filteredMembers.map((m) => {
+                    const blockedExpiry = getMemberBlockExpiry(m);
+                    const isBlocked = Boolean(blockedExpiry);
                     const isSelected = selected.has(m.id);
                     return (
                       <div
                         key={m.id}
-                        onClick={() => toggleOne(m.id)}
-                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition border ${isSelected ? "bg-orange-500/20 border-orange-500/50" : "bg-white/5 border-white/5 hover:bg-white/10"
-                          }`}
+                        onClick={() => !isBlocked && toggleOne(m)}
+                        className={`flex items-center gap-3 p-3 rounded-lg transition border ${isBlocked ? "bg-red-500/10 border-red-500/20 cursor-not-allowed" : isSelected ? "bg-orange-500/20 border-orange-500/50" : "bg-white/5 border-white/5 hover:bg-white/10 cursor-pointer"}`}
                       >
                         {isSelected ? (
                           <CheckSquare size={18} className="text-orange-400 shrink-0" />
@@ -662,7 +741,7 @@ const AddWorkout = () => {
             <button
               type="submit"
               disabled={submitting}
-              className={`px-8 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 flex items-center gap-2 ml-auto ${submitting ? 'opacity-70 cursor-not-allowed' : 'hover:scale-105 transition'}`}
+              className={`px-8 py-3 rounded-xl bg-linear-to-r from-orange-500 to-orange-600 text-black hover:scale-105 transition flex items-center gap-2 ml-auto ${submitting ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
               {submitting && <RefreshCw size={18} className="animate-spin" />}
               {submitting ? "Processing..." : (isEditMode ? "Update Program" : "Save Program")}
