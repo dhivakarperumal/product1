@@ -40,8 +40,6 @@ const AssingnedTrainers = () => {
           m.user_id ||
           m.user_id_resolved ||
           m.userIdResolved ||
-          m.memberId ||
-          m.member_id ||
           null;
         const resolvedPlanId = m.planId || m.plan_id || m.id;
         const resolvedUsername =

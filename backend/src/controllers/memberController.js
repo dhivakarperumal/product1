@@ -75,7 +75,7 @@ async function getAllMembers(req, res) {
         gm.status,
         COALESCE(gm.user_id, u.id) AS user_id,
         COALESCE(gm.user_id, u.id) AS u_id,
-        (SELECT COUNT(*) FROM workout_programs wp WHERE wp.member_id = gm.id) AS workout_count,
+        (SELECT COUNT(*) FROM workout_programs wp WHERE wp.member_id = gm.member_id OR wp.member_id = gm.id) AS workout_count,
         (SELECT COUNT(*) FROM diet_plans dp WHERE dp.member_id = gm.id) AS diet_count,
         gm.created_at,
         'members' AS source
@@ -237,7 +237,7 @@ async function createMember(req, res) {
     const [fetched] = await connection.query(
       `
       SELECT gm.*,
-             (SELECT COUNT(*) FROM workout_programs wp WHERE wp.member_id = gm.id) AS workout_count,
+             (SELECT COUNT(*) FROM workout_programs wp WHERE wp.member_id = gm.member_id OR wp.member_id = gm.member_id OR wp.member_id = gm.id) AS workout_count,
              (SELECT COUNT(*) FROM diet_plans dp WHERE dp.member_id = gm.id) AS diet_count
       FROM ${membersTable} gm
       WHERE gm.id = ?
