@@ -36,7 +36,14 @@ const AssingnedTrainers = () => {
         console.log('[AssingnedTrainers] Fetched memberships:', membershipsData.length, 'records');
  
         const usersData = membershipsData.map((m) => {
-          const resolvedUserId = m.userId || m.user_id || null;
+          const resolvedUserId =
+            m.userId ||
+            m.user_id ||
+            m.user_id_resolved ||
+            m.userIdResolved ||
+            m.memberId ||
+            m.member_id ||
+            null;
           const resolvedPlanId = m.planId || m.plan_id || m.id;
           const resolvedUsername =
             m.username ||
@@ -51,11 +58,13 @@ const AssingnedTrainers = () => {
             m.email ||
             m.member_email ||
             m.memberEmail ||
+            m.gym_member_email ||
             "";
 
           const member = {
             uid: resolvedUserId ? String(resolvedUserId) : `membership_${m.id}`,
             userId: resolvedUserId ? Number(resolvedUserId) : null,
+            memberId: m.memberId || m.member_id || null,
             membershipId: m.id,
             username: resolvedUsername,
             email: resolvedEmail,
@@ -233,6 +242,8 @@ const AssingnedTrainers = () => {
       for (const plan of member.plans) {
         payload.push({
           userId: resolvedUserId || undefined,  // Allow undefined for backend to resolve
+          memberId: member.memberId || undefined,
+          membershipId: member.membershipId,
           username: member.username || "No Name",
           userEmail: member.email || "",
           planId: plan.id,

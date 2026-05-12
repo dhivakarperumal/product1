@@ -48,6 +48,8 @@ import Orders from "./UserPanel/Orders/Orders.jsx";
 import PersonalDetails from "./UserPanel/PersonalDetails.jsx";
 import Notification from "./UserPanel/Notification.jsx";
 import UserSettings from "./UserPanel/Settingss/Settings.jsx";
+import UserEMI from "./UserPanel/EMI/EMI.jsx";
+import UserPaymentHistory from "./UserPanel/PaymentHistory/PaymentHistory.jsx";
 import UserProfileSettings from "./UserPanel/Settingss/ProfileSettings.jsx";
 import UserSecuritySettings from "./UserPanel/Settingss/SecuritySettings.jsx";
 import UserHealthSettings from "./UserPanel/Settingss/HealthSettings.jsx";
@@ -179,6 +181,8 @@ const router = createHashRouter([
       { path: "trainers", element: <UserTrainers /> },
       { path: "buynow", element: <BuyNow /> },
       { path: "services/:slug", element: <ServiceDetails /> },
+      { path: "emi", element: <UserEMI /> },
+      { path: "payment-history", element: <UserPaymentHistory /> },
 
       // ✅ Settings routes
       { path: "settings", element: <UserSettings /> },

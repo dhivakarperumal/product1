@@ -145,8 +145,42 @@ async function upsertAssignments(req, res) {
 
     for (const a of assignments) {
       let resolvedUserId = a.userId ? Number(a.userId) : null;
-      
-      // If userId is missing, try to resolve it from email
+      if (resolvedUserId && Number.isNaN(resolvedUserId)) {
+        resolvedUserId = null;
+      }
+
+      // If userId is numeric but not a valid user, allow it as a member ID
+      if (resolvedUserId) {
+        const [userRows] = await db.query('SELECT id FROM users WHERE id = ?', [resolvedUserId]);
+        if (userRows.length === 0) {
+          const [memberRows] = await db.query(
+            'SELECT id FROM members WHERE id = ? OR member_id = ? LIMIT 1',
+            [resolvedUserId, resolvedUserId]
+          );
+          if (memberRows.length > 0) {
+            console.log('[assignments] Using member id for userId:', resolvedUserId);
+          } else {
+            resolvedUserId = null;
+          }
+        }
+      }
+
+      // If userId is still missing, try memberId next
+      if (!resolvedUserId && a.memberId) {
+        const numericMemberId = Number(a.memberId);
+        if (!Number.isNaN(numericMemberId)) {
+          const [memberRows] = await db.query(
+            'SELECT id FROM members WHERE id = ? OR member_id = ? LIMIT 1',
+            [numericMemberId, numericMemberId]
+          );
+          if (memberRows.length > 0) {
+            resolvedUserId = memberRows[0].id;
+            console.log('[assignments] Resolved userId from memberId:', resolvedUserId);
+          }
+        }
+      }
+
+      // If still missing, try to resolve it from email
       if (!resolvedUserId && a.userEmail) {
         console.log('[assignments] userId missing for', a.username, '- attempting to resolve from email:', a.userEmail);
         try {
@@ -156,19 +190,27 @@ async function upsertAssignments(req, res) {
           );
           if (userRows.length > 0) {
             resolvedUserId = userRows[0].id;
-            console.log('[assignments] Resolved userId:', resolvedUserId, 'for email:', a.userEmail);
+            console.log('[assignments] Resolved userId from email:', resolvedUserId, 'for', a.userEmail);
           } else {
-            console.warn('[assignments] No user found with email:', a.userEmail);
+            const [memberRows] = await db.query(
+              'SELECT id FROM members WHERE LOWER(TRIM(email)) = LOWER(TRIM(?)) OR LOWER(TRIM(member_id)) = LOWER(TRIM(?)) LIMIT 1',
+              [a.userEmail, a.userEmail]
+            );
+            if (memberRows.length > 0) {
+              resolvedUserId = memberRows[0].id;
+              console.log('[assignments] Resolved userId from member email:', resolvedUserId, 'for', a.userEmail);
+            } else {
+              console.warn('[assignments] No user/member found with email:', a.userEmail);
+            }
           }
         } catch (queryErr) {
           console.warn('[assignments] Error resolving user from email:', queryErr.message);
         }
       }
-      
-      // Validate userId is numeric after resolution attempts
+
       if (!resolvedUserId || isNaN(resolvedUserId)) {
-        console.error('[assignments] Could not resolve userId for:', a.username, 'email:', a.userEmail);
-        return res.status(400).json({ error: `Cannot assign trainer: Member ${a.username} has no valid user ID and could not be resolved from email` });
+        console.error('[assignments] Could not resolve userId for:', a.username, 'email:', a.userEmail, 'memberId:', a.memberId);
+        return res.status(400).json({ error: `Cannot assign trainer: Member ${a.username} has no valid user ID and could not be resolved from provided identifiers` });
       }
 
       // Get trainer employee_id from staff table
@@ -243,29 +285,68 @@ async function upsertAssignments(req, res) {
       }
 
       // Also update memberships table with trainer info
-      if (a.planId) {
-        const membershipParams = [
-          numericTrainerId,
-          a.trainerName || null,
-          trainerEmployeeId || null,
-          resolvedUserId,
-          Number(a.planId),
-        ];
+      if (a.membershipId || a.planId) {
+        let sqlMemberships;
+        let membershipParams;
 
-        const sqlMemberships = `
-          UPDATE memberships
-          SET trainerId = ?,
-              trainerName = ?,
-              trainerEmployeeId = ?
-          WHERE userId = ? AND planId = ?
-        `;
+        if (a.membershipId) {
+          sqlMemberships = `
+            UPDATE memberships
+            SET trainerId = ?,
+                trainerName = ?,
+                trainerEmployeeId = ?
+            WHERE id = ?
+          `;
+          membershipParams = [
+            numericTrainerId,
+            a.trainerName || null,
+            trainerEmployeeId || null,
+            Number(a.membershipId),
+          ];
+        } else if (resolvedUserId) {
+          sqlMemberships = `
+            UPDATE memberships
+            SET trainerId = ?,
+                trainerName = ?,
+                trainerEmployeeId = ?
+            WHERE userId = ? AND planId = ?
+          `;
+          membershipParams = [
+            numericTrainerId,
+            a.trainerName || null,
+            trainerEmployeeId || null,
+            resolvedUserId,
+            Number(a.planId),
+          ];
+        } else if (a.memberId) {
+          sqlMemberships = `
+            UPDATE memberships
+            SET trainerId = ?,
+                trainerName = ?,
+                trainerEmployeeId = ?
+            WHERE (memberId = ? OR member_id = ?) AND planId = ?
+          `;
+          const numericMemberId = Number(a.memberId);
+          membershipParams = [
+            numericTrainerId,
+            a.trainerName || null,
+            trainerEmployeeId || null,
+            numericMemberId,
+            numericMemberId,
+            Number(a.planId),
+          ];
+        }
 
-        try {
-          const result = await db.query(sqlMemberships, membershipParams);
-          console.log('[assignments] Updated memberships:', result[0].affectedRows, 'rows for userId=', resolvedUserId, 'planId=', Number(a.planId), 'trainerId=', numericTrainerId);
-        } catch (queryErr) {
-          console.warn('[assignments] Warning - failed to update memberships table:', queryErr.message);
-          // Don't fail the entire assignment if memberships update fails
+        if (sqlMemberships) {
+          try {
+            const result = await db.query(sqlMemberships, membershipParams);
+            console.log('[assignments] Updated memberships:', result[0].affectedRows, 'rows for',
+              a.membershipId ? `membershipId=${a.membershipId}` : a.memberId ? `memberId=${a.memberId}` : `userId=${resolvedUserId}`,
+              'planId=', Number(a.planId), 'trainerId=', numericTrainerId);
+          } catch (queryErr) {
+            console.warn('[assignments] Warning - failed to update memberships table:', queryErr.message);
+            // Don't fail the entire assignment if memberships update fails
+          }
         }
       }
     }
