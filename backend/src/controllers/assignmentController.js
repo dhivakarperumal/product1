@@ -158,7 +158,20 @@ async function upsertAssignments(req, res) {
             resolvedUserId = userRows[0].id;
             console.log('[assignments] Resolved userId:', resolvedUserId, 'for email:', a.userEmail);
           } else {
-            console.warn('[assignments] No user found with email:', a.userEmail);
+            // User doesn't exist - create one on-the-fly
+            console.log('[assignments] User not found, creating new user for email:', a.userEmail);
+            try {
+              const newUsername = a.username || a.userEmail.split('@')[0];
+              const [insertResult] = await db.query(
+                `INSERT INTO users (email, username, role, created_at, updated_at) 
+                 VALUES (?, ?, 'member', NOW(), NOW())`,
+                [a.userEmail, newUsername]
+              );
+              resolvedUserId = insertResult.insertId;
+              console.log('[assignments] Created new user with ID:', resolvedUserId, 'for email:', a.userEmail);
+            } catch (createErr) {
+              console.warn('[assignments] Error creating user:', createErr.message);
+            }
           }
         } catch (queryErr) {
           console.warn('[assignments] Error resolving user from email:', queryErr.message);
