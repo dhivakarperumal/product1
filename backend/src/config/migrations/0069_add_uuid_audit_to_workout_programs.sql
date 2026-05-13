@@ -10,47 +10,47 @@ ALTER TABLE workout_programs
 
 -- Backfill numeric trainer_id values from staff.id to staff.employee_id
 UPDATE workout_programs wp
-INNER JOIN staff s ON wp.trainer_id = CAST(s.id AS CHAR)
+INNER JOIN staff s ON wp.trainer_id COLLATE utf8mb4_unicode_ci = CAST(s.id AS CHAR) COLLATE utf8mb4_unicode_ci
 SET wp.trainer_id = s.employee_id
 WHERE wp.trainer_id REGEXP '^[0-9]+$'
   AND s.employee_id IS NOT NULL;
 
 -- Backfill numeric member_id values from members.id to members.member_id
 UPDATE workout_programs wp
-INNER JOIN members m ON wp.member_id = CAST(m.id AS CHAR)
+INNER JOIN members m ON wp.member_id COLLATE utf8mb4_unicode_ci = CAST(m.id AS CHAR) COLLATE utf8mb4_unicode_ci
 SET wp.member_id = m.member_id
 WHERE wp.member_id REGEXP '^[0-9]+$'
   AND m.member_id IS NOT NULL;
 
 -- Backfill created_by and updated_by from users IDs to UUIDs
 UPDATE workout_programs wp
-INNER JOIN users u ON wp.created_by = u.id
+INNER JOIN users u ON wp.created_by COLLATE utf8mb4_unicode_ci = CAST(u.id AS CHAR) COLLATE utf8mb4_unicode_ci
 SET wp.created_by = u.user_uuid
 WHERE wp.created_by IS NOT NULL;
 
 UPDATE workout_programs wp
-INNER JOIN users u ON wp.updated_by = u.id
+INNER JOIN users u ON wp.updated_by COLLATE utf8mb4_unicode_ci = CAST(u.id AS CHAR) COLLATE utf8mb4_unicode_ci
 SET wp.updated_by = u.user_uuid
 WHERE wp.updated_by IS NOT NULL;
 
 -- Backfill created_by and updated_by from staff IDs to trainer employee UUIDs
 UPDATE workout_programs wp
-INNER JOIN staff s ON wp.created_by = s.id
+INNER JOIN staff s ON wp.created_by COLLATE utf8mb4_unicode_ci = CAST(s.id AS CHAR) COLLATE utf8mb4_unicode_ci
 SET wp.created_by = s.employee_id
 WHERE wp.created_by IS NOT NULL;
 
 UPDATE workout_programs wp
-INNER JOIN staff s ON wp.updated_by = s.id
+INNER JOIN staff s ON wp.updated_by COLLATE utf8mb4_unicode_ci = CAST(s.id AS CHAR) COLLATE utf8mb4_unicode_ci
 SET wp.updated_by = s.employee_id
 WHERE wp.updated_by IS NOT NULL;
 
 -- Backfill created_by and updated_by from member IDs to member UUIDs
 UPDATE workout_programs wp
-INNER JOIN members m ON wp.created_by = m.id
+INNER JOIN members m ON wp.created_by COLLATE utf8mb4_unicode_ci = CAST(m.id AS CHAR) COLLATE utf8mb4_unicode_ci
 SET wp.created_by = m.member_id
 WHERE wp.created_by IS NOT NULL;
 
 UPDATE workout_programs wp
-INNER JOIN members m ON wp.updated_by = m.id
+INNER JOIN members m ON wp.updated_by COLLATE utf8mb4_unicode_ci = CAST(m.id AS CHAR) COLLATE utf8mb4_unicode_ci
 SET wp.updated_by = m.member_id
 WHERE wp.updated_by IS NOT NULL;

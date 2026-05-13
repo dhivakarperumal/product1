@@ -68,14 +68,14 @@ async function getAttendance(req, res) {
 
     // Improved query to get names from either users or staff
     let sql = `
-      SELECT 
+      SELECT DISTINCT
         a.*, 
         COALESCE(s.name, u.username, u.email, 'Unknown') as name, 
         COALESCE(u.email, s.email) as email,
         COALESCE(s.role, u.role, 'Staff') as role
       FROM attendance a
       LEFT JOIN users u ON u.id = a.member_id
-      LEFT JOIN staff s ON (s.email = u.email OR s.username = u.username OR s.id = a.member_id)
+      LEFT JOIN staff s ON s.id = a.member_id
       WHERE 1=1
     `;
     let params = [];
@@ -105,7 +105,7 @@ async function getAttendance(req, res) {
       params.push(adminUuidParam);
     }
 
-    sql += " GROUP BY a.id ORDER BY a.check_in DESC";
+    sql += " ORDER BY a.check_in DESC";
 
     const [rows] = await db.query(sql, params);
     res.json(rows);

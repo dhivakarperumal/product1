@@ -271,7 +271,7 @@ const TrainerDashboard = () => {
           };
 
           try {
-            const res = await api.get('/attendance', { params: { date: dateStr } });
+            const res = await api.get('/attendance', { params: { date: dateStr, trainerId } });
             const records = res.data || [];
             dayData.checkins = records.filter(r => (r.status || '').toLowerCase().includes('present')).length;
           } catch {
