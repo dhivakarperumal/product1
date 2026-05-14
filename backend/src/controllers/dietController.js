@@ -13,6 +13,13 @@ function parseDiet(row) {
   };
 }
 
+function getDietExpiry(diet) {
+  const createdAt = new Date(diet.created_at || diet.createdAt || null);
+  if (Number.isNaN(createdAt.getTime())) return null;
+  const days = Number(diet.duration || diet.duration_days || diet.durationDays || 1) || 1;
+  return new Date(createdAt.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
 async function getAllDiets(req, res) {
   try {
     let sql = 'SELECT * FROM diet_plans WHERE 1=1';
@@ -91,6 +98,23 @@ async function createDiet(req, res) {
 
     const adminId = req.user?.role === 'admin' ? req.user.userId : null;
     const createdBy = getAdminUuid(req.user) || null;
+
+    const resolvedMemberId = memberId || null;
+    if (resolvedMemberId) {
+      const [existingRows] = await db.query(
+        `SELECT * FROM diet_plans WHERE (member_id = ? OR user_id = ?) AND status = 'active'`,
+        [resolvedMemberId, resolvedMemberId]
+      );
+      const now = Date.now();
+      for (const diet of existingRows) {
+        const expiry = getDietExpiry(diet);
+        if (expiry && expiry.getTime() > now) {
+          return res.status(400).json({
+            error: 'This member already has an active diet plan. Add a new diet plan only after the current duration completes.',
+          });
+        }
+      }
+    }
 
     const [result] = await db.query(
       `INSERT INTO diet_plans

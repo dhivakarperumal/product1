@@ -62,3 +62,18 @@
 .hide-scrollbar::-webkit-scrollbar {
   display: none;             /* Chrome, Safari */
 }
+
+input[type="time"],
+input[type="date"] {
+  color: #ffffff;
+}
+
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(2);
+}
+
+input[type="time"]::-moz-focus-inner,
+input[type="date"]::-moz-focus-inner {
+  border: 0;
+}

@@ -53,7 +53,10 @@ const enquiryController = {
     // Create new enquiry
     createEnquiry: async (req, res) => {
         try {
-            const { name, email, phone, subject, message, location, height, weight, bmi } = req.body;
+            const { name, email, phone, subject, message, location, height, weight, bmi, status, planId, trainerId } = req.body;
+            const plan_id = planId || req.body.plan_id || null;
+            const trainer_id = trainerId || req.body.trainer_id || null;
+            const enquiryStatus = status || 'pending';
 
             if (!name || !email || !message) {
                 return res.status(400).json({ error: 'Name, email, and message are required' });
@@ -88,8 +91,8 @@ const enquiryController = {
             const numBmi = bmi != null && !isNaN(bmi) ? Number(bmi) : null;
 
             const [result] = await pool.query(
-                'INSERT INTO enquiries (name, email, phone, subject, message, location, height, weight, bmi, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [name, email, phone, subject || null, message, location || null, numHeight, numWeight, numBmi, adminUuid, adminUuid]
+                'INSERT INTO enquiries (name, email, phone, subject, message, location, height, weight, bmi, status, plan_id, trainer_id, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [name, email, phone, subject || null, message, location || null, numHeight, numWeight, numBmi, enquiryStatus, plan_id, trainer_id, adminUuid, adminUuid]
             );
 
             const [rows] = await pool.query('SELECT * FROM enquiries WHERE id = ?', [result.insertId]);
@@ -104,7 +107,9 @@ const enquiryController = {
     updateEnquiry: async (req, res) => {
         try {
             const { id } = req.params;
-            const { name, email, phone, subject, message, location, height, weight, bmi, status } = req.body;
+            const { name, email, phone, subject, message, location, height, weight, bmi, status, planId, trainerId } = req.body;
+            const plan_id = planId || req.body.plan_id || null;
+            const trainer_id = trainerId || req.body.trainer_id || null;
 
             if (!name || !email || !message) {
                 return res.status(400).json({ error: 'Name, email, and message are required' });
@@ -138,8 +143,8 @@ const enquiryController = {
             const numBmi = bmi != null && !isNaN(bmi) ? Number(bmi) : null;
 
             const [result] = await pool.query(
-                'UPDATE enquiries SET name = ?, email = ?, phone = ?, subject = ?, message = ?, location = ?, height = ?, weight = ?, bmi = ?, status = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                [name, email, phone || null, subject || null, message, location || null, numHeight, numWeight, numBmi, status || 'pending', adminUuid, id]
+                'UPDATE enquiries SET name = ?, email = ?, phone = ?, subject = ?, message = ?, location = ?, height = ?, weight = ?, bmi = ?, status = ?, plan_id = ?, trainer_id = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                [name, email, phone || null, subject || null, message, location || null, numHeight, numWeight, numBmi, status || 'pending', plan_id, trainer_id, adminUuid, id]
             );
 
             if (result.affectedRows === 0) {

@@ -50,7 +50,8 @@ const UpdateWeight = () => {
         setSelectedMember(member);
         try {
             // Fetch latest profile details including current measurements
-            const res = await api.get(`/members/${member.gmId}`);
+            const memberId = member.gmId || member.memberId || member.id;
+            const res = await api.get(`/members/${memberId}`);
             const data = res.data;
             setMeasurements({
                 weight: data.weight || "",
@@ -94,7 +95,9 @@ const UpdateWeight = () => {
                 ...fullMember,
                 weight: Number(measurements.weight),
                 height: Number(measurements.height),
-                bmi: Number(measurements.bmi)
+                bmi: Number(measurements.bmi),
+                joinDate: fullMember.join_date ?? fullMember.joinDate,
+                expiryDate: fullMember.expiry_date ?? fullMember.expiryDate,
             };
 
             await api.put(`/members/${selectedMember.gmId}`, payload);

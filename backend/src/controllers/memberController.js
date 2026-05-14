@@ -289,8 +289,8 @@ async function updateMember(req, res) {
     // Determine the member owner so uniqueness is enforced per admin
     let ownerUuid = currentUserUuid;
     const selectOwnerQuery = isNum
-      ? `SELECT created_by, phone, email FROM ${membersTable} WHERE id = ?`
-      : `SELECT created_by, phone, email FROM ${membersTable} WHERE member_id = ?`;
+      ? `SELECT created_by, phone, email, join_date, expiry_date FROM ${membersTable} WHERE id = ?`
+      : `SELECT created_by, phone, email, join_date, expiry_date FROM ${membersTable} WHERE member_id = ?`;
     const [ownerRows] = await connection.query(selectOwnerQuery, [isNum ? idNum : id]);
     if (ownerRows.length === 0) {
       await connection.rollback();
@@ -302,6 +302,10 @@ async function updateMember(req, res) {
 
     const existingPhone = ownerRows[0].phone;
     const existingEmail = ownerRows[0].email;
+    const existingJoinDate = ownerRows[0].join_date;
+    const existingExpiryDate = ownerRows[0].expiry_date;
+    const finalJoinDate = joinDate !== undefined ? joinDate : existingJoinDate;
+    const finalExpiryDate = expiryDate !== undefined ? expiryDate : existingExpiryDate;
     const hasPhoneChanged = phone && existingPhone !== String(phone);
 
     // Check for duplicate phone if phone is being updated
@@ -370,7 +374,7 @@ async function updateMember(req, res) {
        WHERE id=?`;
       updateParams = [
         name, phone, email, gender, numHeight, numWeight, numBmi,
-        plan, numDuration, joinDate, expiryDate, status,
+        plan, numDuration, finalJoinDate, finalExpiryDate, status,
         photo, notes, address, linkedUserId, currentUserUuid, idNum
       ];
     } else {
@@ -383,7 +387,7 @@ async function updateMember(req, res) {
        WHERE member_id=?`;
       updateParams = [
         name, phone, email, gender, numHeight, numWeight, numBmi,
-        plan, numDuration, joinDate, expiryDate, status,
+        plan, numDuration, finalJoinDate, finalExpiryDate, status,
         photo, notes, address, linkedUserId, currentUserUuid, id
       ];
     }

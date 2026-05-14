@@ -54,6 +54,26 @@ const navItems = [
     label: "Send Message",
     icon: Send,
   },
+  {
+    path: "/trainer/billing",
+    label: "Add Billing",
+    icon: Receipt,
+  },
+  {
+    path: "/trainer/enquiry",
+    label: "Add Enquire",
+    icon: MessageSquare,
+  },
+  {
+    path: "/trainer/gym-plan",
+    label: "Gym Plan",
+    icon: Dumbbell,
+  },
+  {
+    path: "/trainer/target",
+    label: "Target",
+    icon: BarChart3,
+  },
 ];
 
 

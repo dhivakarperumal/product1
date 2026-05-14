@@ -224,7 +224,7 @@ const Profile = () => {
             Account Created
           </label>
           <div className="relative">
-            <FaCalendarAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+            <FaCalendarAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-white" />
             <input
               disabled
               value={form.createdAt || ""}

@@ -12,16 +12,277 @@ const inputClass =
 
 const meals = ["Morning", "Breakfast", "Lunch", "Evening", "Dinner"];
 
+const normalizeMemberId = (value) => {
+  if (value === undefined || value === null) return null;
+  return String(value).trim();
+};
+
+const getDietExpiry = (diet) => {
+  const createdAt = new Date(diet.created_at || diet.createdAt || null);
+  if (Number.isNaN(createdAt.getTime())) return null;
+  const days = Number(diet.duration || diet.duration_days || diet.durationDays || 1) || 1;
+  return new Date(createdAt.getTime() + days * 24 * 60 * 60 * 1000);
+};
+
+const getSuggestedDietTitle = (weight) => {
+  const w = Number(weight);
+  if (!w || w <= 0) return "General Fitness";
+  if (w < 60) return "High Protein Bulk";
+  if (w < 75) return "Lean Muscle Building";
+  if (w < 90) return "General Fitness";
+  return "Weight Loss Strategy";
+};
+
+const getTargetCalories = (weight, title) => {
+  const w = Number(weight) || 70;
+  let target = Math.round(w * 28);
+  if (/weight loss/i.test(title)) target = Math.round(w * 24);
+  if (/keto/i.test(title)) target = Math.round(w * 26);
+  if (/bulk/i.test(title)) target = Math.round(w * 30);
+  return Math.max(1300, target);
+};
+
+const getMealTemplate = (title) => {
+  const lower = title?.toLowerCase() || "";
+  if (lower.includes("keto")) {
+    return {
+      Morning: "Almonds & Black Coffee",
+      Breakfast: "Egg Omelette with Spinach",
+      Lunch: "Grilled Chicken Salad",
+      Evening: "Avocado & Cottage Cheese",
+      Dinner: "Salmon with Broccoli",
+    };
+  }
+  if (lower.includes("bulk") || lower.includes("muscle")) {
+    return {
+      Morning: "Peanut Butter Toast",
+      Breakfast: "Oats with Banana & Eggs",
+      Lunch: "Chicken Rice Bowl",
+      Evening: "Greek Yogurt & Berries",
+      Dinner: "Lean Beef with Veggies",
+    };
+  }
+  if (lower.includes("weight loss")) {
+    return {
+      Morning: "Fruit & Almonds",
+      Breakfast: "Vegetable Oatmeal",
+      Lunch: "Turkey Salad",
+      Evening: "Cucumber & Hummus",
+      Dinner: "Grilled Fish and Greens",
+    };
+  }
+  return {
+    Morning: "Mixed Nuts & Fruit",
+    Breakfast: "Poha with Vegetables",
+    Lunch: "Grilled Chicken Salad",
+    Evening: "Yogurt & Seeds",
+    Dinner: "Paneer/Soy Veg Stir Fry",
+  };
+};
+
+const generateDietDays = (weight, duration, title) => {
+  const totalCalories = getTargetCalories(weight, title);
+  const mealRatio = {
+    Morning: 0.1,
+    Breakfast: 0.25,
+    Lunch: 0.35,
+    Evening: 0.1,
+    Dinner: 0.2,
+  };
+  const template = getMealTemplate(title);
+  const days = {};
+  const count = Number(duration) >= 1 ? Number(duration) : 1;
+
+  for (let i = 1; i <= count; i += 1) {
+    const dayKey = `Day${i}`;
+    days[dayKey] = {};
+
+    Object.keys(mealRatio).forEach((meal) => {
+      const calories = Math.round(totalCalories * mealRatio[meal]);
+      let quantity = "1 serving";
+      if (meal === "Breakfast") quantity = "1 bowl";
+      if (meal === "Lunch") quantity = "1 plate";
+      if (meal === "Dinner") quantity = "1 bowl";
+      if (meal === "Morning" || meal === "Evening") quantity = "1 portion";
+
+      days[dayKey][meal] = {
+        food: template[meal],
+        quantity,
+        calories: String(calories),
+        time: meal === "Morning" ? "07:00" : meal === "Breakfast" ? "08:30" : meal === "Lunch" ? "13:00" : meal === "Evening" ? "17:00" : "20:00",
+      };
+    });
+  }
+
+  return days;
+};
+
+const foodCaloriesMap = {
+  "almonds": 160,
+  "black coffee": 5,
+  "egg omelette": 180,
+  "spinach": 25,
+  "grilled chicken salad": 320,
+  "avocado": 240,
+  "cottage cheese": 120,
+  "salmon": 250,
+  "broccoli": 55,
+  "peanut butter toast": 300,
+  "oats with banana & eggs": 420,
+  "chicken rice bowl": 520,
+  "greek yogurt & berries": 200,
+  "lean beef with veggies": 450,
+  "fruit & almonds": 280,
+  "vegetable oatmeal": 260,
+  "turkey salad": 310,
+  "cucumber & hummus": 150,
+  "grilled fish and greens": 340,
+  "mixed nuts & fruit": 320,
+  "poha with vegetables": 290,
+  "paneer/soy veg stir fry": 380,
+  "apple": 95,
+  "dates": 279,
+  "banana": 105,
+  "oats": 180,
+  "rice": 206,
+  "salad": 120,
+  "yogurt": 120,
+  "hummus": 70,
+  "toast": 75,
+  "fish": 220,
+  "beef": 250,
+  "chicken": 240,
+  "paneer": 260,
+};
+
+const foodSuggestions = [
+  "Apple",
+  "Dates",
+  "Oats with Banana & Eggs",
+  "Chicken Rice Bowl",
+  "Greek Yogurt & Berries",
+  "Grilled Chicken Salad",
+  "Fruit & Almonds",
+  "Vegetable Oatmeal",
+  "Turkey Salad",
+  "Cucumber & Hummus",
+  "Grilled Fish and Greens",
+  "Salmon with Broccoli",
+  "Paneer/Soy Veg Stir Fry",
+  "Black Coffee",
+  "Almonds",
+  "Egg Omelette",
+  "Spinach",
+  "Avocado",
+  "Cottage Cheese",
+  "Mixed Nuts & Fruit",
+  "Poha with Vegetables",
+  "Peanut Butter Toast",
+];
+
+const normalizeFoodName = (food) =>
+  String(food || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[,;&]/g, ",");
+
+const parseQuantityValue = (quantity) => {
+  if (!quantity) return 1;
+  const numeric = String(quantity).trim().match(/[0-9]*\.?[0-9]+/);
+  if (numeric) {
+    return Number(numeric[0]) || 1;
+  }
+  if (/half/i.test(quantity)) return 0.5;
+  return 1;
+};
+
+const estimateCaloriesForMeal = (food, quantity) => {
+  const normalized = normalizeFoodName(food);
+  if (!normalized) return "";
+  const quantityValue = parseQuantityValue(quantity);
+  const items = normalized
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (items.length === 0) return "";
+
+  let total = 0;
+  items.forEach((item) => {
+    if (foodCaloriesMap[item]) {
+      total += foodCaloriesMap[item];
+      return;
+    }
+    if (item.includes("apple")) {
+      total += 95;
+      return;
+    }
+    if (item.includes("date")) {
+      total += 140;
+      return;
+    }
+    if (item.includes("banana")) {
+      total += 105;
+      return;
+    }
+    if (item.includes("oat")) {
+      total += 180;
+      return;
+    }
+    if (item.includes("chicken")) {
+      total += 240;
+      return;
+    }
+    if (item.includes("rice")) {
+      total += 220;
+      return;
+    }
+    if (item.includes("fish") || item.includes("salmon")) {
+      total += 250;
+      return;
+    }
+    if (item.includes("beef") || item.includes("paneer") || item.includes("soy")) {
+      total += 320;
+      return;
+    }
+    if (item.includes("salad")) {
+      total += 120;
+      return;
+    }
+    if (item.includes("yogurt")) {
+      total += 120;
+      return;
+    }
+    if (item.includes("hummus")) {
+      total += 70;
+      return;
+    }
+    total += 180;
+  });
+
+  return String(Math.round(total * quantityValue));
+};
+
+const getSuggestedDietPlan = (weight, duration, title) => {
+  const finalTitle = title || getSuggestedDietTitle(weight);
+  return {
+    title: finalTitle,
+    days: generateDietDays(weight, duration, finalTitle),
+  };
+};
+
 /* ---------- GENERATE SINGLE DAY ---------- */
+const generateMealItem = (label) => ({
+  food: "",
+  quantity: "",
+  calories: "",
+  time: "",
+});
+
 const generateSingleDay = () => {
   const day = {};
   meals.forEach((meal) => {
-    day[meal] = {
-      food: "",
-      quantity: "",
-      calories: "",
-      time: "",
-    };
+    day[meal] = generateMealItem(meal);
   });
   return day;
 };
@@ -39,6 +300,7 @@ const AddDietPlans = () => {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [allAssignments, setAllAssignments] = useState([]);
+  const [blockedMembers, setBlockedMembers] = useState({});
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(new Set());
   const [submitting, setSubmitting] = useState(false);
@@ -57,6 +319,7 @@ const AddDietPlans = () => {
       Day2: generateSingleDay(),
     },
   });
+  const [autoTotalCalories, setAutoTotalCalories] = useState(true);
 
   /* ================= FETCH MEMBERS ================= */
   useEffect(() => {
@@ -79,16 +342,23 @@ const AddDietPlans = () => {
           return {
             id: String(fallbackId),
             memberId: String(d.memberId || d.member_id || d.membershipId || d.membership_id || d.userId || d.user_id || d.id || fallbackId),
+            userId: String(d.userId || d.user_id || ""),
             name: d.username || d.user_name || "Member",
             email: d.userEmail || d.user_email || "",
             mobile: d.userMobile || d.user_mobile || "",
-            weight: d.userWeight || d.member_weight || "",
+            weight: d.weight || d.userWeight || d.memberWeight || d.member_weight || d.user_weight || "",
             planName: d.planName || d.plan_name || "Plan",
           };
         });
 
         setMembers(formatted);
         setAllAssignments(assignments);
+
+        const dietRes = await api.get(`/diet-plans?trainerId=${encodeURIComponent(user.id)}`);
+        const dietData = Array.isArray(dietRes.data)
+          ? dietRes.data
+          : dietRes.data.data || dietRes.data.diet_plans || [];
+        setBlockedMembers(getActiveMemberBlocks(dietData));
       } catch (err) {
         console.error(err);
         toast.error("Failed to load members");
@@ -100,8 +370,42 @@ const AddDietPlans = () => {
     fetchMembers();
   }, [user]);
 
+  const getMemberBlockExpiry = (member) => {
+    return (
+      blockedMembers[normalizeMemberId(member.id)] ||
+      blockedMembers[normalizeMemberId(member.memberId)] ||
+      blockedMembers[normalizeMemberId(member.userId)]
+    );
+  };
+
+  const isMemberBlocked = (member) => Boolean(getMemberBlockExpiry(member));
+
+  const getActiveMemberBlocks = (diets) => {
+    const now = Date.now();
+    const blocks = {};
+
+    diets.forEach((diet) => {
+      const expiry = getDietExpiry(diet);
+      if (!expiry || expiry.getTime() <= now) return;
+
+      const keys = [diet.member_id, diet.memberId, diet.user_id, diet.userId]
+        .map(normalizeMemberId)
+        .filter(Boolean);
+
+      keys.forEach((key) => {
+        const existing = blocks[key];
+        if (!existing || expiry.getTime() > existing.getTime()) {
+          blocks[key] = expiry;
+        }
+      });
+    });
+
+    return blocks;
+  };
+
   /* ================= AUTO CALCULATE CALORIES ================= */
   useEffect(() => {
+    if (!autoTotalCalories) return;
     let total = 0;
 
     Object.values(form.days).forEach((day) => {
@@ -114,7 +418,7 @@ const AddDietPlans = () => {
       ...prev,
       totalCalories: total,
     }));
-  }, [form.days]);
+  }, [form.days, autoTotalCalories]);
 
   /* ================= LOAD DIET FOR EDIT ================= */
   useEffect(() => {
@@ -176,19 +480,31 @@ const AddDietPlans = () => {
 
   /* ================= HANDLE MEAL CHANGE ================= */
   const handleMealChange = (day, meal, field, value) => {
-    setForm((prev) => ({
-      ...prev,
-      days: {
-        ...prev.days,
-        [day]: {
-          ...prev.days[day],
-          [meal]: {
-            ...prev.days[day][meal],
-            [field]: value,
+    setForm((prev) => {
+      const updatedMeal = {
+        ...prev.days[day][meal],
+        [field]: value,
+      };
+
+      if (field === "food" || field === "quantity") {
+        const estimated = estimateCaloriesForMeal(
+          field === "food" ? value : updatedMeal.food,
+          field === "quantity" ? value : updatedMeal.quantity
+        );
+        updatedMeal.calories = estimated;
+      }
+
+      return {
+        ...prev,
+        days: {
+          ...prev.days,
+          [day]: {
+            ...prev.days[day],
+            [meal]: updatedMeal,
           },
         },
-      },
-    }));
+      };
+    });
   };
 
   /* ================= ADD DAY ================= */
@@ -232,6 +548,57 @@ const AddDietPlans = () => {
       days: updated,
     }));
   };
+
+  const handleAddMealRow = (day, afterMeal) => {
+    setForm((prev) => {
+      const dayMeals = prev.days[day] || {};
+      const matching = Object.keys(dayMeals).filter((key) => key.startsWith(`${afterMeal}_Extra`));
+      const extraIndex = matching.length + 1;
+      const newKey = `${afterMeal}_Extra${extraIndex}`;
+
+      return {
+        ...prev,
+        days: {
+          ...prev.days,
+          [day]: {
+            ...dayMeals,
+            [newKey]: generateMealItem(`${afterMeal} Extra ${extraIndex}`),
+          },
+        },
+      };
+    });
+  };
+
+  const handleRemoveMealRow = (day, mealKey) => {
+    setForm((prev) => {
+      const dayMeals = { ...prev.days[day] };
+      delete dayMeals[mealKey];
+
+      return {
+        ...prev,
+        days: {
+          ...prev.days,
+          [day]: dayMeals,
+        },
+      };
+    });
+  };
+
+  const getSortedMealKeys = (dayMeals) =>
+    Object.keys(dayMeals || {}).sort((a, b) => {
+      const [baseA] = a.split("_Extra");
+      const [baseB] = b.split("_Extra");
+      const indexA = meals.indexOf(baseA);
+      const indexB = meals.indexOf(baseB);
+
+      if (indexA !== indexB) return indexA - indexB;
+      if (a === baseA) return -1;
+      if (b === baseB) return 1;
+
+      const extraA = Number(a.split("_Extra")[1]) || 0;
+      const extraB = Number(b.split("_Extra")[1]) || 0;
+      return extraA - extraB;
+    });
 
   /* ================= COPY DAY 1 TO ALL ================= */
   const handleCopyDay1ToAll = () => {
@@ -304,12 +671,19 @@ const AddDietPlans = () => {
         setTimeout(() => navigate("/trainer/alladddietplans"), 1200);
       } else {
         // Bulk Create
-        const selectedMembers = members.filter((m) => selected.has(m.id));
+        const selectedMembers = members.filter((m) => selected.has(m.id) && !isMemberBlocked(m));
+        if (selectedMembers.length === 0) {
+          toast.error("No valid members selected for diet plan creation.");
+          return;
+        }
+
         let successCount = 0;
         let failCount = 0;
 
         for (const m of selectedMembers) {
           try {
+            const memberWeight = m.weight || form.memberWeight || 70;
+            const payloadTitle = form.title || getSuggestedDietTitle(memberWeight);
             const payload = {
               trainerId,
               trainerName,
@@ -318,9 +692,9 @@ const AddDietPlans = () => {
               memberName: m.name,
               memberEmail: m.email,
               memberMobile: m.mobile,
-              memberWeight: form.memberWeight,
-              title: form.title,
-              totalCalories: Number(form.totalCalories) || 0,
+              memberWeight,
+              title: payloadTitle,
+              totalCalories: Number(form.totalCalories) || getTargetCalories(memberWeight, payloadTitle),
               duration: form.duration,
               days: form.days,
               status: "active",
@@ -362,37 +736,72 @@ const AddDietPlans = () => {
     );
   });
 
-  const toggleOne = (mId) => {
+  const eligibleMembers = filteredMembers.filter((m) => !isMemberBlocked(m));
+  const blockedCount = filteredMembers.filter((m) => isMemberBlocked(m)).length;
+
+  const toggleOne = (member) => {
+    if (isMemberBlocked(member)) {
+      toast.error("This member already has an active diet plan. Add the next diet plan only after the current duration completes.");
+      return;
+    }
+
+    const alreadySelected = selected.has(member.id);
+
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(mId)) {
-        next.delete(mId);
-        // If no one is left, clear weight. Otherwise, if many selected, keep as is or clear if needed.
-        // For simplicity: if 0 selected -> clear. If some left -> potentially keep or set to first one.
-        if (next.size === 0) {
-          setForm(p => ({ ...p, memberWeight: "" }));
-        }
+      if (next.has(member.id)) {
+        next.delete(member.id);
       } else {
-        next.add(mId);
-        // Find member in state
-        const member = members.find(m => String(m.id) === String(mId));
-        if (member && member.weight) {
-          setForm(p => ({ ...p, memberWeight: member.weight }));
-        }
+        next.add(member.id);
       }
       return next;
     });
-  };
 
-  const selectAll = () => {
-    if (selected.size === filteredMembers.length && filteredMembers.length > 0) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(filteredMembers.map((m) => m.id)));
+    if (!alreadySelected) {
+      const { title, days } = getSuggestedDietPlan(
+        member.weight || form.memberWeight || 70,
+        form.duration,
+        form.title
+      );
+      setForm((prev) => ({
+        ...prev,
+        memberId: member.memberId,
+        memberName: member.name,
+        memberEmail: member.email,
+        memberMobile: member.mobile,
+        memberWeight: member.weight || member.memberWeight || prev.memberWeight,
+        title: prev.title || title,
+        days,
+      }));
+      setAutoTotalCalories(true);
+    } else if (selected.size === 1) {
+      setForm((prev) => ({
+        ...prev,
+        memberId: "",
+        memberName: "",
+        memberEmail: "",
+        memberMobile: "",
+        memberWeight: "",
+        title: "",
+        days: {
+          Day1: generateSingleDay(),
+          Day2: generateSingleDay(),
+        },
+        totalCalories: 0,
+      }));
+      setAutoTotalCalories(true);
     }
   };
 
-  const allSelected = filteredMembers.length > 0 && selected.size === filteredMembers.length;
+  const selectAll = () => {
+    if (selected.size === eligibleMembers.length && eligibleMembers.length > 0) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(eligibleMembers.map((m) => m.id)));
+    }
+  };
+
+  const allSelected = eligibleMembers.length > 0 && selected.size === eligibleMembers.length;
 
   if (loading || !trainerId) {
     return (
@@ -423,7 +832,7 @@ const AddDietPlans = () => {
               <div className="flex items-center justify-between">
                 <label className="text-sm font-semibold flex items-center gap-2">
                   <Users size={18} className="text-emerald-400" />
-                  Select Members ({selected.size} / {members.length})
+                  Select Members ({selected.size} / {eligibleMembers.length})
                 </label>
                 <div
                   onClick={selectAll}
@@ -474,13 +883,14 @@ const AddDietPlans = () => {
                   </div>
                 ) : (
                   filteredMembers.map((m) => {
+                    const blockedExpiry = getMemberBlockExpiry(m);
+                    const isBlocked = Boolean(blockedExpiry);
                     const isSelected = selected.has(m.id);
                     return (
                       <div
                         key={m.id}
-                        onClick={() => toggleOne(m.id)}
-                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition border ${isSelected ? "bg-emerald-500/20 border-emerald-500/50" : "bg-white/5 border-white/5 hover:bg-white/10"
-                          }`}
+                        onClick={() => !isBlocked && toggleOne(m)}
+                        className={`flex items-center gap-3 p-3 rounded-lg transition border ${isBlocked ? "bg-red-500/10 border-red-500/20 cursor-not-allowed" : isSelected ? "bg-emerald-500/20 border-emerald-500/50" : "bg-white/5 border-white/5 hover:bg-white/10 cursor-pointer"}`}
                       >
                         {isSelected ? (
                           <CheckSquare size={18} className="text-emerald-400 shrink-0" />
@@ -495,12 +905,22 @@ const AddDietPlans = () => {
                           <p className="text-[10px] text-white/40 truncate">
                             {[m.email, m.planName].filter(Boolean).join(" • ")}
                           </p>
+                          {isBlocked && blockedExpiry && (
+                            <p className="text-[10px] text-red-300 mt-1">
+                              Blocked until {dayjs(blockedExpiry).format("DD MMM YYYY")}
+                            </p>
+                          )}
                         </div>
                       </div>
                     );
                   })
                 )}
               </div>
+              {blockedCount > 0 && (
+                <p className="text-xs text-white/50">
+                  {blockedCount} member(s) are currently blocked because they have an active diet plan. You can add a new diet only after the current duration ends.
+                </p>
+              )}
             </div>
           ) : (
             <div className="bg-black/40 border border-white/10 rounded-xl p-4">
@@ -550,7 +970,11 @@ const AddDietPlans = () => {
                 className={inputClass}
                 placeholder="Total Calories"
                 value={form.totalCalories}
-                readOnly
+                onChange={(e) => {
+                  setForm((prev) => ({ ...prev, totalCalories: e.target.value }));
+                  setAutoTotalCalories(false);
+                }}
+                autoComplete="off"
               />
             </div>
 
@@ -563,6 +987,7 @@ const AddDietPlans = () => {
                 placeholder="Weight"
                 value={form.memberWeight}
                 onChange={(e) => setForm(p => ({ ...p, memberWeight: e.target.value }))}
+                autoComplete="off"
               />
             </div>
 
@@ -577,6 +1002,12 @@ const AddDietPlans = () => {
               </div>
             </div>
           </div>
+
+          <datalist id="diet-food-options">
+            {foodSuggestions.map((item) => (
+              <option key={item} value={item} />
+            ))}
+          </datalist>
 
           {/* DAYS */}
           <div className="space-y-6 max-h-[65vh] overflow-y-auto pr-2">
@@ -620,57 +1051,96 @@ const AddDietPlans = () => {
 
                  
 
-                  {meals.map((meal) => (
-                    <div key={meal} className="grid grid-cols-1 md:grid-cols-6 items-center gap-3">
-                      {/* Meal Label */}
-                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-3.5 text-emerald-400 text-xs font-bold uppercase tracking-widest text-center">
-                        {meal}
-                      </div>
+                  {getSortedMealKeys(form.days[day] || {}).map((meal) => {
+                      const mealData = form.days[day][meal];
+                      const baseMeal = meal.replace(/_Extra.*$/, "");
+                      const label = baseMeal;
+                      return (
+                        <div key={meal} className="grid grid-cols-1 md:grid-cols-6 items-center gap-3">
+                          {/* Meal Label */}
+                          <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-3.5 text-emerald-400 text-xs font-bold uppercase tracking-widest">
+                            <span>{label}</span>
+                            <div className="flex items-center gap-2">
+                              {meal.includes("_Extra") ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveMealRow(day, meal)}
+                                  className="p-2 bg-red-500/10 border border-red-500/20 rounded-md text-red-300 hover:bg-red-500/20 transition"
+                                  aria-label="Remove extra row"
+                                >
+                                  <X size={12} />
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddMealRow(day, baseMeal)}
+                                  className="text-[10px] px-2 py-1 bg-white/10 border border-white/10 rounded-md hover:bg-white/15 transition"
+                                >
+                                  +
+                                </button>
+                              )}
+                            </div>
+                          </div>
 
-                      {/* Timing first */}
-                      <input
-                        type="time"
-                        className={inputClass}
-                        placeholder="Timing"
-                        value={form.days[day][meal]?.time || ""}
-                        onChange={(e) =>
-                          handleMealChange(day, meal, "time", e.target.value)
-                        }
-                      />
+                          {/* Timing first */}
+                          <input
+                            type="time"
+                            className={inputClass}
+                            placeholder="Timing"
+                            value={mealData?.time || ""}
+                            onChange={(e) =>
+                              handleMealChange(day, meal, "time", e.target.value)
+                            }
+                          />
 
-                      {/* Food */}
-                      <input
-                        className={`${inputClass} md:col-span-2`}
-                        placeholder="Food Item"
-                        value={form.days[day][meal]?.food || ""}
-                        onChange={(e) =>
-                          handleMealChange(day, meal, "food", e.target.value)
-                        }
-                      />
+                          {/* Food */}
+                          <input
+                            className={`${inputClass} md:col-span-2`}
+                            list="diet-food-options"
+                            placeholder="Food Item(s), comma separated"
+                            value={mealData?.food || ""}
+                            onChange={(e) =>
+                              handleMealChange(day, meal, "food", e.target.value)
+                            }
+                            autoComplete="off"
+                            spellCheck="false"
+                          />
 
-                      {/* Quantity */}
-                      <input
-                        className={inputClass}
-                        placeholder="Qty"
-                        value={form.days[day][meal]?.quantity || ""}
-                        onChange={(e) =>
-                          handleMealChange(day, meal, "quantity", e.target.value)
-                        }
-                      />
+                          {/* Quantity */}
+                          <input
+                            className={inputClass}
+                            placeholder="Qty e.g. 1 bowl"
+                            value={mealData?.quantity || ""}
+                            onChange={(e) =>
+                              handleMealChange(day, meal, "quantity", e.target.value)
+                            }
+                            autoComplete="off"
+                            spellCheck="false"
+                          />
 
-                      {/* Calories */}
-                      <input
-                        type="number"
-                        className={inputClass}
-                        placeholder="Kcal"
-                        value={form.days[day][meal]?.calories || ""}
-                        onChange={(e) =>
-                          handleMealChange(day, meal, "calories", e.target.value)
-                        }
-                      />
+                          {/* Calories */}
+                          <input
+                            type="number"
+                            className={inputClass}
+                            placeholder="Kcal"
+                            value={mealData?.calories || ""}
+                            onChange={(e) =>
+                              handleMealChange(day, meal, "calories", e.target.value)
+                            }
+                          />
+                        </div>
+                      );
+                    })}
 
-                    </div>
-                  ))}
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => handleAddMealRow(day, "Dinner")}
+                      className="text-xs font-semibold bg-white/10 border border-white/10 text-white px-3 py-2 rounded-lg hover:bg-white/15 transition"
+                    >
+                      + Add Row
+                    </button>
+                  </div>
 
                 </div>
               ))}
@@ -683,7 +1153,7 @@ const AddDietPlans = () => {
             <button
               type="submit"
               disabled={submitting}
-              className={`px-8 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 flex items-center gap-2 hover:scale-105 transition ${submitting ? 'opacity-70 cursor-not-allowed' : ''}`}
+              className={`px-8 py-3 rounded-xl bg-linear-to-r from-orange-500 to-orange-600 flex items-center gap-2 hover:scale-105 transition ${submitting ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
               {submitting && <RefreshCw size={18} className="animate-spin" />}
               {submitting ? "Processing..." : (id ? "Update Diet Plan" : "Save Diet Plan")}

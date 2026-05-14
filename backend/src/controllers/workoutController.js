@@ -99,6 +99,13 @@ function parseWorkout(row) {
   };
 }
 
+function getWorkoutExpiry(row) {
+  const createdAt = new Date(row.created_at || row.createdAt || null);
+  if (Number.isNaN(createdAt.getTime())) return null;
+  const weeks = Number(row.duration_weeks || row.durationWeeks || 1) || 1;
+  return new Date(createdAt.getTime() + weeks * 7 * 24 * 60 * 60 * 1000);
+}
+
 async function getAllWorkouts(req, res) {
   try {
     let sql = 'SELECT * FROM workout_programs WHERE 1=1';
@@ -181,6 +188,33 @@ async function createWorkout(req, res) {
 
     const trainerDetails = await resolveTrainerDetails(requestedTrainerId, trainerName);
     const memberDetails = await resolveMemberDetails(requestedMemberId, memberName, memberEmail, memberMobile);
+
+    const membersQuery = [];
+    const membersParams = [];
+    if (memberDetails.memberUuid) {
+      membersQuery.push('member_id = ?');
+      membersParams.push(memberDetails.memberUuid);
+    }
+    if (memberDetails.userId) {
+      membersQuery.push('user_id = ?');
+      membersParams.push(memberDetails.userId);
+    }
+
+    if (membersQuery.length > 0) {
+      const [existing] = await db.query(
+        `SELECT * FROM workout_programs WHERE (${membersQuery.join(' OR ')}) AND status = 'active'`,
+        membersParams
+      );
+      const now = Date.now();
+      for (const workout of existing) {
+        const expiry = getWorkoutExpiry(workout);
+        if (expiry && expiry.getTime() > now) {
+          return res.status(400).json({
+            error: 'This member already has an active workout schedule. Add a new workout only after the current duration completes.',
+          });
+        }
+      }
+    }
 
     const adminId = req.user?.role === 'admin' ? req.user.userId : null;
     const auditActor = trainerDetails.trainerUuid || getActorUuid(req.user) || null;

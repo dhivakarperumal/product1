@@ -53,7 +53,7 @@ function normalizeAssignment(row) {
     userMobile: row.member_mobile || row.user_mobile || null,
     userWeight: (row.member_weight !== null && row.member_weight !== undefined) ? row.member_weight : null,
     memberId: row.memberId || row.member_id || null,
-    gymMemberId: row.member_db_id || null,
+    gymMemberId: row.member_db_id || row.memberId || row.member_id || null,
     planId: row.planId || row.plan_id || null,
     planName: row.planName || row.plan_name || null,
     planDuration: row.duration || row.plan_duration || null,

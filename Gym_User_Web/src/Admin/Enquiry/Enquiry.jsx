@@ -98,6 +98,8 @@ const CustomDropdown = ({ label, options, value, onChange }) => {
 
 const Enquiry = () => {
   const [enquiries, setEnquiries] = useState([]);
+  const [plans, setPlans] = useState([]);
+  const [trainers, setTrainers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -114,7 +116,10 @@ const Enquiry = () => {
     location: "",
     height: "",
     weight: "",
-    bmi: ""
+    bmi: "",
+    status: "pending",
+    planId: "",
+    trainerId: "",
   });
 
   useEffect(() => {
@@ -132,6 +137,8 @@ const Enquiry = () => {
 
   useEffect(() => {
     fetchEnquiries();
+    fetchPlans();
+    fetchTrainers();
   }, []);
 
   const fetchEnquiries = async () => {
@@ -149,6 +156,31 @@ const Enquiry = () => {
     }
   };
 
+  const fetchPlans = async () => {
+    try {
+      const response = await api.get('/plans');
+      const data = Array.isArray(response.data) ? response.data : [];
+      setPlans(data);
+    } catch (error) {
+      console.error('Error fetching plans:', error);
+      setPlans([]);
+    }
+  };
+
+  const fetchTrainers = async () => {
+    try {
+      const response = await api.get('/staff');
+      const data = Array.isArray(response.data) ? response.data : [];
+      const trainerRows = data.filter((staff) =>
+        String(staff.role || '').toLowerCase() === 'trainer'
+      );
+      setTrainers(trainerRows);
+    } catch (error) {
+      console.error('Error fetching trainers:', error);
+      setTrainers([]);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -162,7 +194,20 @@ const Enquiry = () => {
       fetchEnquiries();
       setShowForm(false);
       setSelectedEnquiry(null);
-      setFormData({ name: "", email: "", phone: "", subject: "", message: "", location: "", height: "", weight: "", bmi: "" });
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        subject: "",
+        message: "",
+        location: "",
+        height: "",
+        weight: "",
+        bmi: "",
+        status: "pending",
+        planId: "",
+        trainerId: "",
+      });
     } catch (error) {
       console.error('Error saving enquiry:', error);
       const errorMessage = error.response?.data?.error || 'Failed to save enquiry';
@@ -190,7 +235,9 @@ const Enquiry = () => {
       height: enquiry.height || "",
       weight: enquiry.weight || "",
       bmi: enquiry.bmi || "",
-      status: enquiry.status
+      status: enquiry.status || 'pending',
+      planId: enquiry.plan_id || enquiry.planId || "",
+      trainerId: enquiry.trainer_id || enquiry.trainerId || "",
     });
     setShowForm(true);
   };
@@ -286,6 +333,12 @@ const Enquiry = () => {
         return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'pending':
         return <Clock className="w-4 h-4 text-yellow-500" />;
+      case 'interested':
+        return <CheckCircle className="w-4 h-4 text-cyan-400" />;
+      case 'call u later':
+        return <Clock className="w-4 h-4 text-orange-400" />;
+      case 'extra':
+        return <CheckCircle className="w-4 h-4 text-violet-400" />;
       case 'cancelled':
         return <XCircle className="w-4 h-4 text-red-500" />;
       default:
@@ -296,13 +349,19 @@ const Enquiry = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'completed':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-500/20 text-green-300 border border-green-500/30';
       case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
+      case 'interested':
+        return 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30';
+      case 'call u later':
+        return 'bg-orange-500/20 text-orange-300 border border-orange-500/30';
+      case 'extra':
+        return 'bg-violet-500/20 text-violet-300 border border-violet-500/30';
       case 'cancelled':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-500/20 text-red-300 border border-red-500/30';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-500/10 text-gray-300 border border-gray-500/20';
     }
   };
 
@@ -375,6 +434,9 @@ const Enquiry = () => {
                 options={[
                   { label: "All Status", value: "all" },
                   { label: "Pending", value: "pending" },
+                  { label: "Interested", value: "interested" },
+                  { label: "Call U Later", value: "call u later" },
+                  { label: "Extra", value: "extra" },
                   { label: "Completed", value: "completed" },
                   { label: "Cancelled", value: "cancelled" },
                 ]}
@@ -485,8 +547,8 @@ const Enquiry = () => {
 
         {/* Enquiry Form Modal */}
         {showForm && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-gradient-to-br from-slate-950 to-slate-900 border-2 border-orange-500/50 rounded-[2rem] p-8 w-full max-w-4xl mx-4 shadow-[0_40px_120px_rgba(0,0,0,0.35)] max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-x-hidden">
+            <div className="bg-gradient-to-br from-slate-950 to-slate-900 border-2 border-orange-500/50 rounded-[2rem] p-8 w-full max-w-full md:max-w-4xl mx-4 shadow-[0_40px_120px_rgba(0,0,0,0.35)] max-h-[90vh] overflow-y-auto overflow-x-hidden">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-semibold text-white">
                   {selectedEnquiry ? 'View Enquiry Details' : 'Add New Enquiry'}
@@ -495,7 +557,20 @@ const Enquiry = () => {
                   onClick={() => {
                     setShowForm(false);
                     setSelectedEnquiry(null);
-                    setFormData({ name: "", email: "", phone: "", subject: "", message: "", location: "", height: "", weight: "", bmi: "" });
+                    setFormData({
+                      name: "",
+                      email: "",
+                      phone: "",
+                      subject: "",
+                      message: "",
+                      location: "",
+                      height: "",
+                      weight: "",
+                      bmi: "",
+                      status: "pending",
+                      planId: "",
+                      trainerId: "",
+                    });
                   }}
                   className="p-2 bg-slate-800/50 hover:bg-slate-800/70 rounded-xl transition-colors border border-white/10"
                 >
@@ -554,6 +629,51 @@ const Enquiry = () => {
                     />
                   </div>
                   <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Select Plan</label>
+                    <select
+                      value={formData.planId}
+                      onChange={(e) => setFormData({ ...formData, planId: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                    >
+                      <option value="">Select Plan</option>
+                      {plans.map((plan) => (
+                        <option key={plan.id || plan.plan_id} value={plan.id || plan.plan_id}>
+                          {plan.name || plan.title || plan.planName || 'Unnamed Plan'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Select Trainer</label>
+                    <select
+                      value={formData.trainerId}
+                      onChange={(e) => setFormData({ ...formData, trainerId: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                    >
+                      <option value="">Select Trainer</option>
+                      {trainers.map((trainer) => (
+                        <option key={trainer.id || trainer.employee_id} value={trainer.id || trainer.employee_id}>
+                          {trainer.username || trainer.name || trainer.email || 'Trainer'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="interested">Interested</option>
+                      <option value="call u later">Call U Later</option>
+                      <option value="extra">Extra</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">Height (cm)</label>
                     <input
                       type="number"
@@ -585,32 +705,6 @@ const Enquiry = () => {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Message *</label>
-                  <textarea
-                    value={formData.message}
-                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                    rows={4}
-                    className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all resize-none"
-                    required
-                  />
-                </div>
-
-                {selectedEnquiry && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
-                    <select
-                      value={formData.status}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
-                    >
-                      <option value="pending" className="bg-slate-800 text-white">Pending</option>
-                      <option value="completed" className="bg-slate-800 text-white">Completed</option>
-                      <option value="cancelled" className="bg-slate-800 text-white">Cancelled</option>
-                    </select>
-                  </div>
-                )}
-
                 <div className="flex gap-4 pt-6 border-t border-white/10">
                   <button
                     type="submit"
@@ -623,7 +717,20 @@ const Enquiry = () => {
                     onClick={() => {
                       setShowForm(false);
                       setSelectedEnquiry(null);
-                      setFormData({ name: "", email: "", phone: "", subject: "", message: "", location: "", height: "", weight: "", bmi: "" });
+                      setFormData({
+                        name: "",
+                        email: "",
+                        phone: "",
+                        subject: "",
+                        message: "",
+                        location: "",
+                        height: "",
+                        weight: "",
+                        bmi: "",
+                        status: "pending",
+                        planId: "",
+                        trainerId: "",
+                      });
                     }}
                     className="flex-1 px-6 py-3 bg-slate-800/50 text-gray-300 hover:bg-slate-800/70 rounded-xl font-medium transition-colors border border-white/10"
                   >

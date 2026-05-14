@@ -68,7 +68,8 @@ const AddWorkout = () => {
   const getMemberBlockExpiry = useCallback((member) => {
     return (
       blockedMembers[normalizeMemberId(member.id)] ||
-      blockedMembers[normalizeMemberId(member.memberId)]
+      blockedMembers[normalizeMemberId(member.memberId)] ||
+      blockedMembers[normalizeMemberId(member.userId)]
     );
   }, [blockedMembers]);
 
@@ -85,7 +86,13 @@ const AddWorkout = () => {
       const expiry = getWorkoutExpiry(workout);
       if (!expiry || expiry.getTime() <= now) return;
 
-      const keys = [workout.member_id, workout.memberId].map(normalizeMemberId).filter(Boolean);
+      const keys = [
+        workout.member_id,
+        workout.memberId,
+        workout.user_id,
+        workout.userId,
+      ].map(normalizeMemberId).filter(Boolean);
+
       keys.forEach((key) => {
         const existing = blocks[key];
         if (!existing || expiry.getTime() > existing.getTime()) {
@@ -120,6 +127,7 @@ const AddWorkout = () => {
           return {
             id: String(fallbackId),
             memberId: normalizeMemberId(a.memberId || a.member_id || a.membershipId || a.membership_id || a.userId || a.user_id || a.id || fallbackId),
+            userId: normalizeMemberId(a.userId || a.user_id || null),
             name: a.username || a.user_name || "Member",
             planName: a.planName || a.plan_name || "Plan",
             email: a.userEmail || a.user_email || "",

@@ -23,7 +23,7 @@ const TrainerPanel = () => {
   }, []);
 
   return (
-    <div className="trainer-root relative overflow-hidden flex min-h-screen bg-slate-950 text-white">
+    <div className="trainer-root relative overflow-hidden overflow-x-hidden flex min-h-screen bg-slate-950 text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(249,115,22,0.16),_transparent_25%),radial-gradient(circle_at_right,_rgba(59,130,246,0.18),_transparent_20%)]" />
 
       {/* Sidebar */}
@@ -44,8 +44,8 @@ const TrainerPanel = () => {
       >
         <TrainerHeader onMenuClick={() => setSidebarOpen(true)} isLargeScreen={isLargeScreen} />
 
-        <main className="flex-1 p-4 sm:p-5 lg:p-6 overflow-y-auto">
-          <div className="glass-container animate-fade-in-up">
+        <main className="flex-1 p-4 sm:p-5 lg:p-6 overflow-y-auto overflow-x-hidden">
+          <div className="glass-container animate-fade-in-up w-full overflow-hidden">
             <Outlet />
           </div>
         </main>

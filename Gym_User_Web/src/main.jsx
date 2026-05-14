@@ -120,6 +120,7 @@ const AllDietPlans = lazy(() => import("./TrainerPanel/DietPlans/AllDietPlans.js
 const TrainerOverallAttendance = lazy(() => import("./TrainerPanel/TrainerAttendance/OverallAttendance.jsx"));
 const TrainerReports = lazy(() => import("./TrainerPanel/TrainerReports/Reports.jsx"));
 const TrainerSendMessage = lazy(() => import("./TrainerPanel/TrainerSendMessage/TrainerSendMessage.jsx"));
+const TrainerGymPlans = lazy(() => import("./TrainerPanel/TrainerGymPlans.jsx"));
 const AssignedTrainers = lazy(() => import("./Admin/Payments/AssingnedTrainers.jsx"));
 const GymWorkoutManager = lazy(() => import("./Admin/CommenWorkDiet/CommenWorkDiet.jsx"));
 const UpdateWeight = lazy(() => import("./TrainerPanel/UpdateWeight/UpdateWeight.jsx"));
@@ -298,6 +299,10 @@ const router = createHashRouter([
       { path: "alladddietplans", element: <AllDietPlans /> },
       { path: "update-weight", element: <UpdateWeight /> },
       { path: "send-message", element: <TrainerSendMessage /> },
+      { path: "billing", element: <AdminBilling /> },
+      { path: "enquiry", element: <AdminEnquiry /> },
+      { path: "gym-plan", element: <TrainerGymPlans /> },
+      { path: "target", element: <TrainerReports /> },
       { path: "settings", element: <Settings /> },
       { path: "settings/profile", element: <ProfileSettings /> },
       { path: "settings/usermanagement", element: <UserManagement /> },
