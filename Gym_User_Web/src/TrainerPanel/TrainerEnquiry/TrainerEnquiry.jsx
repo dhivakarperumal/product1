@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { Plus, Search, Filter, Eye, Edit, Trash2, CheckCircle, XCircle, Clock, Users } from "lucide-react";
+import { Plus, Search, Eye, Trash2, CheckCircle, XCircle, Clock, Users } from "lucide-react";
 import api from "../../api";
-import DateRangeFilter from "../DateRangeFilter";
-import { filterByDateRange } from "../utils/dateUtils";
+import DateRangeFilter from "../../Admin/DateRangeFilter";
+import { filterByDateRange } from "../../Admin/utils/dateUtils";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../../PrivateRouter/AuthContext";
@@ -82,10 +81,11 @@ const CustomDropdown = ({ label, options, value, onChange }) => {
                   onChange(opt.value);
                   setIsOpen(false);
                 }}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm ${value === opt.value
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm ${
+                  value === opt.value
                     ? "bg-orange-500 text-white"
                     : "text-gray-300 hover:bg-white/5"
-                  }`}
+                }`}
               >
                 {opt.label}
               </button>
@@ -97,17 +97,15 @@ const CustomDropdown = ({ label, options, value, onChange }) => {
   );
 };
 
-const Enquiry = () => {
-  const navigate = useNavigate();
-  const { user, role, logout } = useAuth();
+const TrainerEnquiry = () => {
+  const { user, role } = useAuth();
   const [enquiries, setEnquiries] = useState([]);
   const [plans, setPlans] = useState([]);
   const [trainers, setTrainers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [trainerFilter, setTrainerFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("pending");
   const [dateRange, setDateRange] = useState({ type: 'All Time', range: null });
   const [showForm, setShowForm] = useState(false);
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
@@ -139,47 +137,10 @@ const Enquiry = () => {
     }
   }, [formData.height, formData.weight]);
 
-  const handleAuthError = useCallback((error) => {
-    const status = error.response?.status;
-    if (status === 401 || status === 403) {
-      toast.error('Session expired. Please login again.');
-      logout();
-      navigate('/login');
-      return true;
-    }
-    return false;
-  }, [logout, navigate]);
-
-  const fetchEnquiries = useCallback(async () => {
-    try {
-      setError(null);
-      setLoading(true);
-      const response = await api.get('/enquiries');
-      const data = Array.isArray(response.data) ? response.data : [];
-      setEnquiries(data);
-    } catch (error) {
-      console.error('Error fetching enquiries:', error);
-      if (!handleAuthError(error)) {
-        const message = error.response?.data?.error || error.response?.data?.message || 'Failed to load enquiries';
-        setError(message);
-      }
-      setEnquiries([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [handleAuthError]);
-
-  const fetchPlans = useCallback(async () => {
-    try {
-      const response = await api.get('/plans');
-      const data = Array.isArray(response.data) ? response.data : [];
-      setPlans(data);
-    } catch (error) {
-      console.error('Error fetching plans:', error);
-      handleAuthError(error);
-      setPlans([]);
-    }
-  }, [handleAuthError]);
+  useEffect(() => {
+    fetchEnquiries();
+    fetchPlans();
+  }, []);
 
   const fetchTrainers = useCallback(async () => {
     try {
@@ -221,14 +182,35 @@ const Enquiry = () => {
   }, [role, user]);
 
   useEffect(() => {
-    fetchEnquiries();
-    fetchPlans();
-  }, [fetchEnquiries, fetchPlans]);
-
-  useEffect(() => {
     if (role?.toLowerCase() === 'trainer' && !user) return;
     fetchTrainers();
-  }, [fetchTrainers, role, user]);
+  }, [user, role, fetchTrainers]);
+
+  const fetchEnquiries = async () => {
+    try {
+      setError(null);
+      const response = await api.get('/enquiries');
+      const data = Array.isArray(response.data) ? response.data : [];
+      setEnquiries(data);
+    } catch (error) {
+      console.error('Error fetching enquiries:', error);
+      setError('Failed to load enquiries');
+      setEnquiries([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPlans = async () => {
+    try {
+      const response = await api.get('/plans');
+      const data = Array.isArray(response.data) ? response.data : [];
+      setPlans(data);
+    } catch (error) {
+      console.error('Error fetching plans:', error);
+      setPlans([]);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -261,7 +243,6 @@ const Enquiry = () => {
       console.error('Error saving enquiry:', error);
       const errorMessage = error.response?.data?.error || 'Failed to save enquiry';
 
-      // Show specific toast errors for duplicate contacts
       if (errorMessage.includes('Phone already exists for this admin')) {
         toast.error("Phone number already exists for this admin");
       } else if (errorMessage.includes('Email already exists for this admin')) {
@@ -342,15 +323,32 @@ const Enquiry = () => {
     }
   };
 
+  const parseMetric = (value) => {
+    if (value === null || value === undefined || value === "") return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const computeBmi = (height, weight) => {
+    if (height == null || weight == null) return null;
+    const h = Number(height) / 100;
+    const w = Number(weight);
+    if (!h || !w) return null;
+    return Number.isFinite(w / (h * h)) ? Number((w / (h * h)).toFixed(1)) : null;
+  };
+
   const handleMoveToMembers = async (enquiry) => {
     if (!window.confirm('Convert this enquiry into a member?')) return;
 
     try {
+      const heightValue = parseMetric(enquiry.height);
+      const weightValue = parseMetric(enquiry.weight);
+
       const memberData = {
-        username: enquiry.name.replace(/\s+/g, '').toLowerCase(), // create username from name
+        username: enquiry.name.replace(/\s+/g, '').toLowerCase(),
         email: enquiry.email,
         mobile: enquiry.phone,
-        password: enquiry.phone || 'password123', // use phone as password or default
+        password: enquiry.phone || 'password123',
         role: 'member',
         admin_id: user?.id || null
       };
@@ -362,7 +360,6 @@ const Enquiry = () => {
       console.error('Error moving to members:', err);
       const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Failed to create member';
 
-      // Show specific toast errors for duplicate contacts
       if (errorMessage.includes('Phone already exists for this admin')) {
         toast.error("Phone number already exists for this admin");
       } else if (errorMessage.includes('Email already exists for this admin')) {
@@ -374,18 +371,13 @@ const Enquiry = () => {
   };
 
   const filteredEnquiries = enquiries.filter(enquiry => {
-    const trainerDisplayName = (enquiry.trainer_display_name || resolveTrainerDisplay(enquiry.trainer_id || enquiry.trainerId) || '').toString().toLowerCase();
     const matchesSearch = enquiry.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       enquiry.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       enquiry.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      enquiry.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      trainerDisplayName.includes(searchTerm.toLowerCase());
+      enquiry.location?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || enquiry.status === statusFilter;
-    const matchesTrainer = trainerFilter === "all" || trainerDisplayName.includes(trainerFilter.toLowerCase());
+    if (!(matchesSearch && matchesStatus)) return false;
 
-    if (!(matchesSearch && matchesStatus && matchesTrainer)) return false;
-
-    // 2. Date Range Filter
     return filterByDateRange([enquiry], 'created_at', dateRange.type, dateRange.range).length > 0;
   });
 
@@ -416,15 +408,17 @@ const Enquiry = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
+        <p>{error}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-4 py-10 text-white">
-      {error && (
-        <div className="mx-auto max-w-7xl mb-6 rounded-2xl border border-red-400 bg-red-100/80 p-4 text-red-700 shadow-sm">
-          <p>{error}</p>
-        </div>
-      )}
       <div className="mx-auto max-w-7xl space-y-10">
-        {/* Header Section */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-[2rem] bg-blue-500/20 text-blue-400 border border-blue-500/30">
@@ -436,7 +430,6 @@ const Enquiry = () => {
             </div>
           </div>
 
-          {/* Add Enquiry Button */}
           <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 px-6 py-3 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 rounded-xl font-medium transition-colors border border-orange-500/30 hover:shadow-lg hover:shadow-orange-500/20"
@@ -446,10 +439,8 @@ const Enquiry = () => {
           </button>
         </div>
 
-        {/* Search and Filters Section */}
         <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           <div className="flex flex-col lg:flex-row gap-6">
-            {/* Search */}
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -463,22 +454,8 @@ const Enquiry = () => {
               </div>
             </div>
 
-            {/* Filters */}
             <div className="flex flex-wrap items-center gap-4">
               <DateRangeFilter onRangeChange={(type, range) => setDateRange({ type, range })} />
-
-              <CustomDropdown
-                label="Trainer"
-                value={trainerFilter}
-                onChange={setTrainerFilter}
-                options={[
-                  { label: "All Trainers", value: "all" },
-                  ...trainers.map((trainer) => {
-                    const label = trainer.username || trainer.name || trainer.email || trainer.employee_id || `Trainer ${trainer.id}`;
-                    return { label, value: label };
-                  }),
-                ]}
-              />
 
               <CustomDropdown
                 label="Status"
@@ -498,7 +475,6 @@ const Enquiry = () => {
           </div>
         </div>
 
-        {/* Enquiries Table */}
         <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm text-white">
@@ -586,7 +562,7 @@ const Enquiry = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="8" className="px-6 py-12 text-center text-gray-400">
+                    <td colSpan="7" className="px-6 py-12 text-center text-gray-400">
                       <div className="flex flex-col items-center gap-3">
                         <Users size={48} className="opacity-30" />
                         <p className="text-lg font-medium">No enquiries found</p>
@@ -600,7 +576,6 @@ const Enquiry = () => {
           </div>
         </div>
 
-        {/* Enquiry Form Modal */}
         {showForm && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-x-hidden">
             <div className="bg-gradient-to-br from-slate-950 to-slate-900 border-2 border-orange-500/50 rounded-[2rem] p-8 w-full max-w-full md:max-w-4xl mx-4 shadow-[0_40px_120px_rgba(0,0,0,0.35)] max-h-[90vh] overflow-y-auto overflow-x-hidden">
@@ -811,4 +786,4 @@ const Enquiry = () => {
   );
 };
 
-export default Enquiry;
+export default TrainerEnquiry;

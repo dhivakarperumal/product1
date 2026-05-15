@@ -43,6 +43,7 @@ const pageTitles = {
   "/admin/plansall": "All Plans",
   "/admin/buyplanadmin": "Buy Plans",
   "/admin/assignedtrainers": "Assigned Trainers",
+  "/admin/trainer-target": "Trainer Target",
   "/admin/addplan": "Add Plan",
   "/admin/fecilities": "Facilities",
   "/admin/addfecilities": "Add Facilities",

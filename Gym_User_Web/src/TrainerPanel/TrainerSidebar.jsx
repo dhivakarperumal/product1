@@ -61,7 +61,7 @@ const navItems = [
   },
   {
     path: "/trainer/enquiry",
-    label: "Add Enquire",
+    label: "Enquiry",
     icon: MessageSquare,
   },
   {

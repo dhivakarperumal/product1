@@ -101,6 +101,7 @@ const AddFacilities = lazy(() => import("./Admin/Fecilieties/Addfecilities.jsx")
 const AdminStaff = lazy(() => import("./Admin/Staff/Staffs.jsx"));
 const AddStaff = lazy(() => import("./Admin/Staff/AddStaff.jsx"));
 const ViewStaff = lazy(() => import("./Admin/Staff/ViewStaff.jsx"));
+const TrainerTarget = lazy(() => import("./Admin/Staff/TrainerTarget.jsx"));
 const OverallAttendance = lazy(() => import("./Admin/Attendance/OverallAttendance.jsx"));
 const MemberAttendance = lazy(() => import("./Admin/Staff/Memberattendance.jsx"));
 const AdminBilling = lazy(() => import("./Admin/Billing/Billing.jsx"));
@@ -118,6 +119,7 @@ const AllWorkouts = lazy(() => import("./TrainerPanel/AddWrokouts/AllWorkouts.js
 const AddDietPlans = lazy(() => import("./TrainerPanel/DietPlans/AddDietPlans.jsx"));
 const AllDietPlans = lazy(() => import("./TrainerPanel/DietPlans/AllDietPlans.jsx"));
 const TrainerOverallAttendance = lazy(() => import("./TrainerPanel/TrainerAttendance/OverallAttendance.jsx"));
+const TrainerEnquiry = lazy(() => import("./TrainerPanel/TrainerEnquiry/TrainerEnquiry.jsx"));
 const TrainerReports = lazy(() => import("./TrainerPanel/TrainerReports/Reports.jsx"));
 const TrainerSendMessage = lazy(() => import("./TrainerPanel/TrainerSendMessage/TrainerSendMessage.jsx"));
 const TrainerGymPlans = lazy(() => import("./TrainerPanel/TrainerGymPlans.jsx"));
@@ -250,6 +252,7 @@ const router = createHashRouter([
       { path: "addstaff/:id", element: <AddStaff /> },
       { path: "staff/:id", element: <ViewStaff /> },
       { path: "assignedtrainers", element: <AssignedTrainers /> },
+      { path: "trainer-target", element: <TrainerTarget /> },
 
       // Attendance routes
       { path: "overall-attendance", element: <OverallAttendance /> },
@@ -300,7 +303,7 @@ const router = createHashRouter([
       { path: "update-weight", element: <UpdateWeight /> },
       { path: "send-message", element: <TrainerSendMessage /> },
       { path: "billing", element: <AdminBilling /> },
-      { path: "enquiry", element: <AdminEnquiry /> },
+      { path: "enquiry", element: <TrainerEnquiry /> },
       { path: "gym-plan", element: <TrainerGymPlans /> },
       { path: "target", element: <TrainerReports /> },
       { path: "settings", element: <Settings /> },

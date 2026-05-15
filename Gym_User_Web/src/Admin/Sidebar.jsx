@@ -74,6 +74,7 @@ const navItems = [
     children: [
       { path: "/admin/staff", label: "Trainers", icon: HeartPulse },
       { path: "/admin/assignedtrainers", label: "Assigned Trainers", icon: UserCheck },
+      { path: "/admin/trainer-target", label: "Trainer Target", icon: TrendingUp },
     ],
   },
 

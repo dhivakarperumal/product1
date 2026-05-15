@@ -1,11 +1,26 @@
 const pool = require('../config/db');
+const { getActorUuid } = require('../utils/auditTrail');
 
 // Extract admin UUID from request user - prioritize adminUuid
 const getAdminUuid = (user) =>
   user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
 
+const getEnquirySelectQuery = () =>
+  `SELECT enquiries.*, COALESCE(staff.username, staff.name, staff.email, staff.employee_id, enquiries.trainer_id) AS trainer_display_name
+   FROM enquiries
+   LEFT JOIN staff ON enquiries.trainer_id = staff.employee_id OR enquiries.trainer_id = staff.id`;
+
 const isNumeric = (value) =>
   typeof value === 'number' || (/^\d+$/.test(String(value || '').trim()));
+
+const getAdminFilterParams = (user) => {
+  const adminUuid = getAdminUuid(user);
+  const adminId = user?.userId || user?.user_id || user?.id || null;
+  const params = [];
+  if (adminUuid) params.push(adminUuid);
+  if (adminId) params.push(adminId);
+  return params;
+};
 
 async function normalizePlanId(planId) {
   if (!planId) return null;
@@ -44,7 +59,7 @@ const enquiryController = {
             const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
             const userRole = req.user && String(req.user.role || '').toLowerCase();
 
-            let query = 'SELECT * FROM enquiries';
+            let query = getEnquirySelectQuery();
             let params = [];
             let whereClauses = [];
 
@@ -64,13 +79,8 @@ const enquiryController = {
                             params.push(trainerId);
                         }
                     }
-                } else {
-                    const adminUuid = getAdminUuid(req.user);
-                    if (adminUuid) {
-                        whereClauses.push('created_by = ?');
-                        params.push(adminUuid);
-                    }
                 }
+                // Admin users should see enquiries for all trainers, not just those they created.
             }
 
             if (whereClauses.length > 0) {
@@ -91,7 +101,7 @@ const enquiryController = {
     getEnquiryById: async (req, res) => {
         try {
             const { id } = req.params;
-            const [rows] = await pool.query('SELECT * FROM enquiries WHERE id = ?', [id]);
+            const [rows] = await pool.query(`${getEnquirySelectQuery()} WHERE enquiries.id = ?`, [id]);
 
             if (rows.length === 0) {
                 return res.status(404).json({ error: 'Enquiry not found' });
@@ -109,31 +119,38 @@ const enquiryController = {
         try {
             const { name, email, phone, subject, message, location, height, weight, bmi, status, planId, trainerId } = req.body;
             const plan_id = await normalizePlanId(planId || req.body.plan_id || null);
-            const trainer_id = await normalizeTrainerId(trainerId || req.body.trainer_id || null);
+            const trainer_id = await normalizeTrainerId(
+                trainerId || req.body.trainer_id ||
+                ((req.user && String(req.user.role || '').toLowerCase() === 'trainer')
+                    ? req.user.userUuid || req.user.employee_id || req.user.employeeId || req.user.id || req.user.userId || req.user.user_id
+                    : null)
+            );
             const enquiryStatus = status || 'pending';
 
             if (!name || !email || !message) {
                 return res.status(400).json({ error: 'Name, email, and message are required' });
             }
 
-            // Store admin UUID for audit trail
-            const adminUuid = getAdminUuid(req.user) || null;
+            // Store actor UUID for audit trail (admin/trainer/member)
+            const actorUuid = getActorUuid(req.user) || null;
+            const adminParams = getAdminFilterParams(req.user);
+            const hasAdminFilter = adminParams.length > 0;
 
-            // Check for duplicate phone/email within the same admin
-            if (phone) {
+            // Check for duplicate phone/email within the same admin user
+            if (phone && hasAdminFilter) {
                 const [existingPhone] = await pool.query(
-                    'SELECT * FROM enquiries WHERE phone = ? AND created_by = ?',
-                    [phone, adminUuid]
+                    `SELECT * FROM enquiries WHERE phone = ? AND ${adminParams.length === 2 ? '(created_by = ? OR created_by = ?)' : 'created_by = ?'}`,
+                    [phone, ...adminParams]
                 );
                 if (existingPhone.length > 0) {
                     return res.status(400).json({ error: 'Phone already exists for this admin' });
                 }
             }
 
-            if (email) {
+            if (email && hasAdminFilter) {
                 const [existingEmail] = await pool.query(
-                    'SELECT * FROM enquiries WHERE email = ? AND created_by = ?',
-                    [email, adminUuid]
+                    `SELECT * FROM enquiries WHERE email = ? AND ${adminParams.length === 2 ? '(created_by = ? OR created_by = ?)' : 'created_by = ?'}`,
+                    [email, ...adminParams]
                 );
                 if (existingEmail.length > 0) {
                     return res.status(400).json({ error: 'Email already exists for this admin' });
@@ -146,10 +163,10 @@ const enquiryController = {
 
             const [result] = await pool.query(
                 'INSERT INTO enquiries (name, email, phone, subject, message, location, height, weight, bmi, status, plan_id, trainer_id, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [name, email, phone, subject || null, message, location || null, numHeight, numWeight, numBmi, enquiryStatus, plan_id, trainer_id, adminUuid, adminUuid]
+                [name, email, phone, subject || null, message, location || null, numHeight, numWeight, numBmi, enquiryStatus, plan_id, trainer_id, actorUuid, actorUuid]
             );
 
-            const [rows] = await pool.query('SELECT * FROM enquiries WHERE id = ?', [result.insertId]);
+            const [rows] = await pool.query(`${getEnquirySelectQuery()} WHERE enquiries.id = ?`, [result.insertId]);
             res.status(201).json(rows[0]);
         } catch (error) {
             console.error('Error creating enquiry:', error);
@@ -163,29 +180,36 @@ const enquiryController = {
             const { id } = req.params;
             const { name, email, phone, subject, message, location, height, weight, bmi, status, planId, trainerId } = req.body;
             const plan_id = await normalizePlanId(planId || req.body.plan_id || null);
-            const trainer_id = await normalizeTrainerId(trainerId || req.body.trainer_id || null);
+            const trainer_id = await normalizeTrainerId(
+                trainerId || req.body.trainer_id ||
+                ((req.user && String(req.user.role || '').toLowerCase() === 'trainer')
+                    ? req.user.userUuid || req.user.employee_id || req.user.employeeId || req.user.id || req.user.userId || req.user.user_id
+                    : null)
+            );
 
             if (!name || !email || !message) {
                 return res.status(400).json({ error: 'Name, email, and message are required' });
             }
 
-            const adminUuid = getAdminUuid(req.user) || null;
+            const actorUuid = getActorUuid(req.user) || null;
+            const adminParams = getAdminFilterParams(req.user);
+            const hasAdminFilter = adminParams.length > 0;
 
             // Check for duplicate phone/email within the same admin (excluding current enquiry)
-            if (phone) {
+            if (phone && hasAdminFilter) {
                 const [existingPhone] = await pool.query(
-                    'SELECT * FROM enquiries WHERE phone = ? AND created_by = ? AND id != ?',
-                    [phone, adminUuid, id]
+                    `SELECT * FROM enquiries WHERE phone = ? AND ${adminParams.length === 2 ? '(created_by = ? OR created_by = ?)' : 'created_by = ?'} AND id != ?`,
+                    [phone, ...adminParams, id]
                 );
                 if (existingPhone.length > 0) {
                     return res.status(400).json({ error: 'Phone already exists for this admin' });
                 }
             }
 
-            if (email) {
+            if (email && hasAdminFilter) {
                 const [existingEmail] = await pool.query(
-                    'SELECT * FROM enquiries WHERE email = ? AND created_by = ? AND id != ?',
-                    [email, adminUuid, id]
+                    `SELECT * FROM enquiries WHERE email = ? AND ${adminParams.length === 2 ? '(created_by = ? OR created_by = ?)' : 'created_by = ?'} AND id != ?`,
+                    [email, ...adminParams, id]
                 );
                 if (existingEmail.length > 0) {
                     return res.status(400).json({ error: 'Email already exists for this admin' });
@@ -198,14 +222,14 @@ const enquiryController = {
 
             const [result] = await pool.query(
                 'UPDATE enquiries SET name = ?, email = ?, phone = ?, subject = ?, message = ?, location = ?, height = ?, weight = ?, bmi = ?, status = ?, plan_id = ?, trainer_id = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                [name, email, phone || null, subject || null, message, location || null, numHeight, numWeight, numBmi, status || 'pending', plan_id, trainer_id, adminUuid, id]
+                [name, email, phone || null, subject || null, message, location || null, numHeight, numWeight, numBmi, status || 'pending', plan_id, trainer_id, actorUuid, id]
             );
 
             if (result.affectedRows === 0) {
                 return res.status(404).json({ error: 'Enquiry not found' });
             }
 
-            const [rows] = await pool.query('SELECT * FROM enquiries WHERE id = ?', [id]);
+            const [rows] = await pool.query(`${getEnquirySelectQuery()} WHERE enquiries.id = ?`, [id]);
             res.json(rows[0]);
         } catch (error) {
             console.error('Error updating enquiry:', error);
@@ -223,12 +247,12 @@ const enquiryController = {
                 return res.status(400).json({ error: 'Status is required' });
             }
 
-            // Store admin UUID for audit trail
-            const adminUuid = getAdminUuid(req.user) || null;
+            // Store actor UUID for audit trail (admin/trainer/member)
+            const actorUuid = getActorUuid(req.user) || null;
 
             const [result] = await pool.query(
                 'UPDATE enquiries SET status = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                [status, adminUuid, id]
+                [status, actorUuid, id]
             );
 
             if (result.affectedRows === 0) {
