@@ -126,35 +126,55 @@ const TrainerTarget = () => {
   }, []);
 
   const filteredMemberships = useMemo(() => {
-    const normalized = memberships.map((item) => ({
-      ...item,
-      trainerId: String(item.trainerId || item.trainer_id || item.trainerEmployeeId || item.trainer_employee_id || ""),
-      trainerName: getTrainerName(item),
-      pricePaid: Number(item.pricePaid ?? item.price ?? item.amount ?? 0),
-      paymentDate: item.startDate || item.created_at || item.createdAt || item.paymentDate || item.paid_at || item.updated_at,
-    }));
+    const normalized = memberships.map((item) => {
+      const trainerId = String(item.trainerId || item.trainer_id || item.trainerEmployeeId || item.trainer_employee_id || "").trim();
+      return {
+        ...item,
+        trainerId,
+        trainerName: getTrainerName(item),
+        pricePaid: Number(item.pricePaid ?? item.price ?? item.amount ?? 0),
+        paymentDate: item.startDate || item.created_at || item.createdAt || item.paymentDate || item.paid_at || item.updated_at,
+      };
+    });
 
-    const selected = selectedTrainerId === 'all'
-      ? normalized
-      : normalized.filter((m) => String(m.trainerId) === selectedTrainerId || String(m.trainerName).toLowerCase() === String(trainers.find((t) => t.id === selectedTrainerId)?.name || '').toLowerCase());
+    if (selectedTrainerId === 'all') {
+      return normalized;
+    }
 
-    return selected;
+    const selectedTrainer = trainers.find((t) => t.id === selectedTrainerId);
+    if (!selectedTrainer) return [];
+
+    return normalized.filter((m) => {
+      if (String(m.trainerId) === selectedTrainerId) return true;
+      if (String(m.trainerId) === String(selectedTrainer.id)) return true;
+      return false;
+    });
   }, [memberships, selectedTrainerId, trainers]);
 
   const filteredOrders = useMemo(() => {
-    const normalized = orders.map((item) => ({
-      ...item,
-      amountValue: getOrderValue(item),
-      orderDate: item.created_at || item.createdAt || item.date || item.order_date,
-      trainerId: String(item.trainerId || item.trainer_id || item.trainerEmployeeId || item.trainer_employee_id || ""),
-      trainerName: getTrainerName(item),
-    }));
+    const normalized = orders.map((item) => {
+      const trainerId = String(item.trainerId || item.trainer_id || item.trainerEmployeeId || item.trainer_employee_id || "").trim();
+      return {
+        ...item,
+        amountValue: getOrderValue(item),
+        orderDate: item.created_at || item.createdAt || item.date || item.order_date,
+        trainerId,
+        trainerName: getTrainerName(item),
+      };
+    });
 
-    const selected = selectedTrainerId === 'all'
-      ? normalized
-      : normalized.filter((o) => String(o.trainerId) === selectedTrainerId || String(o.trainerName).toLowerCase() === String(trainers.find((t) => t.id === selectedTrainerId)?.name || '').toLowerCase());
+    if (selectedTrainerId === 'all') {
+      return normalized;
+    }
 
-    return selected;
+    const selectedTrainer = trainers.find((t) => t.id === selectedTrainerId);
+    if (!selectedTrainer) return [];
+
+    return normalized.filter((o) => {
+      if (String(o.trainerId) === selectedTrainerId) return true;
+      if (String(o.trainerId) === String(selectedTrainer.id)) return true;
+      return false;
+    });
   }, [orders, selectedTrainerId, trainers]);
 
   const membershipGroups = useMemo(
@@ -376,23 +396,47 @@ const TrainerTarget = () => {
               <p className="text-sm text-gray-400">Trainer</p>
             </div>
             <p className="text-3xl font-semibold text-white">{selectedTrainerLabel}</p>
-            <p className="text-sm text-gray-400 mt-2">Selected trainer for target analysis</p>
+            <p className="text-sm text-gray-400 mt-2">
+              {selectedTrainerId === 'all' 
+                ? `${trainers.length} trainers in system`
+                : 'Selected trainer for target analysis'}
+            </p>
           </div>
           <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6">
             <div className="flex items-center gap-3 mb-4">
               <CreditCard size={24} className="text-green-300" />
               <p className="text-sm text-gray-400">Monthly Fee Collected</p>
             </div>
-            <p className="text-3xl font-semibold text-white">{formatCurrency(selectedTrainerMembershipTotal)}</p>
-            <p className="text-sm text-gray-400 mt-2">Collected from memberships / fees</p>
+            {loading ? (
+              <p className="text-3xl font-semibold text-white animate-pulse">Loading…</p>
+            ) : (
+              <>
+                <p className="text-3xl font-semibold text-white">{formatCurrency(selectedTrainerMembershipTotal)}</p>
+                <p className="text-sm text-gray-400 mt-2">
+                  {selectedTrainerId === 'all'
+                    ? `From ${filteredMemberships.length} membership records`
+                    : 'Collected from memberships / fees'}
+                </p>
+              </>
+            )}
           </div>
           <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6">
             <div className="flex items-center gap-3 mb-4">
               <ShoppingCart size={24} className="text-orange-300" />
               <p className="text-sm text-gray-400">Product Sales</p>
             </div>
-            <p className="text-3xl font-semibold text-white">{formatCurrency(selectedTrainerOrderTotal)}</p>
-            <p className="text-sm text-gray-400 mt-2">Orders matched to trainer or all orders if no trainer assigned</p>
+            {loading ? (
+              <p className="text-3xl font-semibold text-white animate-pulse">Loading…</p>
+            ) : (
+              <>
+                <p className="text-3xl font-semibold text-white">{formatCurrency(selectedTrainerOrderTotal)}</p>
+                <p className="text-sm text-gray-400 mt-2">
+                  {selectedTrainerId === 'all'
+                    ? `From ${filteredOrders.length} order records`
+                    : 'Orders matched to trainer or all orders if no trainer assigned'}
+                </p>
+              </>
+            )}
           </div>
         </div>
 
