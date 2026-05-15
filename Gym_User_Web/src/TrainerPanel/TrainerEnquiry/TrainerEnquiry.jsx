@@ -323,27 +323,10 @@ const TrainerEnquiry = () => {
     }
   };
 
-  const parseMetric = (value) => {
-    if (value === null || value === undefined || value === "") return null;
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  };
-
-  const computeBmi = (height, weight) => {
-    if (height == null || weight == null) return null;
-    const h = Number(height) / 100;
-    const w = Number(weight);
-    if (!h || !w) return null;
-    return Number.isFinite(w / (h * h)) ? Number((w / (h * h)).toFixed(1)) : null;
-  };
-
   const handleMoveToMembers = async (enquiry) => {
     if (!window.confirm('Convert this enquiry into a member?')) return;
 
     try {
-      const heightValue = parseMetric(enquiry.height);
-      const weightValue = parseMetric(enquiry.weight);
-
       const memberData = {
         username: enquiry.name.replace(/\s+/g, '').toLowerCase(),
         email: enquiry.email,
@@ -494,17 +477,22 @@ const TrainerEnquiry = () => {
                 {filteredEnquiries && filteredEnquiries.length > 0 ? (
                   filteredEnquiries.map((enquiry, ind) => (
                     <tr key={enquiry.id} className="border-b border-white/5 hover:bg-slate-800/30 transition-colors">
-                      <td className="px-6 py-4 text-white font-medium">{ind + 1}</td>
-                      <td className="px-6 py-4">
-                        <div>
-                          <div className="text-white font-medium">{enquiry.name}</div>
-                          <div className="text-gray-400 text-sm">{enquiry.email}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-white">{enquiry.subject || 'No subject'}</td>
-                      <td className="px-6 py-4 text-white">{enquiry.location || 'Not specified'}</td>
-                      <td className="px-6 py-4 text-white">{enquiry.trainer_display_name || resolveTrainerDisplay(enquiry.trainer_id || enquiry.trainerId)}</td>
-                      <td className="px-6 py-4">
+                        <td className="px-6 py-4 text-white font-medium">{ind + 1}</td>
+                        <td className="px-6 py-4">
+                          <div>
+                            <div className="text-white font-medium">{enquiry.name}</div>
+                            <div className="text-gray-400 text-sm">{enquiry.email}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-white">{enquiry.subject || 'No subject'}</td>
+                        <td className="px-6 py-4 text-white">{enquiry.location || 'Not specified'}</td>
+                        <td className="px-6 py-4 text-white">
+                          <div>{enquiry.trainer_display_name || resolveTrainerDisplay(enquiry.trainer_id || enquiry.trainerId)}</div>
+                          {(enquiry.trainer_id || enquiry.trainerId) ? (
+                            <div className="text-gray-400 text-xs mt-1">ID: {enquiry.trainer_id || enquiry.trainerId}</div>
+                          ) : null}
+                        </td>
+                        <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${
                           enquiry.status === 'completed'
                             ? 'bg-green-500/20 text-green-400 border border-green-500/30'

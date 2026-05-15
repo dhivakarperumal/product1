@@ -58,12 +58,14 @@ const TrainerTarget = () => {
   const [trainers, setTrainers] = useState([]);
   const [memberships, setMemberships] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [allTargets, setAllTargets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTrainerId, setSelectedTrainerId] = useState("all");
   const [targetDays, setTargetDays] = useState(1);
   const [targetAmount, setTargetAmount] = useState(0);
   const [assignedTarget, setAssignedTarget] = useState(null);
   const [targetLoading, setTargetLoading] = useState(false);
+  const [showAssignSuccessModal, setShowAssignSuccessModal] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -107,6 +109,20 @@ const TrainerTarget = () => {
     };
 
     loadData();
+  }, []);
+
+  const fetchAllTargets = async () => {
+    try {
+      const response = await api.get('/trainer-targets');
+      const targetData = Array.isArray(response.data) ? response.data : [];
+      setAllTargets(targetData);
+    } catch (err) {
+      console.error('Failed to load trainer target history:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllTargets();
   }, []);
 
   const filteredMemberships = useMemo(() => {
@@ -239,6 +255,8 @@ const TrainerTarget = () => {
 
       const response = await api.post('/trainer-targets', payload);
       setAssignedTarget(response.data);
+      setShowAssignSuccessModal(true);
+      fetchAllTargets();
 
       toast.success(isAssignedToSelectedTrainer ? 'Trainer target reassigned successfully.' : 'Trainer target assigned successfully.');
     } catch (err) {
@@ -257,6 +275,11 @@ const TrainerTarget = () => {
   );
 
   const combinedTotal = selectedTrainerMembershipTotal + selectedTrainerOrderTotal;
+  const totalAssignedTargets = allTargets.length;
+  const totalAssignedAmount = allTargets.reduce((sum, target) => sum + Number(target.assigned_amount || target.amount || 0), 0);
+  const totalTargetDays = allTargets.reduce((sum, target) => sum + Number(target.assigned_days || target.days || 0), 0);
+  const trainersWithTargets = new Set(allTargets.map((target) => String(target.trainer_id || target.trainerId || '')).filter(Boolean)).size;
+
   const monthRows = allMonths.map((month) => {
     const membershipTotal = (membershipGroups[month] || []).reduce((sum, item) => sum + Number(item.pricePaid || 0), 0);
     const orderTotal = (orderGroups[month] || []).reduce((sum, item) => sum + Number(item.amountValue || 0), 0);
@@ -375,7 +398,61 @@ const TrainerTarget = () => {
           </div>
         </div>
 
-        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+        <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold text-white">Target Report</h2>
+              <p className="text-sm text-gray-400">Overview of assigned trainer targets across the gym.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-5">
+              <p className="text-sm text-gray-400">Assigned Targets</p>
+              <p className="mt-3 text-3xl font-semibold text-white">{totalAssignedTargets}</p>
+            </div>
+            <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-5">
+              <p className="text-sm text-gray-400">Total Target Amount</p>
+              <p className="mt-3 text-3xl font-semibold text-white">{formatCurrency(totalAssignedAmount)}</p>
+            </div>
+            <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-5">
+              <p className="text-sm text-gray-400">Trainers with Targets</p>
+              <p className="mt-3 text-3xl font-semibold text-white">{trainersWithTargets}</p>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-white text-sm border-separate border-spacing-y-2">
+              <thead>
+                <tr className="text-left text-gray-400 text-xs uppercase tracking-wider">
+                  <th className="px-4 py-3">Trainer</th>
+                  <th className="px-4 py-3">Days</th>
+                  <th className="px-4 py-3">Amount</th>
+                  <th className="px-4 py-3">Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allTargets.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="px-4 py-8 text-center text-gray-400">No target history available yet.</td>
+                  </tr>
+                ) : (
+                  allTargets.map((target) => {
+                    const dateValue = target.updated_at || target.updatedAt || target.created_at || target.createdAt;
+                    return (
+                      <tr key={`${target.trainer_id || target.trainerId}-${target.assigned_amount}-${dateValue}`} className="border-t border-white/10 hover:bg-white/5 transition-colors">
+                        <td className="px-4 py-4 font-medium">{target.trainer_name || target.trainerName || `Trainer ${target.trainer_id || target.trainerId || 'N/A'}`}</td>
+                        <td className="px-4 py-4">{target.assigned_days || target.days || 0}</td>
+                        <td className="px-4 py-4">{formatCurrency(target.assigned_amount || target.amount || 0)}</td>
+                        <td className="px-4 py-4">{dateValue ? dayjs(dateValue).format('DD MMM YYYY') : 'N/A'}</td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div>
               <h2 className="text-xl font-semibold text-white">Monthly Target Summary</h2>
