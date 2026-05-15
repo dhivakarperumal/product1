@@ -113,15 +113,15 @@ async function upsertTrainerTarget(req, res) {
     }
 
     const saved = rows[0];
-    const paymentHistory = saved.payment_history ? JSON.parse(saved.payment_history) : null;
+    const savedPaymentHistory = saved.payment_history ? JSON.parse(saved.payment_history) : null;
     res.status(201).json({
       ...saved,
       days: saved.assigned_days,
       amount: saved.assigned_amount,
       assignedDays: saved.assigned_days,
       assignedAmount: saved.assigned_amount,
-      paymentHistory,
-      payment_history: paymentHistory,
+      paymentHistory: savedPaymentHistory,
+      payment_history: savedPaymentHistory,
     });
   } catch (err) {
     console.error('[upsertTrainerTarget] ERROR:', err);
