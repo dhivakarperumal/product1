@@ -6,6 +6,7 @@ import { filterByDateRange } from "../utils/dateUtils";
 import dayjs from "dayjs";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
+import { useAuth } from "../../PrivateRouter/AuthContext";
 
 const CustomDropdown = ({ label, options, value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -97,6 +98,7 @@ const CustomDropdown = ({ label, options, value, onChange }) => {
 };
 
 const Enquiry = () => {
+  const { user, role } = useAuth();
   const [enquiries, setEnquiries] = useState([]);
   const [plans, setPlans] = useState([]);
   const [trainers, setTrainers] = useState([]);
@@ -138,8 +140,12 @@ const Enquiry = () => {
   useEffect(() => {
     fetchEnquiries();
     fetchPlans();
-    fetchTrainers();
   }, []);
+
+  useEffect(() => {
+    if (role?.toLowerCase() === 'trainer' && !user) return;
+    fetchTrainers();
+  }, [user, role]);
 
   const fetchEnquiries = async () => {
     try {
@@ -174,7 +180,32 @@ const Enquiry = () => {
       const trainerRows = data.filter((staff) =>
         String(staff.role || '').toLowerCase() === 'trainer'
       );
-      setTrainers(trainerRows);
+
+      let filteredTrainers = trainerRows;
+      if (role?.toLowerCase() === 'trainer' && user) {
+        const userId = String(user.id || user.userId || user.user_id || user.employee_id || user.employeeId || '').trim();
+        const userEmail = String(user.email || '').toLowerCase().trim();
+        const userName = String(user.username || user.name || '').toLowerCase().trim();
+
+        const loginTrainerRows = trainerRows.filter((staff) => {
+          const staffId = String(staff.id || '').trim();
+          const staffEmployeeId = String(staff.employee_id || staff.employeeId || '').trim();
+          const staffEmail = String(staff.email || '').toLowerCase().trim();
+          const staffName = String(staff.username || staff.name || '').toLowerCase().trim();
+
+          return (
+            (userId && (staffId === userId || staffEmployeeId === userId)) ||
+            (userEmail && staffEmail === userEmail) ||
+            (userName && staffName === userName)
+          );
+        });
+
+        if (loginTrainerRows.length > 0) {
+          filteredTrainers = loginTrainerRows;
+        }
+      }
+
+      setTrainers(filteredTrainers);
     } catch (error) {
       console.error('Error fetching trainers:', error);
       setTrainers([]);
@@ -223,6 +254,22 @@ const Enquiry = () => {
     }
   };
 
+  const resolvePlanIdForEdit = (planId) => {
+    if (!planId) return "";
+    const resolvedPlan = plans.find(
+      (plan) => String(plan.plan_id) === String(planId) || String(plan.id) === String(planId)
+    );
+    return resolvedPlan?.plan_id || String(planId);
+  };
+
+  const resolveTrainerIdForEdit = (trainerId) => {
+    if (!trainerId) return "";
+    const resolvedTrainer = trainers.find(
+      (trainer) => String(trainer.employee_id) === String(trainerId) || String(trainer.id) === String(trainerId)
+    );
+    return resolvedTrainer?.employee_id || String(trainerId);
+  };
+
   const handleEdit = (enquiry) => {
     setSelectedEnquiry(enquiry);
     setFormData({
@@ -236,8 +283,8 @@ const Enquiry = () => {
       weight: enquiry.weight || "",
       bmi: enquiry.bmi || "",
       status: enquiry.status || 'pending',
-      planId: enquiry.plan_id || enquiry.planId || "",
-      trainerId: enquiry.trainer_id || enquiry.trainerId || "",
+      planId: resolvePlanIdForEdit(enquiry.plan_id || enquiry.planId || ""),
+      trainerId: resolveTrainerIdForEdit(enquiry.trainer_id || enquiry.trainerId || ""),
     });
     setShowForm(true);
   };
@@ -618,6 +665,16 @@ const Enquiry = () => {
                       className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
                     />
                   </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Message *</label>
+                    <textarea
+                      value={formData.message}
+                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                      className="w-full min-h-30 px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                      placeholder="Enter enquiry details or message here"
+                      required
+                    />
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">Location</label>
                     <input
@@ -637,7 +694,7 @@ const Enquiry = () => {
                     >
                       <option value="">Select Plan</option>
                       {plans.map((plan) => (
-                        <option key={plan.id || plan.plan_id} value={plan.id || plan.plan_id}>
+                        <option key={plan.plan_id || plan.id} value={plan.plan_id || plan.id}>
                           {plan.name || plan.title || plan.planName || 'Unnamed Plan'}
                         </option>
                       ))}
@@ -646,13 +703,13 @@ const Enquiry = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">Select Trainer</label>
                     <select
-                      value={formData.trainerId}
+                      value={formData.trainerId || ""}
                       onChange={(e) => setFormData({ ...formData, trainerId: e.target.value })}
                       className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
                     >
                       <option value="">Select Trainer</option>
                       {trainers.map((trainer) => (
-                        <option key={trainer.id || trainer.employee_id} value={trainer.id || trainer.employee_id}>
+                        <option key={trainer.employee_id || trainer.id} value={trainer.employee_id || trainer.id}>
                           {trainer.username || trainer.name || trainer.email || 'Trainer'}
                         </option>
                       ))}

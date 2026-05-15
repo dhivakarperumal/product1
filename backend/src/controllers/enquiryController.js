@@ -4,27 +4,81 @@ const pool = require('../config/db');
 const getAdminUuid = (user) =>
   user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
 
+const isNumeric = (value) =>
+  typeof value === 'number' || (/^\d+$/.test(String(value || '').trim()));
+
+async function normalizePlanId(planId) {
+  if (!planId) return null;
+  const requested = String(planId).trim();
+  if (isNumeric(requested)) {
+    const [planRows] = await pool.query(
+      'SELECT plan_id FROM gym_plans WHERE id = ? LIMIT 1',
+      [requested]
+    );
+    if (planRows.length > 0 && planRows[0].plan_id) {
+      return planRows[0].plan_id;
+    }
+  }
+  return requested;
+}
+
+async function normalizeTrainerId(trainerId) {
+  if (!trainerId) return null;
+  const requested = String(trainerId).trim();
+  if (isNumeric(requested)) {
+    const [staffRows] = await pool.query(
+      'SELECT employee_id FROM staff WHERE id = ? LIMIT 1',
+      [requested]
+    );
+    if (staffRows.length > 0 && staffRows[0].employee_id) {
+      return staffRows[0].employee_id;
+    }
+  }
+  return requested;
+}
+
 const enquiryController = {
-    // Get all enquiries - filtered by admin_uuid if not a super admin
+    // Get all enquiries - filtered by trainer or admin if not a super admin
     getAllEnquiries: async (req, res) => {
         try {
-            // Check if user is super admin
             const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
-            
+            const userRole = req.user && String(req.user.role || '').toLowerCase();
+
             let query = 'SELECT * FROM enquiries';
             let params = [];
-            
-            // If not super admin, filter by created_by (admin_uuid)
+            let whereClauses = [];
+
             if (!isSuperAdmin && req.user) {
-                const adminUuid = getAdminUuid(req.user);
-                if (adminUuid) {
-                    query += ' WHERE created_by = ?';
-                    params.push(adminUuid);
+                if (userRole === 'trainer') {
+                    const trainerUuid = req.user.userUuid || req.user.employee_id || req.user.employeeId || null;
+                    const trainerId = req.user.id || req.user.userId || req.user.user_id || null;
+                    if (trainerUuid || trainerId) {
+                        if (trainerUuid && trainerId) {
+                            whereClauses.push('(trainer_id = ? OR trainer_id = ?)');
+                            params.push(trainerUuid, trainerId);
+                        } else if (trainerUuid) {
+                            whereClauses.push('trainer_id = ?');
+                            params.push(trainerUuid);
+                        } else {
+                            whereClauses.push('trainer_id = ?');
+                            params.push(trainerId);
+                        }
+                    }
+                } else {
+                    const adminUuid = getAdminUuid(req.user);
+                    if (adminUuid) {
+                        whereClauses.push('created_by = ?');
+                        params.push(adminUuid);
+                    }
                 }
             }
-            
+
+            if (whereClauses.length > 0) {
+                query += ' WHERE ' + whereClauses.join(' AND ');
+            }
+
             query += ' ORDER BY created_at DESC';
-            
+
             const [rows] = await pool.query(query, params);
             res.json(rows);
         } catch (error) {
@@ -54,8 +108,8 @@ const enquiryController = {
     createEnquiry: async (req, res) => {
         try {
             const { name, email, phone, subject, message, location, height, weight, bmi, status, planId, trainerId } = req.body;
-            const plan_id = planId || req.body.plan_id || null;
-            const trainer_id = trainerId || req.body.trainer_id || null;
+            const plan_id = await normalizePlanId(planId || req.body.plan_id || null);
+            const trainer_id = await normalizeTrainerId(trainerId || req.body.trainer_id || null);
             const enquiryStatus = status || 'pending';
 
             if (!name || !email || !message) {
@@ -108,8 +162,8 @@ const enquiryController = {
         try {
             const { id } = req.params;
             const { name, email, phone, subject, message, location, height, weight, bmi, status, planId, trainerId } = req.body;
-            const plan_id = planId || req.body.plan_id || null;
-            const trainer_id = trainerId || req.body.trainer_id || null;
+            const plan_id = await normalizePlanId(planId || req.body.plan_id || null);
+            const trainer_id = await normalizeTrainerId(trainerId || req.body.trainer_id || null);
 
             if (!name || !email || !message) {
                 return res.status(400).json({ error: 'Name, email, and message are required' });
