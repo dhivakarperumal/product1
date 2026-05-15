@@ -16,6 +16,7 @@ import {
   Send,
   Scale,
   LogOut,
+  CreditCard,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../PrivateRouter/AuthContext";
@@ -58,6 +59,11 @@ const navItems = [
     path: "/trainer/billing",
     label: "Add Billing",
     icon: Receipt,
+  },
+  {
+    path: "/trainer/collect-fees",
+    label: "Collect Fees",
+    icon: CreditCard,
   },
   {
     path: "/trainer/enquiry",

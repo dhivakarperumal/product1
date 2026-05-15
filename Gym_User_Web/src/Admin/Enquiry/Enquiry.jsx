@@ -345,28 +345,67 @@ const Enquiry = () => {
   const handleMoveToMembers = async (enquiry) => {
     if (!window.confirm('Convert this enquiry into a member?')) return;
 
+    const phoneValue = enquiry.phone || enquiry.mobile || enquiry.mobile_number || enquiry.contact || '';
+    const emailValue = enquiry.email || enquiry.email_address || enquiry.contact_email || '';
+    const usernameValue = enquiry.name ? enquiry.name.replace(/\s+/g, '').toLowerCase() : '';
+
+    if (!phoneValue || !emailValue) {
+      toast.error('Conversion requires both phone and email. Please update the enquiry first.');
+      return;
+    }
+
     try {
       const memberData = {
-        username: enquiry.name.replace(/\s+/g, '').toLowerCase(), // create username from name
-        email: enquiry.email,
-        mobile: enquiry.phone,
-        password: enquiry.phone || 'password123', // use phone as password or default
+        username: usernameValue,
+        email: emailValue,
+        mobile: phoneValue,
+        password: phoneValue || 'password123',
         role: 'member',
-        admin_id: user?.id || null
+        admin_id: user?.id || null,
       };
 
       await api.post('/auth/register-member', memberData);
-      toast.success(`Member created successfully. Login using email/username/phone and password.`);
+      toast.success('Member auth account created successfully.');
+
+      const profilePayload = {
+        name: enquiry.name,
+        phone: phoneValue,
+        email: emailValue,
+        gender: enquiry.gender || '',
+        height: enquiry.height || '',
+        weight: enquiry.weight || '',
+        bmi: enquiry.bmi || '',
+        plan: enquiry.plan_name || enquiry.plan || '',
+        duration: enquiry.duration || 0,
+        status: 'active',
+        joinDate: new Date().toISOString().split('T')[0],
+        expiryDate: enquiry.expiryDate || enquiry.expiry_date || null,
+        notes: enquiry.message || '',
+        address: enquiry.location || '',
+      };
+
+      try {
+        await api.post('/members', profilePayload);
+        toast.success('Member profile created successfully in member directory.');
+      } catch (profileError) {
+        const profileErrorMessage = profileError.response?.data?.message || profileError.response?.data?.error || profileError.message;
+        if (profileErrorMessage.includes('Phone already exists') || profileErrorMessage.includes('Email already exists')) {
+          toast.error('Member auth created, but member profile already exists in member directory.');
+        } else {
+          toast.error('Member auth created, but failed to create member profile.');
+          console.error('Profile creation error:', profileError);
+        }
+      }
+
       await updateStatus(enquiry.id, 'completed');
     } catch (err) {
       console.error('Error moving to members:', err);
       const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Failed to create member';
 
-      // Show specific toast errors for duplicate contacts
-      if (errorMessage.includes('Phone already exists for this admin')) {
-        toast.error("Phone number already exists for this admin");
-      } else if (errorMessage.includes('Email already exists for this admin')) {
-        toast.error("Email address already exists for this admin");
+      if (errorMessage.includes('Phone already exists') || errorMessage.includes('mobile')) {
+        toast.error('Phone number already exists.');
+      } else if (errorMessage.includes('Email already exists') || errorMessage.includes('username already exists')) {
+        toast.error('Email or username already exists.');
       } else {
         toast.error(errorMessage);
       }

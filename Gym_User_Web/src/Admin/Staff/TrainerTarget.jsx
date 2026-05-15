@@ -44,13 +44,32 @@ const getTrainerName = (item) =>
 
 const groupByMonth = (items, dateKey) => {
   const grouped = {};
+  if (!items || items.length === 0) return grouped;
+  
   items.forEach((item) => {
-    const date = item[dateKey] ? dayjs(item[dateKey]) : null;
+    if (!item || !item[dateKey]) return;
+    
+    let date;
+    const dateValue = item[dateKey];
+    
+    // Handle different date formats
+    if (typeof dateValue === 'string') {
+      date = dayjs(dateValue);
+    } else if (dateValue instanceof Date) {
+      date = dayjs(dateValue);
+    } else if (dayjs.isDayjs(dateValue)) {
+      date = dateValue;
+    } else {
+      date = dayjs(dateValue);
+    }
+    
     if (!date || !date.isValid()) return;
+    
     const month = date.format("YYYY-MM");
     if (!grouped[month]) grouped[month] = [];
     grouped[month].push(item);
   });
+  
   return grouped;
 };
 
@@ -437,123 +456,6 @@ const TrainerTarget = () => {
                 </p>
               </>
             )}
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-              <div>
-                <h2 className="text-xl font-semibold text-white">Target Report</h2>
-                <p className="text-sm text-gray-400">Overview of assigned trainer targets across the gym.</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-5">
-                <p className="text-sm text-gray-400">Assigned Targets</p>
-                <p className="mt-3 text-3xl font-semibold text-white">{totalAssignedTargets}</p>
-              </div>
-              <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-5">
-                <p className="text-sm text-gray-400">Total Target Amount</p>
-                <p className="mt-3 text-3xl font-semibold text-white">{formatCurrency(totalAssignedAmount)}</p>
-              </div>
-              <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-5">
-                <p className="text-sm text-gray-400">Trainers with Targets</p>
-                <p className="mt-3 text-3xl font-semibold text-white">{trainersWithTargets}</p>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-white text-sm border-separate border-spacing-y-2">
-                <thead>
-                  <tr className="text-left text-gray-400 text-xs uppercase tracking-wider">
-                    <th className="px-4 py-3">Trainer</th>
-                    <th className="px-4 py-3">Days</th>
-                    <th className="px-4 py-3">Amount</th>
-                    <th className="px-4 py-3">Updated</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allTargets.length === 0 ? (
-                    <tr>
-                      <td colSpan="4" className="px-4 py-8 text-center text-gray-400">No target history available yet.</td>
-                    </tr>
-                  ) : (
-                    allTargets.map((target) => {
-                      const dateValue = target.updated_at || target.updatedAt || target.created_at || target.createdAt;
-                      return (
-                        <tr key={`${target.trainer_id || target.trainerId}-${target.assigned_amount}-${dateValue}`} className="border-t border-white/10 hover:bg-white/5 transition-colors">
-                          <td className="px-4 py-4 font-medium">{target.trainer_name || target.trainerName || `Trainer ${target.trainer_id || target.trainerId || 'N/A'}`}</td>
-                          <td className="px-4 py-4">{target.assigned_days || target.days || 0}</td>
-                          <td className="px-4 py-4">{formatCurrency(target.assigned_amount || target.amount || 0)}</td>
-                          <td className="px-4 py-4">{dateValue ? dayjs(dateValue).format('DD MMM YYYY') : 'N/A'}</td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-              <div>
-                <h2 className="text-xl font-semibold text-white">Monthly Target Summary</h2>
-                <p className="text-sm text-gray-400">Includes monthly fee collection and product sales totals.</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-400">Combined total</p>
-                <p className="text-2xl font-semibold text-white">{formatCurrency(combinedTotal)}</p>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-white text-sm border-separate border-spacing-y-2">
-                <thead>
-                  <tr className="text-left text-gray-400 text-xs uppercase tracking-wider">
-                    <th className="px-4 py-3">Month</th>
-                    <th className="px-4 py-3">Trainer Fees</th>
-                    <th className="px-4 py-3">Product Sales</th>
-                    <th className="px-4 py-3">Total</th>
-                    <th className="px-4 py-3">Target</th>
-                    <th className="px-4 py-3">Progress</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan="6" className="px-4 py-8 text-center text-gray-400">Loading trainer target data…</td>
-                    </tr>
-                  ) : monthRows.length === 0 ? (
-                    <tr>
-                      <td colSpan="6" className="px-4 py-8 text-center text-gray-400">No data available for the selected trainer.</td>
-                    </tr>
-                  ) : (
-                    monthRows.map((row) => {
-                      const targetValue = assignedTarget?.amount || 0;
-                      const progress = targetValue > 0 ? Math.min(100, Math.round((row.combined / targetValue) * 100)) : 0;
-                      return (
-                        <tr key={row.month} className="border-t border-white/10 hover:bg-white/5 transition-colors">
-                          <td className="px-4 py-4 font-medium">{dayjs(row.month).format('MMM YYYY')}</td>
-                          <td className="px-4 py-4">{formatCurrency(row.membershipTotal)}</td>
-                          <td className="px-4 py-4">{formatCurrency(row.orderTotal)}</td>
-                          <td className="px-4 py-4">{formatCurrency(row.combined)}</td>
-                          <td className="px-4 py-4">{formatCurrency(assignedTarget?.amount || 0)}</td>
-                          <td className="px-4 py-4">
-                            <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden">
-                              <div className="h-3 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400" style={{ width: `${progress}%` }} />
-                            </div>
-                            <p className="text-[11px] text-gray-400 mt-1">{progress}%</p>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
           </div>
         </div>
       </div>

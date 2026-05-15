@@ -6,16 +6,26 @@ async function getTrainerTargets(req, res) {
     const params = [];
     let sql = 'SELECT * FROM trainer_targets';
 
-    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    const userRole = String(req.user?.role || '').toLowerCase();
+    const isSuperAdmin = userRole === 'super admin';
+    const isAdmin = userRole === 'admin' || isSuperAdmin;
     const adminUuid = req.user?.adminUuid || req.user?.admin_uuid || req.user?.userUuid || req.user?.user_uuid || null;
+    const userId = req.user?.id || req.user?.userId || req.user?.user_id || req.user?.employee_id || req.user?.employeeId;
 
     const conditions = [];
+
+    // If trainerId is provided in query, use it (for trainer viewing their own targets or admin viewing specific trainer)
     if (trainerId) {
       conditions.push('trainer_id = ?');
       params.push(trainerId);
+    } else if (!isAdmin && userId) {
+      // If not admin and no trainerId provided, trainer can only see their own targets
+      conditions.push('trainer_id = ?');
+      params.push(userId);
     }
 
-    if (!isSuperAdmin && req.user?.role === 'admin' && adminUuid) {
+    // If admin (but not super admin), filter by their admin UUID
+    if (!isSuperAdmin && isAdmin && adminUuid) {
       conditions.push('admin_uuid = ?');
       params.push(adminUuid);
     }
@@ -71,8 +81,17 @@ async function upsertTrainerTarget(req, res) {
       return res.status(400).json({ error: 'Invalid assigned amount' });
     }
 
+    // Security check: trainers can only create targets for themselves
+    const userRole = String(req.user?.role || '').toLowerCase();
+    const isAdmin = userRole === 'admin' || userRole === 'super admin';
+    const userId = req.user?.id || req.user?.userId || req.user?.user_id || req.user?.employee_id || req.user?.employeeId;
+    
+    if (!isAdmin && userId && String(trainerId) !== String(userId)) {
+      return res.status(403).json({ error: 'You can only create targets for yourself' });
+    }
+
     const adminUuid = req.user?.adminUuid || req.user?.admin_uuid || req.user?.userUuid || req.user?.user_uuid || null;
-    const updatedBy = adminUuid;
+    const updatedBy = adminUuid || userId;
 
     const query = `
       INSERT INTO trainer_targets
@@ -100,14 +119,14 @@ async function upsertTrainerTarget(req, res) {
       Number(totalOrderCollected),
       Number(combinedTotal),
       paymentHistory ? JSON.stringify(paymentHistory) : null,
-      adminUuid,
-      adminUuid,
+      adminUuid || null,
+      updatedBy,
       updatedBy,
     ];
 
     await db.query(query, values);
 
-    const [rows] = await db.query('SELECT * FROM trainer_targets WHERE trainer_id = ?', [trainerId]);
+    const [rows] = await db.query('SELECT * FROM trainer_targets WHERE trainer_id = ? ORDER BY created_at DESC LIMIT 1', [trainerId]);
     if (rows.length === 0) {
       return res.status(500).json({ error: 'Failed to read back trainer target after save' });
     }
@@ -129,7 +148,89 @@ async function upsertTrainerTarget(req, res) {
   }
 }
 
+async function updateTrainerTarget(req, res) {
+  try {
+    const { id } = req.params;
+    const { is_completed, isCompleted, total_collected, totalCollected, ...updateFields } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: 'Target ID is required' });
+    }
+
+    // Security check: trainers can only update their own targets
+    const userRole = String(req.user?.role || '').toLowerCase();
+    const isAdmin = userRole === 'admin' || userRole === 'super admin';
+    const userId = req.user?.id || req.user?.userId || req.user?.user_id || req.user?.employee_id || req.user?.employeeId;
+
+    // Get the target to verify ownership
+    const [targetRows] = await db.query('SELECT * FROM trainer_targets WHERE id = ?', [id]);
+    if (targetRows.length === 0) {
+      return res.status(404).json({ error: 'Target not found' });
+    }
+
+    const target = targetRows[0];
+    if (!isAdmin && String(target.trainer_id) !== String(userId)) {
+      return res.status(403).json({ error: 'You can only update your own targets' });
+    }
+
+    // Build update query
+    const completedFlag = is_completed !== undefined ? is_completed : isCompleted;
+    const collected = total_collected !== undefined ? total_collected : totalCollected;
+
+    const setClauses = [];
+    const values = [];
+
+    if (completedFlag !== undefined) {
+      setClauses.push('is_completed = ?');
+      values.push(completedFlag ? 1 : 0);
+    }
+
+    if (collected !== undefined) {
+      setClauses.push('combined_total = ?');
+      values.push(Number(collected));
+    }
+
+    // Add any other fields from updateFields
+    Object.keys(updateFields).forEach((key) => {
+      setClauses.push(`${key} = ?`);
+      values.push(updateFields[key]);
+    });
+
+    if (setClauses.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    setClauses.push('updated_at = CURRENT_TIMESTAMP');
+    values.push(id);
+
+    const query = `UPDATE trainer_targets SET ${setClauses.join(', ')} WHERE id = ?`;
+    await db.query(query, values);
+
+    // Fetch and return updated record
+    const [updatedRows] = await db.query('SELECT * FROM trainer_targets WHERE id = ?', [id]);
+    if (updatedRows.length === 0) {
+      return res.status(500).json({ error: 'Failed to fetch updated target' });
+    }
+
+    const updated = updatedRows[0];
+    const paymentHistory = updated.payment_history ? JSON.parse(updated.payment_history) : null;
+    res.json({
+      ...updated,
+      days: updated.assigned_days,
+      amount: updated.assigned_amount,
+      assignedDays: updated.assigned_days,
+      assignedAmount: updated.assigned_amount,
+      paymentHistory,
+      payment_history: paymentHistory,
+    });
+  } catch (err) {
+    console.error('[updateTrainerTarget] ERROR:', err);
+    res.status(500).json({ error: 'Failed to update trainer target', details: err.message });
+  }
+}
+
 module.exports = {
   getTrainerTargets,
   upsertTrainerTarget,
+  updateTrainerTarget,
 };

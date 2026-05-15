@@ -123,10 +123,12 @@ const TrainerEnquiry = lazy(() => import("./TrainerPanel/TrainerEnquiry/TrainerE
 const TrainerReports = lazy(() => import("./TrainerPanel/TrainerReports/Reports.jsx"));
 const TrainerSendMessage = lazy(() => import("./TrainerPanel/TrainerSendMessage/TrainerSendMessage.jsx"));
 const TrainerGymPlans = lazy(() => import("./TrainerPanel/TrainerGymPlans.jsx"));
+const TrainerFeeCollection = lazy(() => import("./TrainerPanel/TrainerFeeCollection.jsx"));
 const AssignedTrainers = lazy(() => import("./Admin/Payments/AssingnedTrainers.jsx"));
 const GymWorkoutManager = lazy(() => import("./Admin/CommenWorkDiet/CommenWorkDiet.jsx"));
 const UpdateWeight = lazy(() => import("./TrainerPanel/UpdateWeight/UpdateWeight.jsx"));
 const ProfileSettings = lazy(() => import("./TrainerPanel/Settingss/ProfileSettings.jsx"));
+const TrainerPanelTarget = lazy(() => import("./TrainerPanel/TrainerTarget/TrainerTarget.jsx"));
 
 // ✅ Router setup
 const router = createHashRouter([
@@ -303,9 +305,10 @@ const router = createHashRouter([
       { path: "update-weight", element: <UpdateWeight /> },
       { path: "send-message", element: <TrainerSendMessage /> },
       { path: "billing", element: <AdminBilling /> },
+      { path: "collect-fees", element: <TrainerFeeCollection /> },
       { path: "enquiry", element: <TrainerEnquiry /> },
       { path: "gym-plan", element: <TrainerGymPlans /> },
-      { path: "target", element: <TrainerReports /> },
+      { path: "target", element: <TrainerPanelTarget /> },
       { path: "settings", element: <Settings /> },
       { path: "settings/profile", element: <ProfileSettings /> },
       { path: "settings/usermanagement", element: <UserManagement /> },

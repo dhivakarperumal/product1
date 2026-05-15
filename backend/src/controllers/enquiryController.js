@@ -22,6 +22,21 @@ const getAdminFilterParams = (user) => {
   return params;
 };
 
+// Get the correct UUID for created_by/updated_by based on user role
+const getCreatedByUuid = (user) => {
+  if (!user) return null;
+  
+  const userRole = String(user.role || '').toLowerCase();
+  
+  // For trainers: use their employee_id (stored in userUuid/user_uuid/employee_id)
+  if (userRole === 'trainer') {
+    return user.userUuid || user.user_uuid || user.employee_id || user.employeeId || null;
+  }
+  
+  // For admins and others: use their admin UUID
+  return user.adminUuid || user.admin_uuid || user.userUuid || user.user_uuid || null;
+};
+
 async function normalizePlanId(planId) {
   if (!planId) return null;
   const requested = String(planId).trim();
@@ -131,8 +146,8 @@ const enquiryController = {
                 return res.status(400).json({ error: 'Name, email, and message are required' });
             }
 
-            // Store actor UUID for audit trail (admin/trainer/member)
-            const actorUuid = getActorUuid(req.user) || null;
+            // Store correct UUID based on user role (admin or trainer)
+            const createdByUuid = getCreatedByUuid(req.user) || null;
             const adminParams = getAdminFilterParams(req.user);
             const hasAdminFilter = adminParams.length > 0;
 
@@ -163,7 +178,7 @@ const enquiryController = {
 
             const [result] = await pool.query(
                 'INSERT INTO enquiries (name, email, phone, subject, message, location, height, weight, bmi, status, plan_id, trainer_id, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [name, email, phone, subject || null, message, location || null, numHeight, numWeight, numBmi, enquiryStatus, plan_id, trainer_id, actorUuid, actorUuid]
+                [name, email, phone, subject || null, message, location || null, numHeight, numWeight, numBmi, enquiryStatus, plan_id, trainer_id, createdByUuid, createdByUuid]
             );
 
             const [rows] = await pool.query(`${getEnquirySelectQuery()} WHERE enquiries.id = ?`, [result.insertId]);
@@ -191,7 +206,8 @@ const enquiryController = {
                 return res.status(400).json({ error: 'Name, email, and message are required' });
             }
 
-            const actorUuid = getActorUuid(req.user) || null;
+            // Store correct UUID based on user role (admin or trainer)
+            const updatedByUuid = getCreatedByUuid(req.user) || null;
             const adminParams = getAdminFilterParams(req.user);
             const hasAdminFilter = adminParams.length > 0;
 
@@ -222,7 +238,7 @@ const enquiryController = {
 
             const [result] = await pool.query(
                 'UPDATE enquiries SET name = ?, email = ?, phone = ?, subject = ?, message = ?, location = ?, height = ?, weight = ?, bmi = ?, status = ?, plan_id = ?, trainer_id = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                [name, email, phone || null, subject || null, message, location || null, numHeight, numWeight, numBmi, status || 'pending', plan_id, trainer_id, actorUuid, id]
+                [name, email, phone || null, subject || null, message, location || null, numHeight, numWeight, numBmi, status || 'pending', plan_id, trainer_id, updatedByUuid, id]
             );
 
             if (result.affectedRows === 0) {
@@ -247,12 +263,12 @@ const enquiryController = {
                 return res.status(400).json({ error: 'Status is required' });
             }
 
-            // Store actor UUID for audit trail (admin/trainer/member)
-            const actorUuid = getActorUuid(req.user) || null;
+            // Store correct UUID based on user role for audit trail
+            const updatedByUuid = getCreatedByUuid(req.user) || null;
 
             const [result] = await pool.query(
                 'UPDATE enquiries SET status = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                [status, actorUuid, id]
+                [status, updatedByUuid, id]
             );
 
             if (result.affectedRows === 0) {

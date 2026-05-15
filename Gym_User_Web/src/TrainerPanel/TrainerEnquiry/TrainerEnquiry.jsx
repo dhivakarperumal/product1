@@ -326,14 +326,23 @@ const TrainerEnquiry = () => {
   const handleMoveToMembers = async (enquiry) => {
     if (!window.confirm('Convert this enquiry into a member?')) return;
 
+    const phoneValue = enquiry.phone || enquiry.mobile || enquiry.mobile_number || enquiry.contact || '';
+    const emailValue = enquiry.email || enquiry.email_address || enquiry.contact_email || '';
+    const usernameValue = enquiry.name ? enquiry.name.replace(/\s+/g, '').toLowerCase() : '';
+
+    if (!phoneValue || !emailValue) {
+      toast.error('Conversion requires both phone and email. Please update the enquiry first.');
+      return;
+    }
+
     try {
       const memberData = {
-        username: enquiry.name.replace(/\s+/g, '').toLowerCase(),
-        email: enquiry.email,
-        mobile: enquiry.phone,
-        password: enquiry.phone || 'password123',
+        username: usernameValue,
+        email: emailValue,
+        mobile: phoneValue,
+        password: phoneValue || 'password123',
         role: 'member',
-        admin_id: user?.id || null
+        admin_id: user?.id || null,
       };
 
       await api.post('/auth/register-member', memberData);
@@ -343,10 +352,10 @@ const TrainerEnquiry = () => {
       console.error('Error moving to members:', err);
       const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Failed to create member';
 
-      if (errorMessage.includes('Phone already exists for this admin')) {
-        toast.error("Phone number already exists for this admin");
-      } else if (errorMessage.includes('Email already exists for this admin')) {
-        toast.error("Email address already exists for this admin");
+      if (errorMessage.includes('Phone already exists')) {
+        toast.error("Phone number already exists");
+      } else if (errorMessage.includes('Email already exists') || errorMessage.includes('username already exists')) {
+        toast.error("Email or username already exists");
       } else {
         toast.error(errorMessage);
       }
@@ -429,7 +438,7 @@ const TrainerEnquiry = () => {
                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                 <input
                   type="text"
-                  placeholder="Search enquiries by name, email, subject, or location..."
+                  placeholder="Search enquiries by name, email, phone, or message..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
@@ -465,8 +474,8 @@ const TrainerEnquiry = () => {
                 <tr>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">S.No</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Customer</th>
-                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Subject</th>
-                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Location</th>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Phone</th>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Message</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Trainer</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Status</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Date</th>
@@ -484,13 +493,10 @@ const TrainerEnquiry = () => {
                             <div className="text-gray-400 text-sm">{enquiry.email}</div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-white">{enquiry.subject || 'No subject'}</td>
-                        <td className="px-6 py-4 text-white">{enquiry.location || 'Not specified'}</td>
+                        <td className="px-6 py-4 text-white">{enquiry.phone || 'No phone'}</td>
+                        <td className="px-6 py-4 text-white">{enquiry.message || 'No message'}</td>
                         <td className="px-6 py-4 text-white">
                           <div>{enquiry.trainer_display_name || resolveTrainerDisplay(enquiry.trainer_id || enquiry.trainerId)}</div>
-                          {(enquiry.trainer_id || enquiry.trainerId) ? (
-                            <div className="text-gray-400 text-xs mt-1">ID: {enquiry.trainer_id || enquiry.trainerId}</div>
-                          ) : null}
                         </td>
                         <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${
@@ -515,13 +521,6 @@ const TrainerEnquiry = () => {
                             title="View Details"
                           >
                             <Eye size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleMoveToMembers(enquiry)}
-                            className="p-2 bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded-xl transition-colors border border-purple-500/30"
-                            title="Convert to Member"
-                          >
-                            <Users size={16} />
                           </button>
                           <button
                             onClick={() => updateStatus(enquiry.id, 'completed')}
