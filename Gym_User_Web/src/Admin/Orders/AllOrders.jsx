@@ -95,6 +95,28 @@ const getCustomerDetails = (o) => {
   return { name: o.shipping?.name || "-" };
 };
 
+const getTrainerName = (o) => {
+  if (!o) return null;
+  if (typeof o.trainer_name === "string" && o.trainer_name.trim().length > 0) {
+    return o.trainer_name.trim();
+  }
+  if (typeof o.trainerName === "string" && o.trainerName.trim().length > 0) {
+    return o.trainerName.trim();
+  }
+  if (!o.notes) return null;
+  try {
+    const parsed = typeof o.notes === "string" ? JSON.parse(o.notes) : o.notes;
+    if (parsed) {
+      return (
+        parsed.trainerName || parsed.trainer_name || parsed.trainer || ""
+      )?.toString?.()?.trim?.() || null;
+    }
+  } catch (err) {
+    return null;
+  }
+  return null;
+};
+
 /* ================= STAT CARD ================= */
 const StatCard = ({ title, value, icon, gradient }) => (
   <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
@@ -222,7 +244,7 @@ const AllOrders = () => {
   const [orders, setOrders] = useState([]);
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [deliveryOnly, setDeliveryOnly] = useState(false);
+  const [trainerFilter, setTrainerFilter] = useState("all");
   const [view, setView] = useState("table");
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState({ type: 'All Time', range: null });
@@ -277,6 +299,7 @@ const AllOrders = () => {
         shipping: o.shipping,
         pickup: o.pickup,
         createdAt: o.created_at,
+        trainerName: getTrainerName(o),
       }));
       setOrders(formatted);
       if (!adminUuid) {
@@ -328,7 +351,8 @@ const AllOrders = () => {
 
     const matchSearch =
       String(o.order_id || o.orderId || "").toLowerCase().includes(search.toLowerCase()) ||
-      customer.name?.toLowerCase().includes(search.toLowerCase());
+      customer.name?.toLowerCase().includes(search.toLowerCase()) ||
+      String(o.trainerName || "").toLowerCase().includes(search.toLowerCase());
 
     const matchStatus =
       statusFilter === "all" ||
@@ -337,12 +361,12 @@ const AllOrders = () => {
     const matchPayment =
       paymentFilter === "all" ||
       normalizeKey(o.paymentStatus) === normalizeKey(paymentFilter);
-    // DELIVERY ONLY → SHOW DELIVERED ORDERS ONLY
-    if (deliveryOnly) {
-      if (!normalizeKey(o.status).includes("delivered")) return false;
-    }
 
-    if (!(matchSearch && matchStatus && matchPayment)) return false;
+    const matchTrainer =
+      trainerFilter === "all" ||
+      normalizeKey(o.trainerName) === normalizeKey(trainerFilter);
+
+    if (!(matchSearch && matchStatus && matchPayment && matchTrainer)) return false;
 
     // 2. Date Range Filter
     return filterByDateRange([o], 'createdAt', dateRange.type, dateRange.range).length > 0;
@@ -825,66 +849,67 @@ ${items
 
               <CustomDropdown
                 label="Status"
-            value={statusFilter}
-            onChange={setStatusFilter}
-            options={[
-              { label: "All Status", value: "all" },
-              { label: "Order Placed", value: "orderplaced" },
-              { label: "Processing", value: "processing" },
-              { label: "Packing", value: "packing" },
-              { label: "Shipped", value: "shipped" },
-              { label: "Out for Delivery", value: "outfordelivery" },
-              { label: "Delivered", value: "delivered" },
-              { label: "Cancelled", value: "cancelled" },
-            ]}
-          />
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={[
+                  { label: "All Status", value: "all" },
+                  { label: "Order Placed", value: "orderplaced" },
+                  { label: "Processing", value: "processing" },
+                  { label: "Packing", value: "packing" },
+                  { label: "Shipped", value: "shipped" },
+                  { label: "Out for Delivery", value: "outfordelivery" },
+                  { label: "Delivered", value: "delivered" },
+                  { label: "Cancelled", value: "cancelled" },
+                ]}
+              />
 
-          <CustomDropdown
-            label="Payment"
-            value={paymentFilter}
-            onChange={setPaymentFilter}
-            options={[
-              { label: "All Payments", value: "all" },
-              { label: "Paid", value: "paid" },
-              { label: "Pending", value: "pending" },
-            ]}
-          />
-          <button
-            onClick={() => setDeliveryOnly((prev) => !prev)}
-            className={`inline-flex items-center justify-center rounded-3xl px-4 py-3 text-sm font-medium transition ${
-              deliveryOnly
-                ? "bg-orange-500 text-white border border-orange-500"
-                : "bg-slate-950/90 border border-white/10 text-slate-300 hover:bg-white/5"
-            }`}
-          >
-            <FaTruck className="mr-2 h-4 w-4" />
-            Delivery Only
-          </button>
+              <CustomDropdown
+                label="Trainer"
+                value={trainerFilter}
+                onChange={setTrainerFilter}
+                options={[
+                  { label: "All Trainers", value: "all" },
+                  ...Array.from(new Set(
+                    orders
+                      .map((o) => o.trainerName)
+                      .filter((name) => name && name.toString().trim().length > 0)
+                  )).map((name) => ({ label: name, value: name }))
+                ]}
+              />
 
-          {/* VIEW TOGGLE */}
-          <div className="flex border border-white/15 rounded-3xl overflow-hidden bg-slate-950/50">
-            <button
-              onClick={() => setView("table")}
-              className={`inline-flex items-center justify-center px-4 py-2 text-sm font-medium transition ${
-                view === "table"
-                  ? "bg-orange-500 text-white"
-                  : "text-slate-300 hover:bg-white/5"
-              }`}
-            >
-              <FaList className="mr-2 h-4 w-4" />
-              Table
-            </button>
-            <button
-              onClick={() => setView("grid")}
-              className={`inline-flex items-center justify-center px-4 py-2 text-sm font-medium transition ${
-                view === "grid"
-                  ? "bg-orange-500 text-white"
-                  : "text-slate-300 hover:bg-white/5"
-              }`}
-            >
-              <FaThLarge className="mr-2 h-4 w-4" />
-              Grid
-            </button>
+              <CustomDropdown
+                label="Payment"
+                value={paymentFilter}
+                onChange={setPaymentFilter}
+                options={[
+                  { label: "All Payments", value: "all" },
+                  { label: "Paid", value: "paid" },
+                  { label: "Pending", value: "pending" },
+                ]}
+              />
+
+              <button
+                onClick={() => setView("table")}
+                className={`inline-flex items-center justify-center px-4 py-2 text-sm font-medium transition ${
+                  view === "table"
+                    ? "bg-orange-500 text-white"
+                    : "text-slate-300 hover:bg-white/5"
+                }`}
+              >
+                <FaList className="mr-2 h-4 w-4" />
+                Table
+              </button>
+              <button
+                onClick={() => setView("grid")}
+                className={`inline-flex items-center justify-center px-4 py-2 text-sm font-medium transition ${
+                  view === "grid"
+                    ? "bg-orange-500 text-white"
+                    : "text-slate-300 hover:bg-white/5"
+                }`}
+              >
+                <FaThLarge className="mr-2 h-4 w-4" />
+                Grid
+              </button>
           </div>
         </div>
       </div>
@@ -899,7 +924,7 @@ ${items
                   <th className="px-6 py-4 text-left font-semibold text-slate-300">Order ID</th>
                   <th className="px-6 py-4 text-left font-semibold text-slate-300">Member</th>
                   <th className="px-6 py-4 text-left font-semibold text-slate-300">Amount</th>
-                  <th className="px-6 py-4 text-left font-semibold text-slate-300">Trainer Billing</th>
+                  <th className="px-6 py-4 text-left font-semibold text-slate-300">Trainer</th>
                   <th className="px-6 py-4 text-left font-semibold text-slate-300">Payment</th>
                   <th className="px-6 py-4 text-left font-semibold text-slate-300">Status</th>
                   <th className="px-6 py-4 text-left font-semibold text-slate-300">Actions</th>
@@ -910,7 +935,7 @@ ${items
               <tbody>
                 {paginatedOrders.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="text-center py-12 text-slate-400">
+                    <td colSpan="9" className="text-center py-12 text-slate-400">
                       No orders found
                     </td>
                   </tr>
@@ -932,16 +957,8 @@ ${items
                       <td className="px-6 py-4 font-medium text-white">
                         ₹{Number(o.total).toLocaleString("en-IN")}
                       </td>
-                      <td className="px-6 py-4">
-                        {o.created_by ? (
-                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                            Yes
-                          </span>
-                        ) : (
-                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-500/20 text-slate-400 border border-slate-500/30">
-                            No
-                          </span>
-                        )}
+                      <td className="px-6 py-4 text-slate-300">
+                        {o.trainerName || "-"}
                       </td>
                       <td
                         onClick={(e) => { e.stopPropagation(); navigate(`/admin/orders/${o.order_id}`) }}
@@ -1020,6 +1037,7 @@ ${items
                     >
                       <h3 className="font-semibold text-lg text-white">{formatOrderId(o.order_id)}</h3>
                       <p className="text-sm text-slate-400">{o.shipping?.name || o.pickup?.name || "-"}</p>
+                      <p className="text-xs text-slate-500 mt-1">Trainer: {o.trainerName || "-"}</p>
                     </div>
                     <div className="flex flex-col gap-2 items-end">
                       {statusBadge(o.status)}
@@ -1216,10 +1234,13 @@ ${items
                 <button
                   onClick={() => confirmAndSendStatus(pendingStatus.orderId, pendingStatus.newStatus, modalInput)}
                   disabled={submitting}
-                  className={`flex-1 py-3 rounded-2xl font-bold text-sm transition shadow-lg ${modalType === "cancelled"
-                    ? "bg-red-600 hover:bg-red-700 shadow-red-600/20"
-                    : "bg-orange-600 hover:bg-orange-700 shadow-orange-600/20"
-                    } disabled:opacity-50`}
+                    className={
+                      "flex-1 py-3 rounded-2xl font-bold text-sm transition shadow-lg " +
+                      (modalType === "cancelled"
+                        ? "bg-red-600 hover:bg-red-700 shadow-red-600/20"
+                        : "bg-orange-600 hover:bg-orange-700 shadow-orange-600/20") +
+                      " disabled:opacity-50"
+                    }
                 >
                   {submitting ? "Updating..." : "Confirm Update"}
                 </button>
@@ -1229,7 +1250,6 @@ ${items
         </div>
       )}
     </div>
-  </div>
 
   );
 };

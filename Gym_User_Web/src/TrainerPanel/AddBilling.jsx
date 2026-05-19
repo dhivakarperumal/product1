@@ -324,6 +324,8 @@ const AddBilling = () => {
         }),
         // include trainer info in notes for audit
         notes: JSON.stringify({ trainerName: user?.username || user?.name || user?.employee_id || null }),
+        // include trainer UUID for backend audit (if available)
+        created_by: user?.userUuid || user?.user_uuid || user?.uuid || null,
       };
 
       await api.post("/orders", orderPayload);

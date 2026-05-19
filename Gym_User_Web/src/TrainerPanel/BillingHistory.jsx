@@ -16,6 +16,7 @@ const BillingHistory = () => {
   });
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
 
   const fetchBillingHistory = useCallback(async () => {
     try {
@@ -90,6 +91,7 @@ const BillingHistory = () => {
         console.warn('Some member order fetches failed:', fetchErrors);
       }
 
+      // Show all orders for members assigned to this trainer
       setOrders(ordersForMembers);
     } catch (err) {
       console.error("Failed to fetch billing history:", err);
@@ -103,6 +105,28 @@ const BillingHistory = () => {
   useEffect(() => {
     fetchBillingHistory();
   }, [fetchBillingHistory]);
+
+  // Trainer identifier values to match against order creator fields
+  // Include UUIDs, numeric IDs, username, email and other common fields
+  const trainerIdentifiers = [
+    user?.userUuid,
+    user?.user_uuid,
+    user?.member_uuid,
+    user?.memberUuid,
+    user?.id,
+    user?.userId,
+    user?.user_id,
+    user?.username,
+    user?.name,
+    user?.email,
+    user?.employee_id,
+  ]
+    .filter(Boolean)
+    .map((v) => String(v).trim())
+    .filter(Boolean);
+
+  const normalize = (s) => (s === null || s === undefined ? '' : String(s).trim().toLowerCase());
+  const trainerNormalized = trainerIdentifiers.map(normalize).filter(Boolean);
 
   const getFilteredOrders = () => {
     return orders.filter((order) => {
@@ -122,6 +146,27 @@ const BillingHistory = () => {
           return false;
         }
       }
+
+      // Only include orders that were created by this trainer (robust matching)
+      const creators = [
+        order.created_by,
+        order.createdBy,
+        order.creator_uuid,
+        order.creatorId,
+        order.created_by_uuid,
+        order.admin_uuid,
+        order.notes,
+      ]
+        .filter(Boolean)
+        .map((v) => String(v).trim())
+        .filter(Boolean);
+
+      const creatorsNormalized = creators.map(normalize).filter(Boolean);
+
+      // Check for exact or substring matches (covers UUID, numeric id, email, username)
+      const isCreatedByTrainer = creatorsNormalized.some((c) => trainerNormalized.some((t) => c === t || c.includes(t) || t.includes(c)));
+
+      if (!isCreatedByTrainer) return false;
 
       return true;
     });
@@ -144,7 +189,10 @@ const BillingHistory = () => {
   };
 
   const filteredOrders = getFilteredOrders();
-  const totalAmount = filteredOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+  const totalAmount = filteredOrders.reduce(
+    (sum, order) => sum + (isFinite(Number(order?.total)) ? Number(order.total) : 0),
+    0
+  );
 
   if (loading) {
     return (
@@ -169,6 +217,12 @@ const BillingHistory = () => {
           >
             Refresh
           </button>
+          <button
+            onClick={() => setShowDebug((s) => !s)}
+            className="ml-2 px-4 py-2 bg-slate-800/40 text-gray-300 hover:bg-slate-800/60 border border-white/5 rounded-lg transition-colors"
+          >
+            {showDebug ? 'Hide Debug' : 'Show Debug'}
+          </button>
         </div>
 
         {/* Summary Cards */}
@@ -186,7 +240,7 @@ const BillingHistory = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-400 text-sm">Total Amount</p>
-                <p className="text-3xl font-bold text-green-400">₹{totalAmount.toFixed(2)}</p>
+                <p className="text-3xl font-bold text-green-400">₹{Number(totalAmount || 0).toFixed(2)}</p>
               </div>
               <DollarSign className="w-8 h-8 text-green-500/50" />
             </div>
@@ -292,7 +346,7 @@ const BillingHistory = () => {
                         {order.shipping?.name || "N/A"}
                       </td>
                       <td className="px-6 py-4 text-sm font-semibold text-green-400">
-                        ₹{order.total?.toFixed(2) || "0.00"}
+                        ₹{Number(order?.total || 0).toFixed(2)}
                       </td>
                       <td className="px-6 py-4 text-sm">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${getTypeBadge(order.order_type)}`}>
@@ -327,6 +381,31 @@ const BillingHistory = () => {
           )}
         </div>
       </div>
+
+      {/* Debug panel (toggleable) */}
+      {showDebug && (
+        <div className="mx-auto max-w-7xl mt-4 p-4 bg-red-900/10 border border-red-800/20 rounded-lg text-sm text-white">
+          <h3 className="font-semibold mb-2">Debug Info</h3>
+          <div className="mb-2">
+            <strong>Trainer identifiers:</strong>
+            <div className="ml-2 text-xs text-gray-200 break-words">{JSON.stringify(trainerIdentifiers)}</div>
+          </div>
+          <div>
+            <strong>Normalized trainer identifiers:</strong>
+            <div className="ml-2 text-xs text-gray-200 break-words">{JSON.stringify(trainerNormalized)}</div>
+          </div>
+          <div className="mt-3">
+            <strong>Sample orders (id -> creators):</strong>
+            <div className="space-y-1 mt-2">
+              {orders.slice(0, 10).map((o) => (
+                <div key={o.order_id} className="text-xs text-gray-200">
+                  <span className="font-mono">{o.order_id}</span> =&gt; {JSON.stringify({ created_by: o.created_by, admin_uuid: o.admin_uuid, notes: o.notes, createdBy: o.createdBy })}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Order Details Modal */}
       {showDetails && selectedOrder && (
@@ -399,7 +478,7 @@ const BillingHistory = () => {
               <div className="border-t border-white/10 pt-4">
                 <div className="flex justify-between items-center">
                   <p className="text-gray-400">Total Amount</p>
-                  <p className="text-2xl font-bold text-green-400">₹{selectedOrder.total?.toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-green-400">₹{Number(selectedOrder?.total || 0).toFixed(2)}</p>
                 </div>
               </div>
 

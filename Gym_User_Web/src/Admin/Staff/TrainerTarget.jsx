@@ -172,13 +172,34 @@ const TrainerTarget = () => {
 
   const filteredOrders = useMemo(() => {
     const normalized = orders.map((item) => {
-      const trainerId = String(item.trainerId || item.trainer_id || item.trainerEmployeeId || item.trainer_employee_id || "").trim();
+      // try common trainer id fields first
+      let trainerId = String(item.trainerId || item.trainer_id || item.trainerEmployeeId || item.trainer_employee_id || "").trim();
+
+      // fallback: some orders store trainer info inside `notes` as JSON ({"trainerName":"...","trainerId":"..."})
+      if (!trainerId && item.notes) {
+        try {
+          const parsedNotes = typeof item.notes === 'string' ? JSON.parse(item.notes) : item.notes;
+          trainerId = String(parsedNotes.trainerId || parsedNotes.trainer_id || parsedNotes.trainerEmployeeId || parsedNotes.trainer_employee_id || parsedNotes.trainer_employee || parsedNotes.trainer_employee_id || '').trim();
+        } catch (e) {
+          // ignore parse errors
+        }
+      }
+
+      // trainer name fallback from notes
+      let trainerName = getTrainerName(item);
+      if ((!trainerName || trainerName === '') && item.notes) {
+        try {
+          const parsedNotes = typeof item.notes === 'string' ? JSON.parse(item.notes) : item.notes;
+          trainerName = parsedNotes.trainerName || parsedNotes.trainer_name || trainerName;
+        } catch (e) {}
+      }
+
       return {
         ...item,
         amountValue: getOrderValue(item),
         orderDate: item.created_at || item.createdAt || item.date || item.order_date,
         trainerId,
-        trainerName: getTrainerName(item),
+        trainerName: String(trainerName || ""),
       };
     });
 

@@ -69,16 +69,19 @@ async function getAllOrders(req, res) {
     if (isSuperAdmin && filterAdminUuid) {
       ordersQuery = `SELECT DISTINCT o.* FROM orders o
         LEFT JOIN members m ON o.member_uuid = m.member_id
-        WHERE m.created_by = ?
+        WHERE o.admin_uuid = ? OR m.created_by = ?
         ORDER BY o.created_at DESC`;
-      params.push(filterAdminUuid);
+      params.push(filterAdminUuid, filterAdminUuid);
     } 
-    // If regular admin, show orders they created or orders for members they manage
+    // If regular admin, show orders linked to their admin UUID (admin_uuid column)
+    // also keep fallbacks for older rows that might have created_by/updated_by set to admin UUIDs
+    // and orders for members owned by the same admin
     else if (adminUuid) {
-      ordersQuery = `SELECT o.* FROM orders o
-        WHERE o.created_by = ? OR o.updated_by = ?
+      ordersQuery = `SELECT DISTINCT o.* FROM orders o
+        LEFT JOIN members m ON o.member_uuid = m.member_id
+        WHERE o.admin_uuid = ? OR o.created_by = ? OR o.updated_by = ? OR m.created_by = ?
         ORDER BY o.created_at DESC`;
-      params.push(adminUuid, adminUuid);
+      params.push(adminUuid, adminUuid, adminUuid, adminUuid);
     }
     // Super admin without filter - show all orders
     else if (isSuperAdmin) {
@@ -404,13 +407,33 @@ async function createOrder(req, res) {
       memberUpdatedBy = memberAuditRows[0].updated_by;
     }
 
+    // Allow client to pass a created_by/trainer identifier (prefer it if valid UUID-like string)
+    const providedCreatedBy = normalizeUuid(data.created_by || data.createdBy || data.trainer_uuid || data.trainerUuid || null);
+
+    const actorUuid = normalizeUuid(req.user?.userUuid || req.user?.user_uuid || req.user?.trainerUuid || req.user?.trainer_uuid || req.user?.memberUuid || req.user?.member_uuid || req.user?.uuid || null) || getActorUuid(req.user);
+    const adminUuidFromUser = normalizeUuid(req.user?.adminUuid || req.user?.admin_uuid || req.user?.admin_id || req.user?.userUuid || req.user?.user_uuid || null);
+
+    // Prefer providedCreatedBy if it's a valid UUID-like string; otherwise fall back to actor/context
+    let orderCreatedBy = providedCreatedBy || actorUuid || validMemberUuid || memberCreatedBy || memberUpdatedBy;
+    let orderUpdatedBy = providedCreatedBy || actorUuid || validMemberUuid || memberUpdatedBy || memberCreatedBy;
+    const orderAdminUuid = adminUuidFromUser || memberCreatedBy || memberUpdatedBy || orderCreatedBy;
+
+    // If the requester is a trainer/staff, enforce that the actorUuid is used as created_by/updated_by
+    const reqRole = String(req.user?.role || '').toLowerCase();
+    if (req.user && (reqRole.includes('trainer') || reqRole.includes('staff'))) {
+      if (actorUuid) {
+        orderCreatedBy = actorUuid;
+        orderUpdatedBy = actorUuid;
+      }
+    }
+
     // Use shipping address as billing address if not provided separately
     const billingAddress = data.billing_address || data.shipping;
     const billingName = data.billing_name || data.shipping?.name || null;
     const billingEmail = data.billing_email || data.shipping?.email || null;
     const billingPhone = data.billing_phone || data.shipping?.phone || null;
 
-    // Insert order with admin_uuid, created_by, updated_by from member
+    // Insert order with admin_uuid, created_by, updated_by
     const insertOrderQuery = `INSERT INTO orders 
       (order_id,user_id,member_uuid,status,payment_status,total,payment_method,payment_id,order_type,shipping,billing_address,billing_name,billing_email,billing_phone,pickup,order_track,notes,created_by,updated_by,admin_uuid)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
@@ -433,9 +456,9 @@ async function createOrder(req, res) {
       data.pickup ? JSON.stringify(data.pickup) : null,
       JSON.stringify(data.order_track || []),
       data.notes || null,
-      validMemberUuid, // created_by is member's UUID
-      memberUpdatedBy,
-      memberCreatedBy // admin_uuid is member's created_by
+      orderCreatedBy,
+      orderUpdatedBy,
+      orderAdminUuid
     ];
     
     console.log("Inserting order with values:", orderValues);
@@ -695,12 +718,13 @@ async function getTodayOrders(req, res) {
         ORDER BY o.created_at DESC`;
       params.push(filterAdminUuid);
     } else if (req.user && adminUuid) {
-      // Regular admin: show today's orders from their own members only (INNER JOIN ensures member exists and belongs to admin)
+      // Regular admin: prefer orders where orders.admin_uuid = adminUuid (newer rows)
+      // Fallback to member-created mapping for compatibility
       ordersQuery = `SELECT o.* FROM orders o
-        INNER JOIN members m ON o.member_uuid = m.member_id
-        WHERE DATE(o.created_at) = CURDATE() AND m.created_by = ?
+        LEFT JOIN members m ON o.member_uuid = m.member_id
+        WHERE DATE(o.created_at) = CURDATE() AND (o.admin_uuid = ? OR m.created_by = ?)
         ORDER BY o.created_at DESC`;
-      params.push(adminUuid);
+      params.push(adminUuid, adminUuid);
     } else {
       // Fallback: show all today's orders (shouldn't happen in normal cases)
       ordersQuery = 'SELECT * FROM orders WHERE DATE(created_at) = CURDATE() ORDER BY created_at DESC';
