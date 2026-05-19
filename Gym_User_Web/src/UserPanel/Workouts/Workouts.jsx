@@ -3,8 +3,7 @@ import api from "../../api";
 import { useAuth } from "../../PrivateRouter/AuthContext";
 import dayjs from "dayjs";
 import { Dumbbell, CalendarDays } from "lucide-react";
-
-const workoutsCache = {};
+import { resolveUserId } from "../../utils/userUtils";
 
 const Workouts = () => {
   const { user } = useAuth();
@@ -14,48 +13,70 @@ const Workouts = () => {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("TODAY");
 
+  const resolvedUserId = resolveUserId(user);
+  const resolvedUserEmail = user?.email?.toString().toLowerCase() || "";
+  const resolvedUserPhone = user?.phone?.toString().toLowerCase() || "";
+
   const workoutData = workouts[0];
 
+  const matchesCurrentUser = (item) => {
+    if (!item) return false;
+
+    const candidateIds = [
+      item.member_id,
+      item.user_id,
+      item.memberId,
+      item.userId,
+      item.member_uuid,
+      item.memberUuid,
+      item.user_uuid,
+      item.userUuid,
+    ]
+      .filter(Boolean)
+      .map((x) => String(x));
+
+    if (resolvedUserId && candidateIds.some((x) => x === String(resolvedUserId))) {
+      return true;
+    }
+
+    const email = (item.member_email || item.email || "").toString().toLowerCase();
+    if (resolvedUserEmail && email === resolvedUserEmail) {
+      return true;
+    }
+
+    const phone = (item.member_mobile || item.mobile || "").toString().toLowerCase();
+    if (resolvedUserPhone && phone === resolvedUserPhone) {
+      return true;
+    }
+
+    return false;
+  };
+
   useEffect(() => {
-    if (!user?.id) return;
+    if (!resolvedUserId && !resolvedUserEmail && !resolvedUserPhone) return;
 
     const abortController = new AbortController();
     isMountedRef.current = true;
 
-    const cacheKey = user.id;
-    
-    // Show cached data immediately
-    if (workoutsCache[cacheKey]) {
-      if (isMountedRef.current) {
-        setWorkouts(workoutsCache[cacheKey]);
-      }
-    } else {
-      if (isMountedRef.current) setLoading(true);
-    }
+    setLoading(true);
+    fetchWorkouts(abortController.signal);
 
-    fetchWorkouts(abortController.signal, cacheKey);
-    
     return () => {
       isMountedRef.current = false;
       abortController.abort();
     };
-  }, [user?.id, user?.email]);
+  }, [resolvedUserId, resolvedUserEmail, resolvedUserPhone]);
 
-  const fetchWorkouts = async (signal, cacheKey) => {
+  const fetchWorkouts = async (signal) => {
     try {
       const res = await api.get("/workouts", { signal });
       const data = Array.isArray(res.data) ? res.data : [];
 
-      const myWorkouts = data.filter(
-        (item) => 
-          (item.member_email && user?.email && item.member_email.toLowerCase() === user.email.toLowerCase()) ||
-          (item.member_id && user?.id && item.member_id === Number(user.id))
-      );
+      const myWorkouts = data.filter(matchesCurrentUser);
 
       if (isMountedRef.current) {
         setWorkouts(myWorkouts);
         setLoading(false);
-        workoutsCache[cacheKey] = myWorkouts;
       }
     } catch (err) {
       if (err.name !== 'CanceledError') {
@@ -173,7 +194,7 @@ const Workouts = () => {
                   key={i}
                   className="
                   p-4 rounded-xl
-                  bg-gradient-to-br from-white/5 to-white/0
+                  bg-linear-to-br from-white/5 to-white/0
                   border border-white/10
                   hover:scale-[1.01] transition
                   "

@@ -3,8 +3,7 @@ import dayjs from "dayjs";
 import api from "../../api";
 import { useAuth } from "../../PrivateRouter/AuthContext";
 import { Salad, CalendarDays } from "lucide-react";
-
-const dietCache = {};
+import { resolveUserId } from "../../utils/userUtils";
 
 const Diet = () => {
   const { user } = useAuth();
@@ -16,43 +15,63 @@ const Diet = () => {
   const [filter, setFilter] = useState("TODAY");
   const [loading, setLoading] = useState(false);
 
+  const resolvedUserId = resolveUserId(user);
+  const resolvedUserEmail = user?.email?.toString().toLowerCase() || "";
+  const resolvedUserPhone = user?.phone?.toString().toLowerCase() || "";
+
+  const matchesCurrentUser = (item) => {
+    if (!item) return false;
+
+    const candidateIds = [
+      item.member_id,
+      item.user_id,
+      item.memberId,
+      item.userId,
+      item.member_uuid,
+      item.memberUuid,
+      item.user_uuid,
+      item.userUuid,
+    ]
+      .filter(Boolean)
+      .map((x) => String(x));
+
+    if (resolvedUserId && candidateIds.some((x) => x === String(resolvedUserId))) {
+      return true;
+    }
+
+    const email = (item.member_email || item.email || "").toString().toLowerCase();
+    if (resolvedUserEmail && email === resolvedUserEmail) {
+      return true;
+    }
+
+    const phone = (item.member_mobile || item.mobile || "").toString().toLowerCase();
+    if (resolvedUserPhone && phone === resolvedUserPhone) {
+      return true;
+    }
+
+    return false;
+  };
+
   useEffect(() => {
-    if (!user?.id) return;
+    if (!resolvedUserId && !resolvedUserEmail && !resolvedUserPhone) return;
 
     const abortController = new AbortController();
     isMountedRef.current = true;
 
-    const cacheKey = user.id;
-    
-    // Show cached data immediately
-    if (dietCache[cacheKey]) {
-      const { diet: cachedDiet, title: cachedTitle, createdAt: cachedDate } = dietCache[cacheKey];
-      if (isMountedRef.current) {
-        setDiet(cachedDiet);
-        setTitle(cachedTitle);
-        setCreatedAt(cachedDate);
-      }
-    } else {
-      if (isMountedRef.current) setLoading(true);
-    }
+    setLoading(true);
+    fetchDietPlan(abortController.signal);
 
-    fetchDietPlan(abortController.signal, cacheKey);
-    
     return () => {
       isMountedRef.current = false;
       abortController.abort();
     };
-  }, [user?.id, user?.email]);
+  }, [resolvedUserId, resolvedUserEmail, resolvedUserPhone]);
 
-  const fetchDietPlan = async (signal, cacheKey) => {
+  const fetchDietPlan = async (signal) => {
     try {
       const res = await api.get("/diet-plans", { signal });
 
-      const myDiet = res.data.find(
-        (item) => 
-          (item.member_email && user?.email && item.member_email.toLowerCase() === user.email.toLowerCase()) ||
-          (item.member_id && user?.id && item.member_id === Number(user.id))
-      );
+      const myDiet = res.data.find(matchesCurrentUser);
 
       if (myDiet) {
         if (isMountedRef.current) {
@@ -60,11 +79,6 @@ const Diet = () => {
           setDiet(myDiet.days);
           setCreatedAt(myDiet.created_at);
           setLoading(false);
-          dietCache[cacheKey] = {
-            diet: myDiet.days,
-            title: myDiet.title,
-            createdAt: myDiet.created_at,
-          };
         }
       } else {
         if (isMountedRef.current) setLoading(false);
@@ -156,7 +170,7 @@ const Diet = () => {
                   key={meal}
                   className="
                   p-4 rounded-xl
-                  bg-gradient-to-br from-white/5 to-white/0
+                  bg-linear-to-br from-white/5 to-white/0
                   border border-white/10
                   hover:scale-[1.01] transition
                   "

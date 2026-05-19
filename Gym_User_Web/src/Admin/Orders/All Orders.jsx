@@ -297,6 +297,7 @@ const AllOrders = () => {
         0,
       );
 
+      const orderDate = new Date(orderDetails.created_at);
       const win = window.open("", "", "width=900,height=700");
 
       win.document.write(`
@@ -434,7 +435,8 @@ color:#dc2626;
 <p class="label">Order Details</p>
 <p><b>Order ID:</b> ${orderDetails.order_id}</p>
 <p><b>Status:</b> ${formatStatus(normalizeStatus(orderDetails.status))}</p>
-<p><b>Date:</b> ${new Date(orderDetails.created_at).toLocaleString()}</p>
+<p><b>Date:</b> ${orderDate.toLocaleDateString("en-IN")}</p>
+<p><b>Billing Time:</b> ${orderDate.toLocaleTimeString("en-IN", { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
 <p><b>Payment Method:</b> ${orderDetails.payment_method}</p>
 <p><b>Payment Status:</b> ${orderDetails.payment_status}</p>
 </div>

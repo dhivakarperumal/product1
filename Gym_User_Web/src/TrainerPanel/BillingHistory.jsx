@@ -108,26 +108,6 @@ const BillingHistory = () => {
 
   // Trainer identifier values to match against order creator fields
   // Include UUIDs, numeric IDs, username, email and other common fields
-  const trainerIdentifiers = [
-    user?.userUuid,
-    user?.user_uuid,
-    user?.member_uuid,
-    user?.memberUuid,
-    user?.id,
-    user?.userId,
-    user?.user_id,
-    user?.username,
-    user?.name,
-    user?.email,
-    user?.employee_id,
-  ]
-    .filter(Boolean)
-    .map((v) => String(v).trim())
-    .filter(Boolean);
-
-  const normalize = (s) => (s === null || s === undefined ? '' : String(s).trim().toLowerCase());
-  const trainerNormalized = trainerIdentifiers.map(normalize).filter(Boolean);
-
   const getFilteredOrders = () => {
     return orders.filter((order) => {
       if (filterStatus !== "all" && order.status !== filterStatus) {
@@ -146,27 +126,6 @@ const BillingHistory = () => {
           return false;
         }
       }
-
-      // Only include orders that were created by this trainer (robust matching)
-      const creators = [
-        order.created_by,
-        order.createdBy,
-        order.creator_uuid,
-        order.creatorId,
-        order.created_by_uuid,
-        order.admin_uuid,
-        order.notes,
-      ]
-        .filter(Boolean)
-        .map((v) => String(v).trim())
-        .filter(Boolean);
-
-      const creatorsNormalized = creators.map(normalize).filter(Boolean);
-
-      // Check for exact or substring matches (covers UUID, numeric id, email, username)
-      const isCreatedByTrainer = creatorsNormalized.some((c) => trainerNormalized.some((t) => c === t || c.includes(t) || t.includes(c)));
-
-      if (!isCreatedByTrainer) return false;
 
       return true;
     });
@@ -386,20 +345,12 @@ const BillingHistory = () => {
       {showDebug && (
         <div className="mx-auto max-w-7xl mt-4 p-4 bg-red-900/10 border border-red-800/20 rounded-lg text-sm text-white">
           <h3 className="font-semibold mb-2">Debug Info</h3>
-          <div className="mb-2">
-            <strong>Trainer identifiers:</strong>
-            <div className="ml-2 text-xs text-gray-200 break-words">{JSON.stringify(trainerIdentifiers)}</div>
-          </div>
-          <div>
-            <strong>Normalized trainer identifiers:</strong>
-            <div className="ml-2 text-xs text-gray-200 break-words">{JSON.stringify(trainerNormalized)}</div>
-          </div>
           <div className="mt-3">
-            <strong>Sample orders (id -> creators):</strong>
+            <strong>Sample orders (id to creators):</strong>
             <div className="space-y-1 mt-2">
               {orders.slice(0, 10).map((o) => (
                 <div key={o.order_id} className="text-xs text-gray-200">
-                  <span className="font-mono">{o.order_id}</span> =&gt; {JSON.stringify({ created_by: o.created_by, admin_uuid: o.admin_uuid, notes: o.notes, createdBy: o.createdBy })}
+                  <span className="font-mono">{o.order_id}</span>{' => '}{JSON.stringify({ created_by: o.created_by, admin_uuid: o.admin_uuid, notes: o.notes, createdBy: o.createdBy })}
                 </div>
               ))}
             </div>

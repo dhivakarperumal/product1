@@ -59,6 +59,26 @@ const safeNumber = (value) => {
   return 0;
 };
 
+const normalizeMembership = (m) => {
+  const planStartDate = m.planStartDate || m.startDate || m.start_date || m.plan_start_date || m.joinDate || m.join_date || null;
+  const planEndDate = m.planEndDate || m.endDate || m.end_date || m.plan_end_date || m.expiryDate || m.expiry_date || null;
+  const planName = m.planName || m.plan_name || m.name || m.plan || '-';
+  const username = m.username || m.user_name || m.member_name || m.name || 'No Name';
+  const userEmail = m.userEmail || m.user_email || m.email || m.gym_member_email || '';
+  const userMobile = m.userMobile || m.user_mobile || m.phone || m.member_phone || '';
+  const status = (m.status || m.membership_status || 'Active').toString();
+  return {
+    ...m,
+    planStartDate,
+    planEndDate,
+    planName,
+    username,
+    userEmail,
+    userMobile,
+    status,
+  };
+};
+
 /* ================= ADVANCED STAT CARD ================= */
 const StatCard = ({ title, value, icon, color, trend, trendValue, subtitle, onClick, isLoading }) => (
   <div
@@ -167,13 +187,13 @@ const TrainerDashboard = () => {
 
         console.log('[TrainerDashboard] Fetched assignments:', membersRaw.length, 'records');
 
-        const activeMembers = membersRaw.filter(
-          (m) => !m.status || (m.status || "").toLowerCase() === "active"
-        );
+        const activeMembers = membersRaw.filter((m) => !m.status || (m.status || "").toLowerCase() === "active");
+
+        const normalized = activeMembers.map(normalizeMembership);
 
         const uniqueMembers = Array.from(
           new Map(
-            activeMembers.map((m) => {
+            normalized.map((m) => {
               const key =
                 m.membershipId ||
                 m.membership_id ||

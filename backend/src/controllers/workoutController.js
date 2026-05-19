@@ -111,15 +111,17 @@ async function getAllWorkouts(req, res) {
     let sql = 'SELECT * FROM workout_programs WHERE 1=1';
     const params = [];
 
+    const userRole = String(req.user?.role || '').toLowerCase();
+
     // Check if user is super admin
-    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    const isSuperAdmin = userRole === 'super admin';
 
     // If requester is super admin, shows all
     if (isSuperAdmin) {
       // No filter for super admin
     }
     // If requester is admin, filter by admin_uuid or admin_id
-    else if (req.user?.role === 'admin') {
+    else if (userRole === 'admin') {
       const adminUuid = getAdminUuid(req.user);
       if (adminUuid) {
         sql += ' AND (created_by = ? OR admin_id = ?)';
@@ -130,9 +132,22 @@ async function getAllWorkouts(req, res) {
       }
     }
     // If requester is a member, show only workouts assigned to them
-    else if (req.user?.role === 'user' || req.user?.role === 'member') {
-      sql += ' AND member_id = (SELECT member_id FROM members WHERE email = ? OR phone = ? LIMIT 1)';
-      params.push(req.user.email || '', req.user.phone || '');
+    else if (userRole === 'user' || userRole === 'member') {
+      const [memberRows] = await db.query(
+        'SELECT id, member_id FROM members WHERE email = ? OR phone = ? LIMIT 1',
+        [req.user.email || '', req.user.phone || '']
+      );
+
+      if (memberRows.length > 0) {
+        const member = memberRows[0];
+        const memberIdValue = member.id;
+        const memberUuidValue = member.member_id || member.id;
+
+        sql += ' AND (member_id = ? OR member_id = ? OR user_id = ?)';
+        params.push(memberIdValue, memberUuidValue, memberIdValue);
+      } else {
+        sql += ' AND 0';
+      }
     }
 
     if (req.query.trainerId) {
