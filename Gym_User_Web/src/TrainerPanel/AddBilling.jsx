@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { Users, Trash2 } from "lucide-react";
 
-import api, { API_URL } from "../../api";
+import api, { API_URL } from "../api";
+import { useAuth } from "../PrivateRouter/AuthContext";
 
 const inputClass =
   "w-full bg-slate-800/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all";
 
-const Billing = () => {
+const AddBilling = () => {
   const [products, setProducts] = useState([]);
   const [product, setProduct] = useState(null);
   const [variant, setVariant] = useState("");
@@ -24,17 +25,45 @@ const Billing = () => {
   const [selectedMember, setSelectedMember] = useState("");
   const [selectedMemberUuid, setSelectedMemberUuid] = useState("");
 
+  const { user } = useAuth();
+
   useEffect(() => {
-    const loadMembers = async () => {
+    const loadMembersForTrainer = async () => {
       try {
-        const res = await api.get("/members");
-        setMembers(res.data || []);
+        if (!user?.id) return setMembers([]);
+
+        // assignments endpoint returns memberships assigned to a trainer
+        const res = await api.get("/assignments", { params: { trainerUserId: user.id } });
+        const data = Array.isArray(res.data) ? res.data : [];
+
+        // Map normalized assignment rows to member-like objects for the dropdown
+        const mapped = data.map((a) => ({
+          id: a.gymMemberId || a.memberId || a.userId || a.user_id || a.id,
+          name: a.username || a.memberName || a.member_name || a.userEmail || "Member",
+          phone: a.userMobile || a.member_mobile || a.user_mobile || "",
+          email: a.userEmail || a.member_email || a.user_email || "",
+          member_id: a.memberId || a.gymMemberId || null,
+        }));
+
+        // Deduplicate by id
+        const uniq = [];
+        const seen = new Set();
+        for (const m of mapped) {
+          const key = String(m.id || m.member_id || m.email || m.name);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          uniq.push(m);
+        }
+
+        setMembers(uniq);
       } catch (err) {
-        console.error("Failed to load members:", err);
+        console.error("Failed to load trainer members:", err);
+        setMembers([]);
       }
     };
-    loadMembers();
-  }, []);
+
+    loadMembersForTrainer();
+  }, [user?.id]);
 
   const handleMemberChange = (id) => {
     setSelectedMember(id);
@@ -48,18 +77,38 @@ const Billing = () => {
       setSelectedMemberUuid("");
       return;
     }
-
     const m = members.find((m) => (m.id || m.member_id || m.u_id || "").toString() === id.toString());
     if (m) {
-      setShipping({
-        name: m.name || m.displayName || m.username || "",
-        phone: m.phone || m.mobile || "",
-        email: m.email || m.user_email || "",
-        address: m.address || "",
-      });
-      // Store the member UUID for order creation
-      setSelectedMemberUuid(m.member_id || m.memberUuid || m.uuid || "");
-      toast.success(`Details loaded for: ${m.name || m.displayName || m.username}`);
+      // Try to fetch full member details to get address and member_uuid
+      (async () => {
+        try {
+          const memberId = m.id || m.member_id || m.u_id;
+          const res = await api.get(`/members/${memberId}`);
+          const md = res.data || {};
+
+          setShipping((prev) => ({
+            name: md.name || md.displayName || md.username || m.name || prev.name || "",
+            phone: md.phone || md.mobile || md.user_mobile || m.phone || prev.phone || "",
+            email: md.email || md.user_email || m.email || prev.email || "",
+            address: md.address || md.address_line || md.addressLine || md.location || prev.address || "",
+          }));
+
+          const memberUuid = md.member_id || md.memberId || md.member_uuid || md.memberUuid || m.member_id || m.memberUuid || "";
+          setSelectedMemberUuid(memberUuid);
+          toast.success(`Details loaded for: ${md.name || m.name || md.username || 'Member'}`);
+        } catch (err) {
+          console.error('Failed to fetch member details', err);
+          // Fallback to using whatever minimal info we have
+          setShipping({
+            name: m.name || m.displayName || m.username || "",
+            phone: m.phone || m.mobile || "",
+            email: m.email || m.user_email || "",
+            address: "",
+          });
+          setSelectedMemberUuid(m.member_id || m.memberUuid || m.uuid || "");
+          toast.success(`Partial details loaded for: ${m.name || m.displayName || m.username}`);
+        }
+      })();
     }
   };
 
@@ -75,15 +124,29 @@ const Billing = () => {
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const res = await api.get("/products");
-        setProducts(res.data || []);
+        // Use server-side filtering for admin/trainer users.
+        // Avoid sending a wrong created_by filter from a trainer's own userUuid.
+        const role = String(user?.role || "").toLowerCase();
+        const adminId =
+          user?.adminUuid ||
+          user?.admin_uuid ||
+          user?.adminId ||
+          user?.admin_id ||
+          (['admin', 'super admin', 'superadmin'].includes(role)
+            ? user?.userUuid || user?.user_uuid
+            : null);
+
+        const url = adminId ? `/products?created_by=${encodeURIComponent(adminId)}` : "/products";
+
+        const res = await api.get(url);
+        setProducts(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         console.error(err);
         toast.error("Failed to load products");
       }
     };
     loadProducts();
-  }, []);
+  }, [user?.role, user?.adminUuid, user?.admin_uuid, user?.adminId, user?.admin_id, user?.userUuid, user?.user_uuid]);
 
   /* ================= GENERATE ORDER NUMBER ================= */
   const generateOrderNumber = async () => {
@@ -110,7 +173,6 @@ const Billing = () => {
     if (!variantData || qty > variantData.qty)
       return toast.error("Insufficient stock");
 
-    // Determine price from the selected variant first, then fallback to product-level values.
     const price = Number(
       variantData.offer_price ??
       variantData.offerPrice ??
@@ -127,7 +189,6 @@ const Billing = () => {
       return toast.error("Unable to determine product price");
     }
 
-    // Get product image and normalize URL
     const images = product.images ? (Array.isArray(product.images) ? product.images : JSON.parse(product.images)) : [];
     let image = images.length > 0 ? images[0] : null;
     if (image && !image.match(/^(https?:\/\/|data:)/)) {
@@ -224,7 +285,7 @@ const Billing = () => {
           qty: newQty,
         };
 
-        await api.put(`/products/${item.productId}`, { stock: updatedStock });
+        await api.patch(`/products/${item.productId}/stock`, { stock: updatedStock });
       }
 
       /* 3️⃣ CREATE ORDER WITH ITEMS */
@@ -246,9 +307,7 @@ const Billing = () => {
           },
         ],
 
-        /* ✅ ADD ORDER ITEMS */
         items: cart.map((item) => {
-          // Parse variant to extract size and color (e.g., "XS-Male" -> size: "XS", color: "Male")
           const variantParts = item.variant ? item.variant.split('-') : [];
           const size = variantParts[0] || null;
           const color = variantParts.slice(1).join('-') || null;
@@ -263,18 +322,49 @@ const Billing = () => {
             image: item.image
           };
         }),
+        // include trainer info in notes for audit
+        notes: JSON.stringify({ trainerName: user?.username || user?.name || user?.employee_id || null }),
       };
 
       await api.post("/orders", orderPayload);
 
-      // Save order summary before clearing the cart
+      // Update trainer target totals if current user is a trainer
+      (async () => {
+        try {
+          const role = String(user?.role || '').toLowerCase();
+          if (!user || !(role.includes('trainer') || role.includes('staff'))) return;
+
+          const tRes = await api.get('/trainer-targets');
+          const targets = Array.isArray(tRes.data) ? tRes.data : [];
+
+          // find the target that belongs to this trainer
+          const target = targets.find((t) => String(t.trainer_id || t.trainerId || t.trainer) === String(user.id));
+          if (!target) return;
+
+          const prevCombined = Number(target.combined_total || target.combinedTotal || target.combined_total || 0) || 0;
+          const prevOrderCollected = Number(target.total_order_collected || target.totalOrderCollected || 0) || 0;
+          const newCombined = prevCombined + subtotal;
+          const newOrderCollected = prevOrderCollected + subtotal;
+          const assignedAmount = Number(target.assigned_amount || target.assignedAmount || 0) || 0;
+          const isCompleted = assignedAmount > 0 ? newCombined >= assignedAmount : false;
+
+          await api.put(`/trainer-targets/${target.id}`, {
+            total_collected: newCombined,
+            total_order_collected: newOrderCollected,
+            is_completed: isCompleted,
+          });
+        } catch (err) {
+          // log but don't surface raw axios messages to the user
+          console.error('Failed updating trainer target after order:', err);
+        }
+      })();
+
       setOrderSummary({ items: cart.length, total: subtotal });
       setCreatedOrderId(orderId);
       setShowSuccessModal(true);
 
       toast.success(`Order ${orderId} placed successfully ✅`);
 
-      // Reset form
       setCart([]);
       setSelectedMember("");
       setSelectedMemberUuid("");
@@ -286,8 +376,10 @@ const Billing = () => {
       });
 
     } catch (err) {
-      console.error(err);
-      toast.error(err.message || "Billing failed");
+        console.error(err);
+        const serverMsg = err?.response?.data?.message || err?.response?.data?.error || err?.response?.data?.details || null;
+        if (serverMsg) toast.error(String(serverMsg));
+        else toast.error(err.message || "Billing failed");
     } finally {
       setLoading(false);
     }
@@ -298,7 +390,7 @@ const Billing = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-4 py-10 text-white">
       <div className="mx-auto max-w-7xl space-y-10">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-white">Billing Management</h1>
+          <h1 className="text-2xl font-semibold text-white">Add Billing</h1>
         </div>
 
         {/* Member Selection Section */}
@@ -521,7 +613,7 @@ const Billing = () => {
             <button
               disabled={loading || cart.length === 0}
               onClick={saveBill}
-              className="px-8 py-4 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-lg font-semibold transition-colors border border-orange-500/30 hover:shadow-lg hover:shadow-orange-500/20"
+              className="px-8 py-4 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-lg font-semibold transition-colors"
             >
               {loading ? "Processing..." : "Place Order"}
             </button>
@@ -533,7 +625,6 @@ const Billing = () => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-gradient-to-br from-slate-950 to-slate-900 border-2 border-green-500/50 rounded-[2rem] p-8 max-w-md w-full shadow-[0_40px_120px_rgba(0,0,0,0.35)]">
 
-            {/* SUCCESS CHECKMARK */}
             <div className="flex justify-center mb-6">
               <div className="w-20 h-20 rounded-full bg-green-500/20 border-2 border-green-500 flex items-center justify-center">
                 <svg className="w-10 h-10 text-green-400" fill="currentColor" viewBox="0 0 20 20">
@@ -542,17 +633,14 @@ const Billing = () => {
               </div>
             </div>
 
-            {/* TITLE */}
             <h2 className="text-2xl font-bold text-center text-white mb-2">Order Placed Successfully! 🎉</h2>
             <p className="text-center text-gray-300 text-sm mb-8">Your order has been created and added to the system.</p>
 
-            {/* ORDER ID - HIGHLIGHTED */}
             <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/50 rounded-xl p-6 mb-6 text-center">
               <p className="text-gray-300 text-sm mb-2">Order ID</p>
               <p className="text-3xl font-bold text-green-400 font-mono">{createdOrderId}</p>
             </div>
 
-            {/* ORDER DETAILS */}
             <div className="bg-slate-800/50 rounded-xl p-4 mb-6 space-y-3 border border-white/10">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Order Type:</span>
@@ -568,7 +656,6 @@ const Billing = () => {
               </div>
             </div>
 
-            {/* ACTION BUTTONS */}
             <div className="space-y-3">
               <button
                 onClick={() => setShowSuccessModal(false)}
@@ -595,4 +682,4 @@ const Billing = () => {
   );
 };
 
-export default Billing;
+export default AddBilling;

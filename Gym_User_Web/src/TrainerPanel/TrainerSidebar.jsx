@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   CalendarCheck,
@@ -61,6 +61,11 @@ const navItems = [
     icon: Receipt,
   },
   {
+    path: "/trainer/billing-history",
+    label: "Billing History",
+    icon: Receipt,
+  },
+  {
     path: "/trainer/collect-fees",
     label: "Collect Fees",
     icon: CreditCard,
@@ -90,22 +95,26 @@ const TrainerSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
   const location = useLocation();
   const [openMenu, setOpenMenu] = useState(null);
 
-  /* ================= ACTIVE ROUTE MAP ================= */
-  const activeRouteMap = {
-    "/trainer/alladdworkouts": ["/trainer/alladdworkouts", "/trainer/addworkouts"],
-    "/trainer/alladddietplans": ["/trainer/alladddietplans", "/trainer/adddietplans"],
-  };
-
   /* ================= HELPERS ================= */
-  const isRouteActive = (basePath) => {
+  const isRouteActive = useCallback((basePath) => {
+    const activeRouteMap = {
+      "/trainer/alladdworkouts": ["/trainer/alladdworkouts", "/trainer/addworkouts"],
+      "/trainer/alladddietplans": ["/trainer/alladddietplans", "/trainer/adddietplans"],
+    };
+    
     const paths = activeRouteMap[basePath];
     if (!paths) {
       if (basePath === "/trainer") return location.pathname === "/trainer";
       if (basePath === "/") return location.pathname === "/";
-      return location.pathname.startsWith(basePath);
+      // Exact match or child route match (not prefix match)
+      return location.pathname === basePath || 
+             location.pathname.startsWith(basePath + "/");
     }
-    return paths.some((p) => location.pathname.startsWith(p));
-  };
+    return paths.some((p) => 
+      location.pathname === p || 
+      location.pathname.startsWith(p + "/")
+    );
+  }, [location.pathname]);
 
   /* ===== AUTO OPEN DROPDOWN WHEN CHILD ACTIVE ===== */
   useEffect(() => {
@@ -119,7 +128,7 @@ const TrainerSidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
         }
       }
     });
-  }, [location.pathname]);
+  }, [isRouteActive]);
 
   const toggleMenu = (label) => {
     setOpenMenu(openMenu === label ? null : label);
