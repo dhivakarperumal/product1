@@ -297,7 +297,9 @@ const AllOrders = () => {
   };
 
   useEffect(() => {
-    fetchOrders();
+    const adminUuid = user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+    // If current user is super admin, load all orders; otherwise load orders for this admin
+    fetchOrders(isSuperAdmin ? null : adminUuid);
   }, []);
 
   /* ================= STATS ================= */
@@ -364,6 +366,13 @@ const AllOrders = () => {
     return `ORD${String(num).padStart(3, "0")}`;
   };
 
+  // Normalize ID for comparison - handles both ORD#### and numeric formats
+  const normalizeOrderId = (id) => {
+    if (!id) return "";
+    const formatted = formatOrderIdForApi(id);
+    return formatted.toLowerCase();
+  };
+
   const updateStatus = async (orderId, newStatus) => {
     const formattedOrderId = formatOrderIdForApi(orderId);
     if (newStatus === "cancelled") {
@@ -389,15 +398,37 @@ const AllOrders = () => {
   const confirmAndSendStatus = async (orderId, newStatus, extra = {}) => {
     try {
       setSubmitting(true);
+      const normalizedId = normalizeOrderId(orderId);
+      
       await api.patch(`/orders/${orderId}/status`, {
         status: newStatus,
         cancelledReason: extra.reason,
         courierName: extra.courier,
         docketNumber: extra.docket
       });
+      
+      // Optimistically update local orders so UI reflects change immediately
+      setOrders((prev) => {
+        const updated = prev.map((o) => {
+          const orderNormalizedId = normalizeOrderId(o.order_id || o.orderId);
+          if (orderNormalizedId === normalizedId) {
+            return {
+              ...o,
+              status: newStatus,
+            };
+          }
+          return o;
+        });
+        // update cache too
+        if (!adminFilter) cache.adminOrders = updated;
+        return updated;
+      });
 
-      // Re-fetch with current admin filter
-      fetchOrders(adminFilter);
+      // Re-fetch in background to ensure server canonical data is synced
+      setTimeout(() => {
+        fetchOrders(adminFilter);
+      }, 500);
+      
       setShowStatusModal(false);
     } catch (err) {
       console.error("updateStatus error:", err);
@@ -868,6 +899,7 @@ ${items
                   <th className="px-6 py-4 text-left font-semibold text-slate-300">Order ID</th>
                   <th className="px-6 py-4 text-left font-semibold text-slate-300">Member</th>
                   <th className="px-6 py-4 text-left font-semibold text-slate-300">Amount</th>
+                  <th className="px-6 py-4 text-left font-semibold text-slate-300">Trainer Billing</th>
                   <th className="px-6 py-4 text-left font-semibold text-slate-300">Payment</th>
                   <th className="px-6 py-4 text-left font-semibold text-slate-300">Status</th>
                   <th className="px-6 py-4 text-left font-semibold text-slate-300">Actions</th>
@@ -878,7 +910,7 @@ ${items
               <tbody>
                 {paginatedOrders.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="text-center py-12 text-slate-400">
+                    <td colSpan="8" className="text-center py-12 text-slate-400">
                       No orders found
                     </td>
                   </tr>
@@ -899,6 +931,17 @@ ${items
                       </td>
                       <td className="px-6 py-4 font-medium text-white">
                         ₹{Number(o.total).toLocaleString("en-IN")}
+                      </td>
+                      <td className="px-6 py-4">
+                        {o.created_by ? (
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                            Yes
+                          </span>
+                        ) : (
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-500/20 text-slate-400 border border-slate-500/30">
+                            No
+                          </span>
+                        )}
                       </td>
                       <td
                         onClick={(e) => { e.stopPropagation(); navigate(`/admin/orders/${o.order_id}`) }}
@@ -1014,9 +1057,14 @@ ${items
                   </div>
 
                   <div className="flex justify-between items-center mb-4">
-                    <p className="text-lg font-bold text-white">
-                      ₹{Number(o.total).toLocaleString("en-IN")}
-                    </p>
+                    <div>
+                      <p className="text-lg font-bold text-white">
+                        ₹{Number(o.total).toLocaleString("en-IN")}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Trainer Billing: {o.created_by ? <span className="text-purple-300">Yes</span> : <span className="text-slate-500">No</span>}
+                      </p>
+                    </div>
                   </div>
 
                   <div className="flex gap-3">

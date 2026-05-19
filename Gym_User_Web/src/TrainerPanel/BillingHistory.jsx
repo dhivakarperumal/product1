@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../PrivateRouter/AuthContext";
 import api from "../api";
 import toast from "react-hot-toast";
@@ -17,11 +17,7 @@ const BillingHistory = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
 
-  useEffect(() => {
-    fetchBillingHistory();
-  }, [user?.id]);
-
-  const fetchBillingHistory = async () => {
+  const fetchBillingHistory = useCallback(async () => {
     try {
       setLoading(true);
       if (!user?.id) {
@@ -30,30 +26,71 @@ const BillingHistory = () => {
         return;
       }
 
-      // Get trainer's assigned members
+      // Get trainer's assigned memberships
       const assignmentsRes = await api.get("/assignments", { params: { trainerUserId: user.id } });
       const assignments = Array.isArray(assignmentsRes.data) ? assignmentsRes.data : [];
-      
+
       if (assignments.length === 0) {
         setOrders([]);
         setLoading(false);
         return;
       }
 
-      // Get all orders
-      const ordersRes = await api.get("/orders");
-      const allOrders = Array.isArray(ordersRes.data) ? ordersRes.data : [];
+      // Resolve member UUIDs for each assignment. Membership rows may contain numeric ids (memberId)
+      // so fetch member details when needed to obtain the member_id (UUID).
+      const memberUuidPromises = assignments.map(async (a) => {
+        const possible = a.memberId || a.gymMemberId || a.member_id || a.userId || a.user_id || a.id;
+        const ref = possible;
 
-      // Filter orders for trainer's assigned members
-      const memberUuids = new Set(
-        assignments.map(a => a.member_uuid || a.memberUuid || a.gymMemberId)
-      );
+        if (!ref) return null;
 
-      const trainerOrders = allOrders.filter(order => 
-        memberUuids.has(order.member_uuid || order.memberUuid)
-      );
+        // If ref looks like a UUID (contains a hyphen), assume it's already member_uuid
+        if (typeof ref === 'string' && ref.includes('-')) return ref;
 
-      setOrders(trainerOrders);
+        // Otherwise try to fetch member details by numeric id
+        try {
+          const memRes = await api.get(`/members/${ref}`);
+          const mem = memRes.data || {};
+          return mem.member_id || mem.memberId || mem.member_uuid || mem.memberUuid || null;
+        } catch (err) {
+          console.warn('Failed to resolve member UUID for assignment', a, err?.message || err);
+          return null;
+        }
+      });
+
+      const resolved = await Promise.all(memberUuidPromises);
+      const memberUuids = [...new Set(resolved.filter(Boolean))];
+
+      if (memberUuids.length === 0) {
+        setOrders([]);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch orders for each member UUID using the user orders endpoint
+      const orderFetchPromises = memberUuids.map((mu) => api.get(`/orders/user/${encodeURIComponent(mu)}`));
+      const settled = await Promise.allSettled(orderFetchPromises);
+
+      const ordersForMembers = [];
+      const fetchErrors = [];
+      settled.forEach((s, idx) => {
+        const memberId = memberUuids[idx];
+        if (s.status === 'fulfilled') {
+          const data = s.value?.data;
+          if (Array.isArray(data) && data.length > 0) {
+            ordersForMembers.push(...data);
+          }
+        } else {
+          console.warn('Failed to fetch orders for member', memberId, s.reason || s.status);
+          fetchErrors.push({ memberId, error: s.reason });
+        }
+      });
+
+      if (fetchErrors.length > 0) {
+        console.warn('Some member order fetches failed:', fetchErrors);
+      }
+
+      setOrders(ordersForMembers);
     } catch (err) {
       console.error("Failed to fetch billing history:", err);
       toast.error("Failed to load billing history");
@@ -61,7 +98,11 @@ const BillingHistory = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchBillingHistory();
+  }, [fetchBillingHistory]);
 
   const getFilteredOrders = () => {
     return orders.filter((order) => {
