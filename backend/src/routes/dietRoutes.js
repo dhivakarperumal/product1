@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticateToken, requireTrainerOrAdmin, requireAdmin } = require('../middleware/auth');
+const { authenticateToken, requireTrainerOrAdmin } = require('../middleware/auth');
 const {
   getAllDiets,
   getDietById,
@@ -10,8 +10,8 @@ const {
 
 const router = express.Router();
 
-router.get('/', authenticateToken, requireTrainerOrAdmin, getAllDiets);
-router.get('/:id', authenticateToken, requireTrainerOrAdmin, getDietById);
+router.get('/', authenticateToken, getAllDiets);
+router.get('/:id', authenticateToken, getDietById);
 router.post('/', authenticateToken, requireTrainerOrAdmin, createDiet);
 router.put('/:id', authenticateToken, requireTrainerOrAdmin, updateDiet);
 router.delete('/:id', authenticateToken, requireTrainerOrAdmin, deleteDiet);

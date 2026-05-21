@@ -14,7 +14,8 @@ const meals = ["Morning", "Breakfast", "Lunch", "Evening", "Dinner"];
 
 const normalizeMemberId = (value) => {
   if (value === undefined || value === null) return null;
-  return String(value).trim();
+  const normalized = String(value).trim();
+  return normalized && normalized !== "0" ? normalized : null;
 };
 
 const getDietExpiry = (diet) => {
@@ -290,7 +291,8 @@ const generateSingleDay = () => {
 const AddDietPlans = () => {
   const { user } = useAuth();
 
-  const trainerId = String(user?.id || user?.userId || user?.user_id || user?.employee_id || user?.employeeId || "");
+  const rawTrainerId = String(user?.id || user?.userId || user?.user_id || user?.employee_id || user?.employeeId || "").trim();
+  const trainerId = rawTrainerId && rawTrainerId !== "0" ? rawTrainerId : "";
   const trainerName = user?.username || "";
   const trainerEmail = user?.email || "";
 
@@ -307,6 +309,7 @@ const AddDietPlans = () => {
 
   const [form, setForm] = useState({
     memberId: "",
+    userId: "",
     memberName: "",
     memberEmail: "",
     memberMobile: "",
@@ -339,11 +342,14 @@ const AddDietPlans = () => {
 
         const formatted = assignments.map((d, index) => {
           const membershipId = d.membershipId || d.membership_id || d.id || index;
-          const memberId = d.memberId || d.member_id || membershipId;
+          const rawMemberId = d.memberId || d.member_id || null;
+          const validMemberId = rawMemberId && String(rawMemberId).trim() !== "0" ? String(rawMemberId).trim() : null;
+          const rawUserId = d.userId || d.user_id || null;
+          const validUserId = rawUserId && String(rawUserId).trim() !== "0" ? String(rawUserId).trim() : null;
           return {
             id: String(membershipId),
-            memberId: String(memberId),
-            userId: String(d.userId || d.user_id || ""),
+            memberId: validMemberId,
+            userId: validUserId,
             name: d.username || d.user_name || "Member",
             email: d.userEmail || d.user_email || "",
             mobile: d.userMobile || d.user_mobile || "",
@@ -355,7 +361,7 @@ const AddDietPlans = () => {
         setMembers(formatted);
         setAllAssignments(assignments);
 
-        const dietRes = await api.get(`/diet-plans?trainerId=${encodeURIComponent(user.id)}`);
+        const dietRes = await api.get(`/diet-plans?trainerId=${encodeURIComponent(trainerId)}`);
         const dietData = Array.isArray(dietRes.data)
           ? dietRes.data
           : dietRes.data.data || dietRes.data.diet_plans || [];
@@ -374,8 +380,13 @@ const AddDietPlans = () => {
   const getMemberBlockExpiry = (member) => {
     return (
       blockedMembers[normalizeMemberId(member.id)] ||
+      blockedMembers[normalizeMemberId(member.gymMemberId)] ||
       blockedMembers[normalizeMemberId(member.memberId)] ||
-      blockedMembers[normalizeMemberId(member.userId)]
+      blockedMembers[normalizeMemberId(member.memberUuid)] ||
+      blockedMembers[normalizeMemberId(member.member_uuid)] ||
+      blockedMembers[normalizeMemberId(member.userId)] ||
+      blockedMembers[normalizeMemberId(member.userUuid)] ||
+      blockedMembers[normalizeMemberId(member.user_uuid)]
     );
   };
 
@@ -389,9 +400,18 @@ const AddDietPlans = () => {
       const expiry = getDietExpiry(diet);
       if (!expiry || expiry.getTime() <= now) return;
 
-      const keys = [diet.member_id, diet.memberId, diet.user_id, diet.userId]
+      const keys = [
+        diet.member_id,
+        diet.member_uuid,
+        diet.memberId,
+        diet.memberUuid,
+        diet.user_id,
+        diet.user_uuid,
+        diet.userId,
+        diet.userUuid,
+      ]
         .map(normalizeMemberId)
-        .filter(Boolean);
+        .filter((key) => Boolean(key) && key !== "0");
 
       keys.forEach((key) => {
         const existing = blocks[key];
@@ -460,6 +480,7 @@ const AddDietPlans = () => {
 
         setForm({
           memberId,
+          userId: data.userId || data.user_id || "",
           memberName,
           memberEmail: data.memberEmail || data.member_email || "",
           memberMobile: data.memberMobile || data.member_mobile || "",
@@ -657,6 +678,7 @@ const AddDietPlans = () => {
           trainerName,
           trainerSource: user?.role || "trainer",
           memberId: form.memberId,
+          userId: form.userId || undefined,
           memberName: form.memberName,
           memberEmail: form.memberEmail,
           memberMobile: form.memberMobile,
@@ -681,6 +703,7 @@ const AddDietPlans = () => {
         let successCount = 0;
         let failCount = 0;
 
+        const failDetails = [];
         for (const m of selectedMembers) {
           try {
             const memberWeight = m.weight || form.memberWeight || 70;
@@ -689,7 +712,7 @@ const AddDietPlans = () => {
               trainerId: trainerId || undefined,
               trainerName,
               trainerSource: user?.role || "trainer",
-              memberId: m.memberId || m.id,
+              memberId: m.memberId || undefined,
               userId: m.userId || undefined,
               memberName: m.name,
               memberEmail: m.email,
@@ -704,8 +727,11 @@ const AddDietPlans = () => {
             await api.post(`/diet-plans`, payload);
             successCount++;
           } catch (err) {
-            console.error(`Failed for member ${m.name}:`, err);
+            const message =
+              err.response?.data?.error || err.response?.data?.message || err.message || "Request failed";
+            console.error(`Failed for member ${m.name}:`, message, err);
             failCount++;
+            failDetails.push(`${m.name}: ${message}`);
           }
         }
 
@@ -713,7 +739,10 @@ const AddDietPlans = () => {
           toast.success(`Created diet plan for ${successCount} member(s) 🥗💪`);
         }
         if (failCount > 0) {
-          toast.error(`Failed for ${failCount} member(s)`);
+          toast.error(
+            `Failed for ${failCount} member(s): ${failDetails.slice(0, 5).join('; ')}` +
+              (failDetails.length > 5 ? '...' : '')
+          );
         }
 
         if (successCount > 0) {

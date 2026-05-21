@@ -77,6 +77,12 @@ const DietChart = () => {
     if (user) fetchDietPlan();
   }, [user]);
 
+  const getFoodImageUrl = (food) => {
+    if (!food) return null;
+    const q = encodeURIComponent(String(food));
+    return `https://source.unsplash.com/640x360/?${q}`;
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-6">
@@ -132,7 +138,7 @@ const DietChart = () => {
         {Object.entries(meals).map(([meal, value]) => (
           <div
             key={meal}
-            className="bg-gray-900/50 backdrop-blur-md rounded-xl p-5 border border-red-500/20 hover:border-red-500/40 transition-all group"
+            className="bg-gray-900/50 backdrop-blur-md rounded-xl p-5 border border-red-500/20 hover:border-red-500/40 transition-all group flex gap-4"
           >
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-red-500 text-xs font-bold uppercase tracking-wider">
@@ -153,6 +159,15 @@ const DietChart = () => {
                 <p className="text-white/40 text-[11px]">
                   Quantity: <span className="text-white/60">{value.quantity}</span>
                 </p>
+              )}
+            </div>
+
+            <div className="ml-auto w-36 h-24 rounded-lg overflow-hidden bg-gray-800/40 hidden sm:block">
+              {value.food ? (
+                // Unsplash Source provides a royalty-free image for the query
+                <img src={getFoodImageUrl(value.food)} alt={value.food} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">No Image</div>
               )}
             </div>
 

@@ -20,12 +20,15 @@ function getDietExpiry(diet) {
 }
 
 function isNumeric(value) {
-  return typeof value === 'number' || (/^\d+$/.test(String(value || '').trim()));
+  return (typeof value === 'number' && Number.isFinite(value) && value > 0) || (/^[1-9]\d*$/.test(String(value || '').trim()));
 }
 
 async function resolveTrainerDetails(trainerId, trainerName) {
   if (!trainerId) return { trainerUuid: null, trainerName };
-  const requested = String(trainerId).trim();
+  const requested = String(trainerId || '').trim();
+  if (!requested || requested === '0') {
+    return { trainerUuid: null, trainerName };
+  }
   if (isNumeric(requested)) {
     const [staffRows] = await db.query(
       'SELECT id, employee_id, name FROM staff WHERE id = ? OR employee_id = ? LIMIT 1',
@@ -41,12 +44,14 @@ async function resolveTrainerDetails(trainerId, trainerName) {
 }
 
 async function resolveMemberDetails(memberId, memberName, memberEmail, memberMobile, userId = null) {
-  if (!memberId && !userId) {
+  const requested = String(memberId || '').trim();
+  const normalizedUserId = userId && String(userId).trim() !== '0' ? String(userId).trim() : null;
+
+  if (!requested && !normalizedUserId) {
     return { memberUuid: null, memberName, memberEmail, memberMobile, userId: null };
   }
 
-  if (memberId) {
-    const requested = String(memberId).trim();
+  if (requested && requested !== '0') {
     const [memberRows] = await db.query(
       'SELECT id, member_id, name, email, phone FROM members WHERE id = ? OR member_id = ? LIMIT 1',
       [requested, requested]
@@ -123,7 +128,7 @@ async function resolveMemberDetails(memberId, memberName, memberEmail, memberMob
     memberName,
     memberEmail,
     memberMobile,
-    userId: userId || null,
+    userId: normalizedUserId || null,
   };
 }
 
@@ -154,9 +159,13 @@ async function getAllDiets(req, res) {
     }
     // If requester is a member, show only diets assigned to them
     else if (userRole === 'user' || userRole === 'member') {
+      const requestUserId = req.user?.id || req.user?.userId || req.user?.user_id || null;
+      const userEmail = req.user?.email || '';
+      const userPhone = req.user?.phone || req.user?.mobile || '';
+
       const [memberRows] = await db.query(
         'SELECT id, member_id FROM members WHERE email = ? OR phone = ? LIMIT 1',
-        [req.user.email || '', req.user.phone || '']
+        [userEmail, userPhone]
       );
 
       if (memberRows.length > 0) {
@@ -164,16 +173,32 @@ async function getAllDiets(req, res) {
         const memberIdValue = member.id;
         const memberUuidValue = member.member_id || member.id;
 
-        sql += ' AND (member_id = ? OR member_id = ? OR user_id = ?)';
-        params.push(memberIdValue, memberUuidValue, memberIdValue);
+        sql += ' AND (member_id = ? OR member_id = ?';
+        params.push(memberIdValue, memberUuidValue);
+
+        if (requestUserId) {
+          sql += ' OR user_id = ?';
+          params.push(requestUserId);
+        }
+
+        sql += ')';
+      } else if (requestUserId) {
+        sql += ' AND (user_id = ? OR member_id = ?)';
+        params.push(requestUserId, requestUserId);
       } else {
         sql += ' AND 0';
       }
     }
 
     if (req.query.trainerId) {
-      sql += ' AND trainer_id = ?';
-      params.push(req.query.trainerId);
+      const requestedTrainer = String(req.query.trainerId).trim();
+      if (isNumeric(requestedTrainer)) {
+        sql += ' AND (trainer_id = ? OR trainer_id = (SELECT employee_id FROM staff WHERE id = ? LIMIT 1))';
+        params.push(requestedTrainer, requestedTrainer);
+      } else {
+        sql += ' AND trainer_id = ?';
+        params.push(requestedTrainer);
+      }
     }
 
     sql += ' ORDER BY created_at DESC';
@@ -224,11 +249,35 @@ async function createDiet(req, res) {
     const trainerDetails = await resolveTrainerDetails(trainerId || null, trainerName);
     const memberDetails = await resolveMemberDetails(memberId || null, memberName, memberEmail, memberMobile, userId || req.body.user_id || null);
 
-    // Check existing active diet for member
-    if (memberDetails.memberUuid || memberDetails.userId) {
+    if (trainerDetails.trainerUuid === '0') {
+      trainerDetails.trainerUuid = null;
+    }
+    if (memberDetails.memberUuid === '0') {
+      memberDetails.memberUuid = null;
+    }
+    if (memberDetails.userId === 0 || memberDetails.userId === '0') {
+      memberDetails.userId = null;
+    }
+
+    if (!memberDetails.memberUuid && !memberDetails.userId) {
+      return res.status(400).json({ error: 'Missing valid member or user identifier for diet plan' });
+    }
+
+    const activeConditions = [];
+    const activeParams = [];
+    if (memberDetails.memberUuid) {
+      activeConditions.push('member_id = ?');
+      activeParams.push(memberDetails.memberUuid);
+    }
+    if (memberDetails.userId) {
+      activeConditions.push('user_id = ?');
+      activeParams.push(memberDetails.userId);
+    }
+
+    if (activeConditions.length > 0) {
       const [existingRows] = await db.query(
-        `SELECT * FROM diet_plans WHERE (member_id = ? OR user_id = ?) AND status = 'active'`,
-        [memberDetails.memberUuid || memberDetails.userId, memberDetails.userId || memberDetails.memberUuid]
+        `SELECT * FROM diet_plans WHERE (${activeConditions.join(' OR ')}) AND status = 'active'`,
+        activeParams
       );
       const now = Date.now();
       for (const diet of existingRows) {

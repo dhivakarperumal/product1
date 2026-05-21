@@ -174,9 +174,13 @@ async function getAllWorkouts(req, res) {
     }
     // If requester is a member, show only workouts assigned to them
     else if (userRole === 'user' || userRole === 'member') {
+      const requestUserId = req.user?.id || req.user?.userId || req.user?.user_id || null;
+      const userEmail = req.user?.email || '';
+      const userPhone = req.user?.phone || req.user?.mobile || '';
+
       const [memberRows] = await db.query(
         'SELECT id, member_id FROM members WHERE email = ? OR phone = ? LIMIT 1',
-        [req.user.email || '', req.user.phone || '']
+        [userEmail, userPhone]
       );
 
       if (memberRows.length > 0) {
@@ -184,8 +188,18 @@ async function getAllWorkouts(req, res) {
         const memberIdValue = member.id;
         const memberUuidValue = member.member_id || member.id;
 
-        sql += ' AND (member_id = ? OR member_id = ? OR user_id = ?)';
-        params.push(memberIdValue, memberUuidValue, memberIdValue);
+        sql += ' AND (member_id = ? OR member_id = ?';
+        params.push(memberIdValue, memberUuidValue);
+
+        if (requestUserId) {
+          sql += ' OR user_id = ?';
+          params.push(requestUserId);
+        }
+
+        sql += ')';
+      } else if (requestUserId) {
+        sql += ' AND (user_id = ? OR member_id = ?)';
+        params.push(requestUserId, requestUserId);
       } else {
         sql += ' AND 0';
       }
