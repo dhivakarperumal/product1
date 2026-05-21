@@ -47,8 +47,8 @@ async function resolveTrainerDetails(trainerId, trainerName) {
   };
 }
 
-async function resolveMemberDetails(memberId, memberName, memberEmail, memberMobile) {
-  if (!memberId) {
+async function resolveMemberDetails(memberId, memberName, memberEmail, memberMobile, userId = null) {
+  if (!memberId && !userId) {
     return {
       memberUuid: null,
       memberName,
@@ -58,32 +58,75 @@ async function resolveMemberDetails(memberId, memberName, memberEmail, memberMob
     };
   }
 
-  const requested = String(memberId).trim();
-  const [memberRows] = await db.query(
-    'SELECT id, member_id, name, email, phone FROM members WHERE id = ? OR member_id = ? LIMIT 1',
-    [requested, requested]
-  );
+  if (memberId) {
+    const requested = String(memberId).trim();
+    const [memberRows] = await db.query(
+      'SELECT id, member_id, name, email, phone FROM members WHERE id = ? OR member_id = ? LIMIT 1',
+      [requested, requested]
+    );
 
-  if (memberRows.length === 0) {
+    if (memberRows.length > 0) {
+      const member = memberRows[0];
+      return {
+        memberUuid: member.member_id || String(member.id),
+        memberName: memberName || member.name || null,
+        memberEmail: memberEmail || member.email || null,
+        memberMobile: memberMobile || member.phone || null,
+        userId: member.id,
+      };
+    }
+
     if (isNumeric(requested)) {
+      const [membershipRows] = await db.query(
+        'SELECT memberId, userId FROM memberships WHERE id = ? LIMIT 1',
+        [requested]
+      );
+      if (membershipRows.length > 0) {
+        const membership = membershipRows[0];
+        if (membership.memberId) {
+          const [memberRowsByMemberId] = await db.query(
+            'SELECT id, member_id, name, email, phone FROM members WHERE id = ? OR member_id = ? LIMIT 1',
+            [membership.memberId, membership.memberId]
+          );
+          if (memberRowsByMemberId.length > 0) {
+            const member = memberRowsByMemberId[0];
+            return {
+              memberUuid: member.member_id || String(member.id),
+              memberName: memberName || member.name || null,
+              memberEmail: memberEmail || member.email || null,
+              memberMobile: memberMobile || member.phone || null,
+              userId: member.id,
+            };
+          }
+        }
+        if (membership.userId) {
+          return {
+            memberUuid: null,
+            memberName,
+            memberEmail,
+            memberMobile,
+            userId: membership.userId,
+          };
+        }
+      }
       throw new Error('Invalid memberId for workout');
     }
+
     return {
       memberUuid: requested,
       memberName,
       memberEmail,
       memberMobile,
-      userId: null,
+      userId: userId || null,
     };
   }
 
-  const member = memberRows[0];
   return {
-    memberUuid: member.member_id || String(member.id),
-    memberName: memberName || member.name || null,
-    memberEmail: memberEmail || member.email || null,
-    memberMobile: memberMobile || member.phone || null,
-    userId: member.id,
+    memberUuid: null,
+    memberName,
+    memberEmail,
+    memberMobile,
+    userId: userId || null,
   };
 }
 
@@ -185,6 +228,7 @@ async function createWorkout(req, res) {
       trainerName,
       trainerSource,
       memberId,
+      userId,
       memberName,
       memberEmail,
       memberMobile,
@@ -200,7 +244,7 @@ async function createWorkout(req, res) {
     const requestedMemberId = memberId || req.body.member_id || null;
 
     const trainerDetails = await resolveTrainerDetails(requestedTrainerId, trainerName);
-    const memberDetails = await resolveMemberDetails(requestedMemberId, memberName, memberEmail, memberMobile);
+    const memberDetails = await resolveMemberDetails(requestedMemberId, memberName, memberEmail, memberMobile, userId || req.body.user_id || null);
 
     const membersQuery = [];
     const membersParams = [];
@@ -276,6 +320,7 @@ async function updateWorkout(req, res) {
       trainerName,
       trainerSource,
       memberId,
+      userId,
       memberName,
       memberEmail,
       memberMobile,
@@ -291,7 +336,7 @@ async function updateWorkout(req, res) {
     const requestedMemberId = memberId || req.body.member_id || null;
 
     const trainerDetails = await resolveTrainerDetails(requestedTrainerId, trainerName);
-    const memberDetails = await resolveMemberDetails(requestedMemberId, memberName, memberEmail, memberMobile);
+    const memberDetails = await resolveMemberDetails(requestedMemberId, memberName, memberEmail, memberMobile, userId || req.body.user_id || null);
 
     const updatedBy = trainerDetails.trainerUuid || getActorUuid(req.user) || null;
 

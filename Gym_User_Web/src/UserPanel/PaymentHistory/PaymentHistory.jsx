@@ -47,8 +47,8 @@ const PaymentHistory = () => {
       const orders = ordersData.map((o) => ({
         id: o.order_id || o.id,
         type: "ORDER",
-        amount: Number(o.total_price || o.totalPrice || o.amount || 0),
-        date: o.createdAt || o.created_at || o.created_at || o.date,
+        amount: Number(o.total || o.total_price || o.totalPrice || o.amount || 0),
+        date: o.createdAt || o.created_at || o.date || o.created_at,
         status: o.status || o.order_status || "completed",
         description: `Order #${o.order_id || o.id}`,
         orderId: o.order_id || o.id,
@@ -185,7 +185,7 @@ const PaymentHistory = () => {
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
-          className="px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white font-medium hover:bg-white/20 transition-all"
+          className="px-4 py-2 rounded-lg bg-blue-600 border border-blue-500/40 text-white font-medium hover:bg-blue-700 transition-all"
         >
           <option value="date-desc">Latest First</option>
           <option value="date-asc">Oldest First</option>

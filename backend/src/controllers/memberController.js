@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 const { randomUUID } = require('crypto');
+const { getActorUuid } = require('../utils/auditTrail');
 
 // NOTE: use getActorUuid(req.user) from utils/auditTrail for actor UUID
 
@@ -28,6 +29,15 @@ async function resolveMemberTable() {
   return memberTableName;
 }
 
+async function hasColumn(table, column) {
+  try {
+    const [rows] = await db.query(`SHOW COLUMNS FROM ${table} LIKE ?`, [column]);
+    return rows.length > 0;
+  } catch (err) {
+    return false;
+  }
+}
+
 async function getAllMembers(req, res) {
   try {
     const membersTable = await resolveMemberTable();
@@ -35,23 +45,38 @@ async function getAllMembers(req, res) {
     // Check if user is super admin
     const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
     const adminUuid = getActorUuid(req.user);
+    const adminId = req.user?.id || req.user?.userId || req.user?.user_id || null;
     
     // Get optional admin filter from query params (for super admin)
     const filterAdminUuid = req.query.adminUuid || req.query.admin_uuid || null;
+    
+    const hasCreatedBy = await hasColumn(membersTable, 'created_by');
+    const hasUserId = await hasColumn(membersTable, 'user_id');
     
     let whereClauses = [];
     let params = [];
     
     // If super admin has selected a specific admin to filter by
-    if (isSuperAdmin && filterAdminUuid) {
+    if (isSuperAdmin && filterAdminUuid && hasCreatedBy) {
       whereClauses.push('gm.created_by = ?');
       params.push(filterAdminUuid);
     }
-    // If not super admin, filter by created_by (admin_uuid)
+    // If not super admin, filter by created_by or fallback to user_id
     else if (!isSuperAdmin && req.user) {
-      if (adminUuid) {
-        whereClauses.push('gm.created_by = ?');
-        params.push(adminUuid);
+      if (hasCreatedBy) {
+        if (adminUuid && adminId) {
+          whereClauses.push('(gm.created_by = ? OR gm.created_by = ? OR gm.user_id = ?)');
+          params.push(adminUuid, adminId, adminId);
+        } else if (adminUuid) {
+          whereClauses.push('gm.created_by = ?');
+          params.push(adminUuid);
+        } else if (adminId) {
+          whereClauses.push('(gm.created_by = ? OR gm.user_id = ?)');
+          params.push(adminId, adminId);
+        }
+      } else if (hasUserId && adminId) {
+        whereClauses.push('gm.user_id = ?');
+        params.push(adminId);
       }
     }
 

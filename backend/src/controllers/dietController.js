@@ -40,31 +40,90 @@ async function resolveTrainerDetails(trainerId, trainerName) {
   return { trainerUuid: requested, trainerName };
 }
 
-async function resolveMemberDetails(memberId, memberName, memberEmail, memberMobile) {
-  if (!memberId) {
+async function resolveMemberDetails(memberId, memberName, memberEmail, memberMobile, userId = null) {
+  if (!memberId && !userId) {
     return { memberUuid: null, memberName, memberEmail, memberMobile, userId: null };
   }
 
-  const requested = String(memberId).trim();
-  const [memberRows] = await db.query(
-    'SELECT id, member_id, name, email, phone FROM members WHERE id = ? OR member_id = ? LIMIT 1',
-    [requested, requested]
-  );
+  if (memberId) {
+    const requested = String(memberId).trim();
+    const [memberRows] = await db.query(
+      'SELECT id, member_id, name, email, phone FROM members WHERE id = ? OR member_id = ? LIMIT 1',
+      [requested, requested]
+    );
 
-  if (memberRows.length === 0) {
+    if (memberRows.length > 0) {
+      const member = memberRows[0];
+      return {
+        memberUuid: member.member_id || String(member.id),
+        memberName: memberName || member.name || null,
+        memberEmail: memberEmail || member.email || null,
+        memberMobile: memberMobile || member.phone || null,
+        userId: member.id,
+      };
+    }
+
+    const [gymRows] = await db.query(
+      'SELECT id, member_id, name, email, phone FROM gym_members WHERE id = ? OR member_id = ? LIMIT 1',
+      [requested, requested]
+    );
+
+    if (gymRows.length > 0) {
+      const gymMember = gymRows[0];
+      return {
+        memberUuid: gymMember.member_id || String(gymMember.id),
+        memberName: memberName || gymMember.name || null,
+        memberEmail: memberEmail || gymMember.email || null,
+        memberMobile: memberMobile || gymMember.phone || null,
+        userId: null,
+      };
+    }
+
     if (isNumeric(requested)) {
+      const [membershipRows] = await db.query(
+        'SELECT memberId, userId FROM memberships WHERE id = ? LIMIT 1',
+        [requested]
+      );
+      if (membershipRows.length > 0) {
+        const membership = membershipRows[0];
+        if (membership.memberId) {
+          const [memberRowsByMemberId] = await db.query(
+            'SELECT id, member_id, name, email, phone FROM members WHERE id = ? OR member_id = ? LIMIT 1',
+            [membership.memberId, membership.memberId]
+          );
+          if (memberRowsByMemberId.length > 0) {
+            const member = memberRowsByMemberId[0];
+            return {
+              memberUuid: member.member_id || String(member.id),
+              memberName: memberName || member.name || null,
+              memberEmail: memberEmail || member.email || null,
+              memberMobile: memberMobile || member.phone || null,
+              userId: member.id,
+            };
+          }
+        }
+        if (membership.userId) {
+          return {
+            memberUuid: null,
+            memberName,
+            memberEmail,
+            memberMobile,
+            userId: membership.userId,
+          };
+        }
+      }
       throw new Error('Invalid memberId for diet plan');
     }
-    return { memberUuid: requested, memberName, memberEmail, memberMobile, userId: null };
+
+    return { memberUuid: requested, memberName, memberEmail, memberMobile, userId: userId || null };
   }
 
-  const member = memberRows[0];
   return {
-    memberUuid: member.member_id || String(member.id),
-    memberName: memberName || member.name || null,
-    memberEmail: memberEmail || member.email || null,
-    memberMobile: memberMobile || member.phone || null,
-    userId: member.id,
+    memberUuid: null,
+    memberName,
+    memberEmail,
+    memberMobile,
+    userId: userId || null,
   };
 }
 
@@ -148,6 +207,7 @@ async function createDiet(req, res) {
       trainerName,
       trainerSource,
       memberId,
+      userId,
       memberName,
       memberEmail,
       memberMobile,
@@ -162,7 +222,7 @@ async function createDiet(req, res) {
     const adminId = req.user?.role === 'admin' ? req.user.userId : null;
 
     const trainerDetails = await resolveTrainerDetails(trainerId || null, trainerName);
-    const memberDetails = await resolveMemberDetails(memberId || null, memberName, memberEmail, memberMobile);
+    const memberDetails = await resolveMemberDetails(memberId || null, memberName, memberEmail, memberMobile, userId || req.body.user_id || null);
 
     // Check existing active diet for member
     if (memberDetails.memberUuid || memberDetails.userId) {
@@ -226,6 +286,7 @@ async function updateDiet(req, res) {
       trainerName,
       trainerSource,
       memberId,
+      userId,
       memberName,
       memberEmail,
       memberMobile,
@@ -239,7 +300,7 @@ async function updateDiet(req, res) {
 
     // Resolve trainer and member details
     const trainerDetails = await resolveTrainerDetails(trainerId || null, trainerName);
-    const memberDetails = await resolveMemberDetails(memberId || null, memberName, memberEmail, memberMobile);
+    const memberDetails = await resolveMemberDetails(memberId || null, memberName, memberEmail, memberMobile, userId || req.body.user_id || null);
 
     const updatedBy = trainerDetails.trainerUuid || getActorUuid(req.user) || null;
 

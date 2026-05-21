@@ -273,6 +273,7 @@ const AddWorkout = () => {
               trainerId,
               trainerName,
               memberId: m.memberId || m.id,
+              userId: m.userId || undefined,
               memberName: m.name,
               memberEmail: m.email,
               memberMobile: m.mobile,

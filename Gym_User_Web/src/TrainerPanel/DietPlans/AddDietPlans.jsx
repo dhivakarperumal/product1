@@ -290,7 +290,7 @@ const generateSingleDay = () => {
 const AddDietPlans = () => {
   const { user } = useAuth();
 
-  const trainerId = Number(user?.id || 0);
+  const trainerId = String(user?.id || user?.userId || user?.user_id || user?.employee_id || user?.employeeId || "");
   const trainerName = user?.username || "";
   const trainerEmail = user?.email || "";
 
@@ -338,10 +338,11 @@ const AddDietPlans = () => {
           : data.data || data.assignments || [];
 
         const formatted = assignments.map((d, index) => {
-          const fallbackId = d.memberId || d.member_id || d.membershipId || d.membership_id || d.userId || d.user_id || d.id || index;
+          const membershipId = d.membershipId || d.membership_id || d.id || index;
+          const memberId = d.memberId || d.member_id || membershipId;
           return {
-            id: String(fallbackId),
-            memberId: String(d.memberId || d.member_id || d.membershipId || d.membership_id || d.userId || d.user_id || d.id || fallbackId),
+            id: String(membershipId),
+            memberId: String(memberId),
             userId: String(d.userId || d.user_id || ""),
             name: d.username || d.user_name || "Member",
             email: d.userEmail || d.user_email || "",
@@ -652,7 +653,7 @@ const AddDietPlans = () => {
     try {
       if (id) {
         const payload = {
-          trainerId,
+          trainerId: trainerId || undefined,
           trainerName,
           trainerSource: user?.role || "trainer",
           memberId: form.memberId,
@@ -685,10 +686,11 @@ const AddDietPlans = () => {
             const memberWeight = m.weight || form.memberWeight || 70;
             const payloadTitle = form.title || getSuggestedDietTitle(memberWeight);
             const payload = {
-              trainerId,
+              trainerId: trainerId || undefined,
               trainerName,
               trainerSource: user?.role || "trainer",
               memberId: m.memberId || m.id,
+              userId: m.userId || undefined,
               memberName: m.name,
               memberEmail: m.email,
               memberMobile: m.mobile,
@@ -720,7 +722,9 @@ const AddDietPlans = () => {
       }
     } catch (err) {
       console.error(err);
-      toast.error(err.message || "Error saving diet");
+      toast.error(
+        err.response?.data?.error || err.response?.data?.message || err.message || "Error saving diet"
+      );
     } finally {
       setSubmitting(false);
     }

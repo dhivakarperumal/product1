@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import api from "../../api";
 import dayjs from "dayjs";
 import { useAuth } from "../../PrivateRouter/AuthContext";
+import { resolveUserId } from "../../utils/userUtils";
 import { Dumbbell, Salad, ShoppingCart, CreditCard } from "lucide-react";
 
 /* ---------- CACHE ---------- */
@@ -29,16 +30,32 @@ const isTodayOrder = (order) => {
   return orderDate.isValid() && orderDate.isSame(dayjs(), "day");
 };
 
-const resolveUserId = (user) => {
-  return (
-    user?.memberUuid ||
-    user?.id ||
-    user?.userId ||
-    user?.user_id ||
-    user?.memberId ||
-    user?.member_id ||
-    null
-  );
+const matchesCurrentUser = (item, user, resolvedUserId, resolvedUserEmail) => {
+  if (!item) return false;
+
+  const candidateIds = [
+    item.member_id,
+    item.user_id,
+    item.memberId,
+    item.userId,
+    item.member_uuid,
+    item.memberUuid,
+    item.user_uuid,
+    item.userUuid,
+  ]
+    .filter(Boolean)
+    .map((x) => String(x).toLowerCase());
+
+  if (resolvedUserId && candidateIds.includes(String(resolvedUserId).toLowerCase())) {
+    return true;
+  }
+
+  const email = (item.member_email || item.email || "").toString().toLowerCase();
+  if (resolvedUserEmail && email === resolvedUserEmail) {
+    return true;
+  }
+
+  return false;
 };
 
 /* ---------- MAIN ---------- */
@@ -141,10 +158,9 @@ const Dashboard = () => {
         }
 
         /* WORKOUT */
-        const myWorkout = workoutRes.data.find(
-          (w) =>
-            w.member_email?.toLowerCase() === user.email?.toLowerCase() ||
-            Number(w.member_id) === Number(user.id)
+        const resolvedUserEmail = user?.email?.toString().toLowerCase() || "";
+        const myWorkout = workoutRes.data.find((w) =>
+          matchesCurrentUser(w, user, resolvedUserId, resolvedUserEmail)
         );
 
         if (myWorkout?.days) {
@@ -159,10 +175,8 @@ const Dashboard = () => {
         }
 
         /* DIET */
-        const myDiet = dietRes.data.find(
-          (d) =>
-            d.member_email?.toLowerCase() === user.email?.toLowerCase() ||
-            Number(d.member_id) === Number(user.id)
+        const myDiet = dietRes.data.find((d) =>
+          matchesCurrentUser(d, user, resolvedUserId, resolvedUserEmail)
         );
 
         if (myDiet?.days) {
@@ -212,7 +226,7 @@ const Dashboard = () => {
       isMountedRef.current = false;
       abortController.abort();
     };
-  }, [user?.id, user?.email]);
+  }, [resolvedUserId, user?.email]);
 
   return (
     <div className="min-h-screen p-6 text-white space-y-8">

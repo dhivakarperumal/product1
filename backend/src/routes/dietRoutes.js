@@ -11,9 +11,9 @@ const {
 const router = express.Router();
 
 router.get('/', authenticateToken, requireTrainerOrAdmin, getAllDiets);
-router.get('/:id', getDietById);
-router.post('/', createDiet);
-router.put('/:id', updateDiet);
-router.delete('/:id', deleteDiet);
+router.get('/:id', authenticateToken, requireTrainerOrAdmin, getDietById);
+router.post('/', authenticateToken, requireTrainerOrAdmin, createDiet);
+router.put('/:id', authenticateToken, requireTrainerOrAdmin, updateDiet);
+router.delete('/:id', authenticateToken, requireTrainerOrAdmin, deleteDiet);
 
 module.exports = router;

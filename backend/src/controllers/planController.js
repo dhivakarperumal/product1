@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { randomUUID } = require('crypto');
+const { getActorUuid } = require('../utils/auditTrail');
 
 // NOTE: use getActorUuid(req.user) from utils/auditTrail for actor UUID
 
@@ -21,7 +22,9 @@ const parsePlan = (plan) => {
 async function getAllPlans(req, res) {
   try {
     // Check if user is super admin
-    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    const normalizedRole = req.user && String(req.user.role || '').toLowerCase();
+    const isSuperAdmin = normalizedRole === 'super admin';
+    const isAdminOrTrainer = ['admin', 'super admin', 'superadmin', 'trainer'].includes(normalizedRole);
     const createdByParam = req.query.created_by;
     
     let query = 'SELECT * FROM gym_plans';
@@ -32,30 +35,32 @@ async function getAllPlans(req, res) {
     if (createdByParam) {
       // Validate that user is authorized to view this admin's data
       if (!isSuperAdmin && req.user) {
-        const userAdminUuid = getActorUuid(req.user);
-        if (!userAdminUuid || userAdminUuid !== createdByParam) {
+        if (isAdminOrTrainer) {
+          const userAdminUuid = getActorUuid(req.user);
+          if (!userAdminUuid || userAdminUuid !== createdByParam) {
+            return res.status(403).json({ error: 'Not authorized to view this data' });
+          }
+        } else if (normalizedRole === 'member') {
+          const memberAdminUuid = req.user.adminUuid || req.user.admin_uuid || req.user.created_by || null;
+          if (!memberAdminUuid || memberAdminUuid !== createdByParam) {
+            return res.status(403).json({ error: 'Not authorized to view this data' });
+          }
+        } else {
           return res.status(403).json({ error: 'Not authorized to view this data' });
         }
       }
       whereConditions.push('created_by = ?');
       params.push(createdByParam);
     } else {
-      // No query param: apply filter based on user role
-      // Admin filter logic:
-      // 1. Super admin: see all plans
-      // 2. Admin/trainer with adminUuid: see plans they created
-      // 3. Regular user/member: see all plans (no restriction)
-      if (!isSuperAdmin && req.user) {
+      // No query param: apply filter only for admins/trainers
+      if (!isSuperAdmin && isAdminOrTrainer && req.user) {
         const adminUuid = getActorUuid(req.user);
         if (adminUuid) {
-          // Admin/trainer sees their own plans
           whereConditions.push('created_by = ?');
           params.push(adminUuid);
         }
-        // Regular users/members see all plans (no restriction)
-        // Falls through without WHERE clause
       }
-      // Unauthenticated users also see all plans
+      // Regular users/members see all plans if no admin filter is supplied
     }
     
     if (whereConditions.length > 0) {

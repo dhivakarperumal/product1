@@ -14,16 +14,17 @@ const normalizeUuid = (value) => (looksLikeUuid(value) ? value.trim() : null);
 const getActorUuid = (user) => {
   if (!user) return null;
 
-  // Prioritize explicit UUID fields. Reject numeric-only values like "0".
+  // Prioritize admin UUIDs and staff owner UUIDs first, then fall back to member UUIDs.
   return (
+    normalizeUuid(user.adminUuid) ||
+    normalizeUuid(user.admin_uuid) ||
+    normalizeUuid(user.userUuid) ||
+    normalizeUuid(user.user_uuid) ||
+    normalizeUuid(user.uuid) ||
     normalizeUuid(user.memberUuid) ||
     normalizeUuid(user.member_uuid) ||
     normalizeUuid(user.member_id) ||
-    normalizeUuid(user.adminUuid) ||
-    normalizeUuid(user.userUuid) ||
-    normalizeUuid(user.admin_uuid) ||
-    normalizeUuid(user.user_uuid) ||
-    normalizeUuid(user.uuid) ||
+    normalizeUuid(user.memberId) ||
     null
   );
 };

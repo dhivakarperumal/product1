@@ -81,7 +81,9 @@ async function getAllAssignments(req, res) {
       console.log('[assignments] Resolved trainerUserId to staff.id:', staffIdForFilter);
     }
 
-    const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+    const userRole = String(req.user.role || '').toLowerCase();
+    const isSuperAdmin = userRole === 'super admin';
+    const isAdmin = ['admin', 'super admin', 'superadmin'].includes(userRole);
     const adminUuid = getActorUuid(req.user);
 
     let sql = `
@@ -110,11 +112,9 @@ async function getAllAssignments(req, res) {
       queryParams.push(staffIdForFilter);
     }
 
-    if (!isSuperAdmin && req.user) {
-      if (adminUuid) {
-        whereConditions.push('(m.created_by = ? OR m.created_by IS NULL)');
-        queryParams.push(adminUuid);
-      }
+    if (isAdmin && !isSuperAdmin && adminUuid) {
+      whereConditions.push('(m.created_by = ? OR m.created_by IS NULL)');
+      queryParams.push(adminUuid);
     }
 
     if (whereConditions.length > 0) {

@@ -511,7 +511,7 @@ const TrainerEnquiry = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-gray-300">
-                        {new Date(enquiry.created_at).toLocaleDateString()}
+                        {new Date(enquiry.created_at).toLocaleString()}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
