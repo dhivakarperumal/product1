@@ -28,7 +28,12 @@ const Billing = () => {
     const loadMembers = async () => {
       try {
         const res = await api.get("/members");
-        setMembers(res.data || []);
+        const data = Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data?.members)
+          ? res.data.members
+          : [];
+        setMembers(data);
       } catch (err) {
         console.error("Failed to load members:", err);
       }

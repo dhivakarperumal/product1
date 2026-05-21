@@ -267,13 +267,41 @@ export default function Dashboard() {
           api.get('/attendance').catch(() => ({ data: [] })),
         ]);
 
-        const members = membersRes.data || [];
-        const plans = (plansRes.data || []).filter(p => p.active);
-        const orders = ordersRes.data || [];
-        const staff = (staffRes.data || []).filter(s => s.status === 'active');
-        const equipment = equipmentRes.data || [];
-        const products = productsRes.data || [];
-        const attendance = attendanceRes.data || [];
+        const members = Array.isArray(membersRes.data)
+          ? membersRes.data
+          : Array.isArray(membersRes.data?.members)
+          ? membersRes.data.members
+          : [];
+        const plans = Array.isArray(plansRes.data)
+          ? plansRes.data
+          : Array.isArray(plansRes.data?.plans)
+          ? plansRes.data.plans
+          : [];
+        const orders = Array.isArray(ordersRes.data)
+          ? ordersRes.data
+          : Array.isArray(ordersRes.data?.orders)
+          ? ordersRes.data.orders
+          : [];
+        const staff = Array.isArray(staffRes.data)
+          ? staffRes.data
+          : Array.isArray(staffRes.data?.staff)
+          ? staffRes.data.staff
+          : [];
+        const equipment = Array.isArray(equipmentRes.data)
+          ? equipmentRes.data
+          : Array.isArray(equipmentRes.data?.equipment)
+          ? equipmentRes.data.equipment
+          : [];
+        const products = Array.isArray(productsRes.data)
+          ? productsRes.data
+          : Array.isArray(productsRes.data?.products)
+          ? productsRes.data.products
+          : [];
+        const attendance = Array.isArray(attendanceRes.data)
+          ? attendanceRes.data
+          : Array.isArray(attendanceRes.data?.attendance)
+          ? attendanceRes.data.attendance
+          : [];
 
         // Determine date bounds
         const { start, end } = getDateRangeBounds(filterRange.type, filterRange.range);

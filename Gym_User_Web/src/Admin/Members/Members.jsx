@@ -40,22 +40,28 @@ const Members = () => {
     }
 
     try {
-      // Build query params
       const params = {};
       if (adminUuid) {
         params.adminUuid = adminUuid;
       }
-      
+
       const res = await api.get("/members", { params });
-      const data = Array.isArray(res.data) ? res.data : [];
+      const data = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.members)
+        ? res.data.members
+        : [];
+
       if (isMountedRef.current) {
         setMembers(data);
         setLoading(false);
         cache.adminMembers = data;
       }
     } catch (err) {
+      console.error("Failed to fetch members:", err);
       if (isMountedRef.current) {
         setLoading(false);
+        toast.error("Failed to load members");
       }
     }
   };
@@ -374,7 +380,7 @@ const Members = () => {
             <tbody>
               {paginatedData.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="p-8 text-center text-gray-400">
+                  <td colSpan="10" className="p-8 text-center text-gray-400">
                     {loading ? "Loading members..." : filtered.length === 0 ? "No records found" : "No data on this page"}
                   </td>
                 </tr>

@@ -56,7 +56,12 @@ const MemberAttendance = () => {
     const loadMembers = async () => {
       try {
         const res = await api.get("/members");
-        const active = (res.data || []).filter(
+        const data = Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data?.members)
+          ? res.data.members
+          : [];
+        const active = data.filter(
           (m) => (m.status || "").toLowerCase() === "active"
         );
         setMembers(active);

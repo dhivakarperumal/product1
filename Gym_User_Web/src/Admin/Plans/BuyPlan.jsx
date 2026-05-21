@@ -45,12 +45,17 @@ const BuyPlanadmin = () => {
   const fetchMembers = async () => {
     try {
       const res = await api.get(MEMBERS_API);
-      console.log('Fetched members from API:', res.data);
-      console.log('Sample member fields:', res.data?.[0] ? Object.keys(res.data[0]) : 'No members');
-      setMembers(res.data || []);
+      const data = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.members)
+        ? res.data.members
+        : [];
+      console.log('Fetched members from API:', data);
+      console.log('Sample member fields:', data?.[0] ? Object.keys(data[0]) : 'No members');
+      setMembers(data);
     } catch (err) {
-      console.error(err);
-      alert("Failed to load members");
+      console.error('Failed to fetch members:', err);
+      alert('Failed to load members');
     }
   };
 

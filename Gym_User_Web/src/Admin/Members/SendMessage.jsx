@@ -22,8 +22,14 @@ const SendMessage = () => {
     try {
       setLoading(true);
       const res = await api.get("/members");
-      setMembers(res.data);
-    } catch {
+      const data = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.members)
+        ? res.data.members
+        : [];
+      setMembers(data);
+    } catch (err) {
+      console.error("Failed to load members:", err);
       toast.error("Failed to load members");
     } finally {
       setLoading(false);
