@@ -1,9 +1,7 @@
 const db = require('../config/db');
 const { getActorUuid } = require('../utils/auditTrail');
 
-// Extract admin UUID from request user
-const getAdminUuid = (user) =>
-  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+// NOTE: use getActorUuid(req.user) from utils/auditTrail for actor UUID
 
 // Helper function to parse JSON fields
 const parseFacility = (facility) => {
@@ -29,7 +27,7 @@ async function getAllFacilities(req, res) {
     
     // If not super admin, filter by created_by (admin_uuid)
     if (!isSuperAdmin && req.user) {
-      const adminUuid = getAdminUuid(req.user);
+      const adminUuid = getActorUuid(req.user);
       if (adminUuid) {
         whereClause = ' WHERE created_by = ?';
         params.push(adminUuid);

@@ -1,9 +1,7 @@
 const db = require('../config/db');
 const axios = require('axios');
 
-// Extract admin UUID from request user
-const getAdminUuid = (user) =>
-  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+// NOTE: use getActorUuid(req.user) from utils/auditTrail for actor UUID
 
 /**
  * Send EMI payment reminder notifications

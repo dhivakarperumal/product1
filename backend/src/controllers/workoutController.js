@@ -1,9 +1,7 @@
 const db = require('../config/db');
 const { getActorUuid } = require('../utils/auditTrail');
 
-// Extract admin UUID from request user
-const getAdminUuid = (user) =>
-  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+// NOTE: use getActorUuid(req.user) from utils/auditTrail for actor UUID
 
 function isNumeric(value) {
   return typeof value === 'number' || (/^\d+$/.test(String(value || '').trim()));
@@ -122,7 +120,7 @@ async function getAllWorkouts(req, res) {
     }
     // If requester is admin, filter by admin_uuid or admin_id
     else if (userRole === 'admin') {
-      const adminUuid = getAdminUuid(req.user);
+      const adminUuid = getActorUuid(req.user);
       if (adminUuid) {
         sql += ' AND (created_by = ? OR admin_id = ?)';
         params.push(adminUuid, req.user.userId);

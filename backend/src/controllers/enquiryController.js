@@ -1,9 +1,7 @@
 const pool = require('../config/db');
 const { getActorUuid } = require('../utils/auditTrail');
 
-// Extract admin UUID from request user - prioritize adminUuid
-const getAdminUuid = (user) =>
-  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+// NOTE: use getActorUuid(req.user) from utils/auditTrail for actor UUID
 
 const getEnquirySelectQuery = () =>
   `SELECT enquiries.*, COALESCE(staff.username, staff.name, staff.email, staff.employee_id, enquiries.trainer_id) AS trainer_display_name
@@ -14,7 +12,7 @@ const isNumeric = (value) =>
   typeof value === 'number' || (/^\d+$/.test(String(value || '').trim()));
 
 const getAdminFilterParams = (user) => {
-  const adminUuid = getAdminUuid(user);
+    const adminUuid = getActorUuid(user);
   const adminId = user?.userId || user?.user_id || user?.id || null;
   const params = [];
   if (adminUuid) params.push(adminUuid);

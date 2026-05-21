@@ -2,9 +2,7 @@ const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 const { randomUUID } = require('crypto');
 
-// Extract admin UUID from request user
-const getAdminUuid = (user) =>
-  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+// NOTE: use getActorUuid(req.user) from utils/auditTrail for actor UUID
 
 let memberTableName = null;
 
@@ -36,7 +34,7 @@ async function getAllMembers(req, res) {
 
     // Check if user is super admin
     const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
-    const adminUuid = getAdminUuid(req.user);
+    const adminUuid = getActorUuid(req.user);
     
     // Get optional admin filter from query params (for super admin)
     const filterAdminUuid = req.query.adminUuid || req.query.admin_uuid || null;

@@ -1,9 +1,7 @@
 const db = require('../config/db');
 const { randomUUID } = require('crypto');
 
-// Extract admin UUID from request user
-const getAdminUuid = (user) =>
-  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+// NOTE: use getActorUuid(req.user) from utils/auditTrail for actor UUID
 
 // Helper function to parse JSON fields
 const parsePlan = (plan) => {
@@ -34,7 +32,7 @@ async function getAllPlans(req, res) {
     if (createdByParam) {
       // Validate that user is authorized to view this admin's data
       if (!isSuperAdmin && req.user) {
-        const userAdminUuid = getAdminUuid(req.user);
+        const userAdminUuid = getActorUuid(req.user);
         if (!userAdminUuid || userAdminUuid !== createdByParam) {
           return res.status(403).json({ error: 'Not authorized to view this data' });
         }
@@ -48,7 +46,7 @@ async function getAllPlans(req, res) {
       // 2. Admin/trainer with adminUuid: see plans they created
       // 3. Regular user/member: see all plans (no restriction)
       if (!isSuperAdmin && req.user) {
-        const adminUuid = getAdminUuid(req.user);
+        const adminUuid = getActorUuid(req.user);
         if (adminUuid) {
           // Admin/trainer sees their own plans
           whereConditions.push('created_by = ?');
@@ -80,7 +78,7 @@ async function getPlanById(req, res) {
     
     // Check if user is super admin
     const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
-    const adminUuid = getAdminUuid(req.user);
+    const adminUuid = getActorUuid(req.user);
     
     // Try to parse as integer, otherwise use as string
     const idNum = parseInt(id, 10);
@@ -136,9 +134,8 @@ async function createPlan(req, res) {
       return res.status(400).json({ message: "Name, duration, and price are required" });
     }
 
-    // Extract admin UUID from JWT for audit fields
-    const adminUuid = getAdminUuid(req.user);
-    const createdBy = adminUuid;
+    // Extract actor UUID from JWT for audit fields
+    const createdBy = getActorUuid(req.user);
 
     // Generate UUID for plan_id
     const planId = randomUUID();
@@ -173,7 +170,7 @@ async function updatePlan(req, res) {
     facilities, trainerIncluded, dietPlans, active
   } = req.body;
 
-  const updatedBy = getAdminUuid(req.user);
+  const updatedBy = getActorUuid(req.user);
   const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
   const isAdmin = req.user && String(req.user.role || '').toLowerCase() === 'admin';
 
@@ -270,7 +267,7 @@ async function deletePlan(req, res) {
     // Check if user is super admin
     const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
     const isAdmin = req.user && String(req.user.role || '').toLowerCase() === 'admin';
-    const adminUuid = getAdminUuid(req.user);
+    const adminUuid = getActorUuid(req.user);
     
     // Try to parse as integer, otherwise use as string
     const idNum = parseInt(id, 10);

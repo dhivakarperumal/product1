@@ -1,9 +1,7 @@
 const db = require('../config/db');
 const { getActorUuid, createAuditTrail, updateAuditTrail } = require('../utils/auditTrail');
 
-// Extract admin UUID from request user (fallback for compatibility)
-const getAdminUuid = (user) =>
-  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+// NOTE: use getActorUuid(req.user) from utils/auditTrail for actor UUID (backwards-compatible)
 
 // Resolve members table name (could be 'members' or 'gym_members')
 let memberTableName = null;
@@ -35,7 +33,7 @@ async function getAllMemberships(req, res) {
   try {
     // Check if user is super admin
     const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
-    const adminUuid = getAdminUuid(req.user);
+    const adminUuid = getActorUuid(req.user);
     
     // Get optional admin filter from query params (for super admin)
     const filterAdminUuid = req.query.adminUuid || req.query.admin_uuid || null;

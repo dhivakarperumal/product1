@@ -1,8 +1,7 @@
 const db = require('../config/db');
+const { getActorUuid } = require('../utils/auditTrail');
 
-// Extract admin UUID from request user
-const getAdminUuid = (user) =>
-  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+// normalize trainer/member/user actor UUID from request
 
 // helper to parse JSON columns
 function parseDiet(row) {
@@ -18,6 +17,55 @@ function getDietExpiry(diet) {
   if (Number.isNaN(createdAt.getTime())) return null;
   const days = Number(diet.duration || diet.duration_days || diet.durationDays || 1) || 1;
   return new Date(createdAt.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+function isNumeric(value) {
+  return typeof value === 'number' || (/^\d+$/.test(String(value || '').trim()));
+}
+
+async function resolveTrainerDetails(trainerId, trainerName) {
+  if (!trainerId) return { trainerUuid: null, trainerName };
+  const requested = String(trainerId).trim();
+  if (isNumeric(requested)) {
+    const [staffRows] = await db.query(
+      'SELECT id, employee_id, name FROM staff WHERE id = ? OR employee_id = ? LIMIT 1',
+      [requested, requested]
+    );
+    if (staffRows.length === 0) {
+      return { trainerUuid: requested, trainerName };
+    }
+    const staff = staffRows[0];
+    return { trainerUuid: staff.employee_id || String(staff.id), trainerName: trainerName || staff.name || null };
+  }
+  return { trainerUuid: requested, trainerName };
+}
+
+async function resolveMemberDetails(memberId, memberName, memberEmail, memberMobile) {
+  if (!memberId) {
+    return { memberUuid: null, memberName, memberEmail, memberMobile, userId: null };
+  }
+
+  const requested = String(memberId).trim();
+  const [memberRows] = await db.query(
+    'SELECT id, member_id, name, email, phone FROM members WHERE id = ? OR member_id = ? LIMIT 1',
+    [requested, requested]
+  );
+
+  if (memberRows.length === 0) {
+    if (isNumeric(requested)) {
+      throw new Error('Invalid memberId for diet plan');
+    }
+    return { memberUuid: requested, memberName, memberEmail, memberMobile, userId: null };
+  }
+
+  const member = memberRows[0];
+  return {
+    memberUuid: member.member_id || String(member.id),
+    memberName: memberName || member.name || null,
+    memberEmail: memberEmail || member.email || null,
+    memberMobile: memberMobile || member.phone || null,
+    userId: member.id,
+  };
 }
 
 async function getAllDiets(req, res) {
@@ -36,7 +84,7 @@ async function getAllDiets(req, res) {
     }
     // If requester is admin, filter by admin_uuid or admin_id
     else if (userRole === 'admin') {
-      const adminUuid = getAdminUuid(req.user);
+      const adminUuid = getActorUuid(req.user);
       if (adminUuid) {
         sql += ' AND (created_by = ? OR admin_id = ?)';
         params.push(adminUuid, req.user.userId);
@@ -112,13 +160,15 @@ async function createDiet(req, res) {
     } = req.body;
 
     const adminId = req.user?.role === 'admin' ? req.user.userId : null;
-    const createdBy = getAdminUuid(req.user) || null;
 
-    const resolvedMemberId = memberId || null;
-    if (resolvedMemberId) {
+    const trainerDetails = await resolveTrainerDetails(trainerId || null, trainerName);
+    const memberDetails = await resolveMemberDetails(memberId || null, memberName, memberEmail, memberMobile);
+
+    // Check existing active diet for member
+    if (memberDetails.memberUuid || memberDetails.userId) {
       const [existingRows] = await db.query(
         `SELECT * FROM diet_plans WHERE (member_id = ? OR user_id = ?) AND status = 'active'`,
-        [resolvedMemberId, resolvedMemberId]
+        [memberDetails.memberUuid || memberDetails.userId, memberDetails.userId || memberDetails.memberUuid]
       );
       const now = Date.now();
       for (const diet of existingRows) {
@@ -131,6 +181,8 @@ async function createDiet(req, res) {
       }
     }
 
+    const auditActor = trainerDetails.trainerUuid || getActorUuid(req.user) || null;
+
     const [result] = await db.query(
       `INSERT INTO diet_plans
       (trainer_id, trainer_name, trainer_source,
@@ -138,23 +190,23 @@ async function createDiet(req, res) {
        title, total_calories, duration, days, status, user_id, admin_id, created_by, updated_by)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
-        trainerId,
-        trainerName || null,
+        trainerDetails.trainerUuid,
+        trainerDetails.trainerName || null,
         trainerSource || null,
-        memberId,
-        memberName || null,
-        memberEmail || null,
-        memberMobile || null,
+        memberDetails.memberUuid,
+        memberDetails.memberName || null,
+        memberDetails.memberEmail || null,
+        memberDetails.memberMobile || null,
         memberWeight || null,
         title || null,
         totalCalories ? Number(totalCalories) : null,
         duration ? Number(duration) : null,
         JSON.stringify(days || {}),
         status || 'active',
-        memberId || null,
+        memberDetails.userId || null,
         adminId,
-        createdBy,
-        createdBy,
+        auditActor,
+        auditActor,
       ]
     );
 
@@ -185,8 +237,11 @@ async function updateDiet(req, res) {
       status,
     } = req.body;
 
-    // Get admin UUID for updated_by field
-    const updatedBy = getAdminUuid(req.user) || null;
+    // Resolve trainer and member details
+    const trainerDetails = await resolveTrainerDetails(trainerId || null, trainerName);
+    const memberDetails = await resolveMemberDetails(memberId || null, memberName, memberEmail, memberMobile);
+
+    const updatedBy = trainerDetails.trainerUuid || getActorUuid(req.user) || null;
 
     const [result] = await db.query(
       `UPDATE diet_plans SET
@@ -196,20 +251,20 @@ async function updateDiet(req, res) {
         updated_by=?, updated_at=CURRENT_TIMESTAMP
        WHERE id=?`,
       [
-        trainerId,
-        trainerName || null,
+        trainerDetails.trainerUuid,
+        trainerDetails.trainerName || null,
         trainerSource || null,
-        memberId,
-        memberName || null,
-        memberEmail || null,
-        memberMobile || null,
+        memberDetails.memberUuid,
+        memberDetails.memberName || null,
+        memberDetails.memberEmail || null,
+        memberDetails.memberMobile || null,
         memberWeight || null,
         title || null,
         totalCalories ? Number(totalCalories) : null,
         duration ? Number(duration) : null,
         JSON.stringify(days || {}),
         status || 'active',
-        memberId || null,
+        memberDetails.userId || null,
         updatedBy,
         id,
       ]

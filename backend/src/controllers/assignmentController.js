@@ -39,9 +39,7 @@ async function resolveTrainerStaffId(trainerUserId) {
   return staffRows.length > 0 ? staffRows[0].id : null;
 }
 
-// Extract admin UUID from request user
-const getAdminUuid = (user) =>
-  user?.adminUuid || user?.userUuid || user?.admin_uuid || user?.user_uuid || null;
+// NOTE: use getActorUuid(req.user) from utils/auditTrail for actor UUID
 
 function normalizeAssignment(row) {
   return {
@@ -84,7 +82,7 @@ async function getAllAssignments(req, res) {
     }
 
     const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
-    const adminUuid = getAdminUuid(req.user);
+    const adminUuid = getActorUuid(req.user);
 
     let sql = `
       SELECT m.*, 
