@@ -91,7 +91,7 @@ const navItems = [
     label: "Workout & Diet",
     icon: HeartPulse,
     children: [
-      
+    
       { path: "/admin/addworkouts", label: "Add Workouts", icon: Dumbbell },
       { path: "/admin/alladdworkouts", label: "All Workouts", icon: ClipboardList },
       { path: "/admin/adddietplans", label: "Add Diet Plans", icon: HeartPulse },
@@ -109,10 +109,11 @@ const adminActiveRouteMap = {
   "/admin/plansall": ["/admin/plansall", "/admin/addplan"],
   "/admin/fecilities": ["/admin/fecilities", "/admin/addfecilities"],
   "/admin/stockdetails": ["/admin/stockdetails", "/admin/add-stock"],
-  "/admin/addworkouts": ["/admin/addworkouts", "/admin/alladdworkouts"],
-  "/admin/alladdworkouts": ["/admin/alladdworkouts", "/admin/addworkouts"],
-  "/admin/adddietplans": ["/admin/adddietplans", "/admin/alladddietplans"],
-  "/admin/alladddietplans": ["/admin/alladddietplans", "/admin/adddietplans"],
+  "/admin/addworkouts": ["/admin/addworkouts"],
+  "/admin/alladdworkouts": ["/admin/alladdworkouts"],
+  "/admin/member-profiles": ["/admin/member-profiles"],
+  "/admin/adddietplans": ["/admin/adddietplans"],
+  "/admin/alladddietplans": ["/admin/alladddietplans"],
   "/admin/emi-tracking": ["/admin/emi-tracking"],
   "/admin/overall-attendance": ["/admin/overall-attendance"],
   "/admin/member-attendance": ["/admin/member-attendance"],

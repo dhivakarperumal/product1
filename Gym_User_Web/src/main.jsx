@@ -111,14 +111,19 @@ const CommenWorkoutDiet = lazy(() => import("./Admin/CommenWorkDiet/CommenWorkDi
 const AdminReports = lazy(() => import("./Admin/Reports/Reports.jsx"));
 const Settings = lazy(() => import("./Admin/Settingss/Settings.jsx"));
 const EMITracking = lazy(() => import("./Admin/Pages/EMITracking.jsx"));
-
+// Admin Workout & Diet Components
+const AdminAddWorkout = lazy(() => import("./Admin/AddWorkouts/AddWorkout.jsx"));
+const AdminAllWorkouts = lazy(() => import("./Admin/AddWorkouts/AllWorkouts.jsx"));
+const AdminAddDietPlans = lazy(() => import("./Admin/DietPlans/AddDietPlans.jsx"));
+const AdminAllDietPlans = lazy(() => import("./Admin/DietPlans/AllDietPlans.jsx"));
+const AdminMemberComprehensiveView = lazy(() => import("./Admin/MemberComprehensiveView/MemberComprehensiveView.jsx"));
 
 const TrainerPanel = lazy(() => import("./TrainerPanel/TrainerPanel.jsx"));
 const TrainerDashboard = lazy(() => import("./TrainerPanel/TrainerDashboard/TrainerDashboard.jsx"));
-const AddWorkout = lazy(() => import("./TrainerPanel/AddWrokouts/AddWorkout.jsx"));
-const AllWorkouts = lazy(() => import("./TrainerPanel/AddWrokouts/AllWorkouts.jsx"));
-const AddDietPlans = lazy(() => import("./TrainerPanel/DietPlans/AddDietPlans.jsx"));
-const AllDietPlans = lazy(() => import("./TrainerPanel/DietPlans/AllDietPlans.jsx"));
+const TrainerAddWorkout = lazy(() => import("./TrainerPanel/AddWrokouts/AddWorkout.jsx"));
+const TrainerAllWorkouts = lazy(() => import("./TrainerPanel/AddWrokouts/AllWorkouts.jsx"));
+const TrainerAddDietPlans = lazy(() => import("./TrainerPanel/DietPlans/AddDietPlans.jsx"));
+const TrainerAllDietPlans = lazy(() => import("./TrainerPanel/DietPlans/AllDietPlans.jsx"));
 const TrainerOverallAttendance = lazy(() => import("./TrainerPanel/TrainerAttendance/OverallAttendance.jsx"));
 const TrainerEnquiry = lazy(() => import("./TrainerPanel/TrainerEnquiry/TrainerEnquiry.jsx"));
 const TrainerReports = lazy(() => import("./TrainerPanel/TrainerReports/Reports.jsx"));
@@ -275,12 +280,15 @@ const router = createHashRouter([
 
       // Workout & Diet route
       { path: "commenworkoutdiet", element: <CommenWorkoutDiet /> },
-      { path: "addworkouts", element: <AddWorkout /> },
-      { path: "addworkouts/:id", element: <AddWorkout /> },
-      { path: "alladdworkouts", element: <AllWorkouts /> },
-      { path: "adddietplans", element: <AddDietPlans /> },
-      { path: "adddietplans/:id", element: <AddDietPlans /> },
-      { path: "alladddietplans", element: <AllDietPlans /> },
+      { path: "addworkouts", element: <AdminAddWorkout /> },
+      { path: "addworkouts/:id", element: <AdminAddWorkout /> },
+      { path: "alladdworkouts", element: <AdminAllWorkouts /> },
+      { path: "adddietplans", element: <AdminAddDietPlans /> },
+      { path: "adddietplans/:id", element: <AdminAddDietPlans /> },
+      { path: "alladddietplans", element: <AdminAllDietPlans /> },
+
+      // Member Comprehensive View route
+      { path: "member-profiles", element: <AdminMemberComprehensiveView /> },
 
       // Reports route
       { path: "reports", element: <AdminReports /> },
@@ -306,12 +314,12 @@ const router = createHashRouter([
       { index: true, element: <TrainerDashboard /> },
       { path: "reports", element: <TrainerReports /> },
       { path: "overall-attendance", element: <TrainerOverallAttendance /> },
-      { path: "addworkouts", element: <AddWorkout /> },
-      { path: "addworkouts/:id", element: <AddWorkout /> },
-      { path: "alladdworkouts", element: <AllWorkouts /> },
-      { path: "adddietplans", element: <AddDietPlans /> },
-      { path: "adddietplans/:id", element: <AddDietPlans /> },
-      { path: "alladddietplans", element: <AllDietPlans /> },
+      { path: "addworkouts", element: <TrainerAddWorkout /> },
+      { path: "addworkouts/:id", element: <TrainerAddWorkout /> },
+      { path: "alladdworkouts", element: <TrainerAllWorkouts /> },
+      { path: "adddietplans", element: <TrainerAddDietPlans /> },
+      { path: "adddietplans/:id", element: <TrainerAddDietPlans /> },
+      { path: "alladddietplans", element: <TrainerAllDietPlans /> },
       { path: "update-weight", element: <UpdateWeight /> },
       { path: "send-message", element: <TrainerSendMessage /> },
       { path: "billing", element: <TrainerAddBilling /> },
