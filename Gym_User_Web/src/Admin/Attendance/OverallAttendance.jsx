@@ -390,7 +390,7 @@ const OverallAttendance = () => {
              <div className="bg-gradient-to-br from-red-600 to-orange-500 p-10 flex justify-between items-center">
                 <div>
                    <h3 className="text-3xl font-black text-white italic">STAFF CHECKLIST</h3>
-                   <p className="text-white/80 mt-1 uppercase text-xs font-black tracking-widest">{dayjs(date).format("DD MMMM YYYY")}</p>
+                   <p className="text-white/80 mt-1 uppercase text-xs font-black tracking-widest">{dayjs(date).format("DD/MM/YYYY")}</p>
                 </div>
                 <button onClick={() => setShowMarkModal(false)} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/40 transition">
                    <XCircle className="w-6 h-6" />

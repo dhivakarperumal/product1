@@ -162,7 +162,7 @@ const Diet = () => {
             {title || "Your Diet Plan"}
           </h1>
           <p className="mt-2 text-sm text-gray-400">
-            {createdAt ? `Plan started on ${dayjs(createdAt).format("DD MMM YYYY")}` : "Your diet plan details appear below."}
+            {createdAt ? `Plan started on ${dayjs(createdAt).format("DD/MM/YYYY")}` : "Your diet plan details appear below."}
           </p>
         </div>
 
@@ -198,7 +198,7 @@ const Diet = () => {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm uppercase tracking-[0.3em] text-orange-400">{day.replace(/Day/i, "Day ")}</p>
-                <h2 className="mt-2 text-2xl font-semibold text-white">{date.format("DD MMM YYYY")}</h2>
+                <h2 className="mt-2 text-2xl font-semibold text-white">{date.format("DD/MM/YYYY")}</h2>
                 <p className="text-sm text-gray-400">{date.format("dddd")}</p>
               </div>
               <div className="inline-flex items-center gap-3 rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300">

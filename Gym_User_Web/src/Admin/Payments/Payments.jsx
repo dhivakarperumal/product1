@@ -343,7 +343,15 @@ const fetchPayments = useCallback(async (adminUuid = null) => {
 
   const formatDate = (date) => {
     if (!date) return "—";
-    return new Date(date).toISOString().split("T")[0];
+    try {
+      return new Date(date).toLocaleDateString("en-GB", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
+    } catch {
+      return "—";
+    }
   };
 
   const toggleRow = (id) => {

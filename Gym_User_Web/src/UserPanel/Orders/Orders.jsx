@@ -283,7 +283,7 @@ const Orders = () => {
                           <Clock className="w-3 h-3 text-orange-400" />
                           <p className="text-xs text-white/60">Order Date</p>
                         </div>
-                        <p className="text-sm text-white font-medium">{new Date(order.created_at).toLocaleDateString()}</p>
+                        <p className="text-sm text-white font-medium">{new Date(order.created_at).toLocaleDateString('en-GB')}</p>
                         <p className="text-xs text-white/50">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                       </div>
                       <div>
@@ -376,7 +376,7 @@ const Orders = () => {
                         <div className="flex items-center gap-2">
                           <Clock className="w-4 h-4 text-blue-400" />
                           <span className="text-white/70">
-                            {new Date(selectedOrder.created_at).toLocaleDateString('en-IN', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                            {new Date(selectedOrder.created_at).toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' })}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">

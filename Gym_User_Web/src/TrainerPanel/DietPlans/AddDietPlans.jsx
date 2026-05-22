@@ -940,7 +940,7 @@ const AddDietPlans = () => {
                           </p>
                           {isBlocked && blockedExpiry && (
                             <p className="text-[10px] text-red-300 mt-1">
-                              Blocked until {dayjs(blockedExpiry).format("DD MMM YYYY")}
+                              Blocked until {dayjs(blockedExpiry).format("DD/MM/YYYY")}
                             </p>
                           )}
                         </div>
@@ -1061,7 +1061,7 @@ const AddDietPlans = () => {
       <>
         {/* LEFT SIDE (DATE) */}
         <h3 className="font-semibold text-emerald-400">
-          {date.format("DD MMM YYYY")}
+          {date.format("DD/MM/YYYY")}
           <span className="text-xs text-white/40 ml-2">
             ({date.format("dddd")})
           </span>

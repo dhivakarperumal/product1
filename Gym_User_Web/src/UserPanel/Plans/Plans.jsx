@@ -174,14 +174,14 @@ const Plans = () => {
                         <div>
                           <p className="text-white/60">Start Date</p>
                           <p className="text-white font-semibold">
-                            {dayjs(plan.startDate).format("DD MMM YYYY")}
+                            {dayjs(plan.startDate).format("DD/MM/YYYY")}
                           </p>
                         </div>
 
                         <div>
                           <p className="text-white/60">End Date</p>
                           <p className="text-white font-semibold">
-                            {dayjs(plan.endDate).format("DD MMM YYYY")}
+                            {dayjs(plan.endDate).format("DD/MM/YYYY")}
                           </p>
                         </div>
 

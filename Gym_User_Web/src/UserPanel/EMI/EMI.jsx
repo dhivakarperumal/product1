@@ -72,10 +72,10 @@ const EMI = () => {
 
   const formatDate = (date) => {
     try {
-      return new Date(date).toLocaleDateString("en-IN", {
+      return new Date(date).toLocaleDateString("en-GB", {
         year: "numeric",
-        month: "short",
-        day: "numeric",
+        month: "2-digit",
+        day: "2-digit",
       });
     } catch {
       return "N/A";

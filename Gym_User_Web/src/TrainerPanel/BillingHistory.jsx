@@ -318,7 +318,7 @@ const BillingHistory = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-400">
-                        {new Date(order.created_at).toLocaleDateString()}
+                        {new Date(order.created_at).toLocaleDateString('en-GB')}
                       </td>
                       <td className="px-6 py-4 text-sm">
                         <button

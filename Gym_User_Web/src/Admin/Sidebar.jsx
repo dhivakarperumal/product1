@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -34,8 +34,8 @@ const navItems = [
   { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
 
   { path: "/admin/enquiry", label: "Enquiry", icon: MessageSquare },
-
-    { path: "/admin/payments", label: "Payments", icon: CreditCard },
+  { path: "/admin/users", label: "Users", icon: Users },
+  { path: "/admin/payments", label: "Payments", icon: CreditCard },
 
   { path: "/admin/emi-tracking", label: "EMI Tracking", icon: TrendingUp },
 
@@ -87,10 +87,36 @@ const navItems = [
       { path: "/admin/member-attendance", label: "Members Attendance", icon: Users },
     ],
   },
-  { path: "/admin/commenworkoutdiet", label: "Workout & Diet", icon: HeartPulse },
+  {
+    label: "Workout & Diet",
+    icon: HeartPulse,
+    children: [
+      
+      { path: "/admin/addworkouts", label: "Add Workouts", icon: Dumbbell },
+      { path: "/admin/alladdworkouts", label: "All Workouts", icon: ClipboardList },
+      { path: "/admin/adddietplans", label: "Add Diet Plans", icon: HeartPulse },
+      { path: "/admin/alladddietplans", label: "All Diet Plans", icon: ClipboardList },
+    ],
+  },
   { path: "/admin/reports", label: "Reports & Analytics", icon: BarChart3 },
 
 ];
+
+const adminActiveRouteMap = {
+  "/admin/members": ["/admin/members", "/admin/addmembers"],
+  "/admin/staff": ["/admin/staff", "/admin/addstaff"],
+  "/admin/products": ["/admin/products", "/admin/addproducts"],
+  "/admin/plansall": ["/admin/plansall", "/admin/addplan"],
+  "/admin/fecilities": ["/admin/fecilities", "/admin/addfecilities"],
+  "/admin/stockdetails": ["/admin/stockdetails", "/admin/add-stock"],
+  "/admin/addworkouts": ["/admin/addworkouts", "/admin/alladdworkouts"],
+  "/admin/alladdworkouts": ["/admin/alladdworkouts", "/admin/addworkouts"],
+  "/admin/adddietplans": ["/admin/adddietplans", "/admin/alladddietplans"],
+  "/admin/alladddietplans": ["/admin/alladddietplans", "/admin/adddietplans"],
+  "/admin/emi-tracking": ["/admin/emi-tracking"],
+  "/admin/overall-attendance": ["/admin/overall-attendance"],
+  "/admin/member-attendance": ["/admin/member-attendance"],
+};
 
 /* ================= SIDEBAR ================= */
 const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
@@ -99,34 +125,20 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
   const location = useLocation();
   const [openMenu, setOpenMenu] = useState(null);
 
-  /* ================= ACTIVE ROUTE MAP ================= */
-  const activeRouteMap = {
-    "/admin/members": ["/admin/members", "/admin/addmembers"],
-    "/admin/staff": ["/admin/staff", "/admin/addstaff"],
-    "/admin/products": ["/admin/products", "/admin/addproducts"],
-    "/admin/plansall": ["/admin/plansall", "/admin/addplan"],
-    "/admin/fecilities": ["/admin/fecilities", "/admin/addfecilities"],
-    "/admin/stockdetails": ["/admin/stockdetails", "/admin/add-stock"],
-    "/admin/emi-tracking": ["/admin/emi-tracking"],
-    // Each attendance route is only active for its own exact path
-    "/admin/overall-attendance": ["/admin/overall-attendance"],
-    "/admin/member-attendance": ["/admin/member-attendance"],
-  };
-
   /* ================= HELPERS ================= */
-  const isRouteActive = (basePath) => {
+  const isRouteActive = useCallback((basePath) => {
     const currentPath = location.pathname;
     const isPathMatch = (path) =>
       currentPath === path || currentPath.startsWith(`${path}/`);
 
-    const paths = activeRouteMap[basePath];
+    const paths = adminActiveRouteMap[basePath];
     if (!paths) {
       if (basePath === "/admin") return currentPath === "/admin";
       if (basePath === "/") return currentPath === "/";
       return isPathMatch(basePath);
     }
     return paths.some(isPathMatch);
-  };
+  }, [location.pathname]);
 
   /* ===== AUTO OPEN DROPDOWN WHEN CHILD ACTIVE ===== */
   useEffect(() => {
@@ -140,7 +152,7 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
         }
       }
     });
-  }, [location.pathname]);
+  }, [location.pathname, isRouteActive]);
 
   const toggleMenu = (label) => {
     setOpenMenu(openMenu === label ? null : label);

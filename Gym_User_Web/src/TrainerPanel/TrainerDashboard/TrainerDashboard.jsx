@@ -42,7 +42,7 @@ const formatText = (value) => {
   if (value === null || value === undefined) return "-";
   if (React.isValidElement(value)) return value;
   if (typeof value === "string" || typeof value === "number") return value;
-  if (value instanceof Date) return value.toLocaleDateString();
+  if (value instanceof Date) return value.toLocaleDateString('en-GB');
   try {
     return JSON.stringify(value);
   } catch {
@@ -517,10 +517,10 @@ const TrainerDashboard = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-gray-400">
-                        {m.planStartDate ? formatText(new Date(m.planStartDate).toLocaleDateString()) : "-"}
+                        {m.planStartDate ? formatText(new Date(m.planStartDate).toLocaleDateString('en-GB')) : "-"}
                       </td>
                       <td className="px-6 py-4 text-gray-400">
-                        {m.planEndDate ? formatText(new Date(m.planEndDate).toLocaleDateString()) : "-"}
+                        {m.planEndDate ? formatText(new Date(m.planEndDate).toLocaleDateString('en-GB')) : "-"}
                       </td>
                       <td className="px-6 py-4">
                         <span className="px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-400 border border-emerald-500/30">

@@ -675,7 +675,7 @@ const AssingnedTrainers = () => {
                               </div>
                               <div className="text-right">
                                 <p className="text-cyan-300 font-bold">₹ {plan.planPrice}</p>
-                                <p className="text-gray-500">{new Date(plan.planEndDate).toLocaleDateString()}</p>
+                                <p className="text-gray-500">{new Date(plan.planEndDate).toLocaleDateString('en-GB')}</p>
                               </div>
                             </div>
                           ))}
@@ -745,8 +745,8 @@ const AssingnedTrainers = () => {
                       <td className="px-6 py-4">
                         {m.plans?.map((p) => (
                           <div key={p.id} className="text-[10px] text-gray-400">
-                            <div>S: {new Date(p.startDate).toLocaleDateString()}</div>
-                            <div>E: {new Date(p.endDate).toLocaleDateString()}</div>
+                            <div>S: {new Date(p.startDate).toLocaleDateString('en-GB')}</div>
+                            <div>E: {new Date(p.endDate).toLocaleDateString('en-GB')}</div>
                           </div>
                         ))}
                       </td>

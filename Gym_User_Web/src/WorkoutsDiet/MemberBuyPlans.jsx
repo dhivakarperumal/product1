@@ -99,8 +99,8 @@ const handleDelete = async (plan) => {
           <div className="grid md:grid-cols-2 gap-8 px-4">
             {plans.map((plan) => {
               const price = Number(plan.pricePaid || 0);
-              const start = new Date(plan.startDate).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' });
-              const end = new Date(plan.endDate).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' });
+              const start = new Date(plan.startDate).toLocaleDateString("en-GB", { day: '2-digit', month: '2-digit', year: 'numeric' });
+              const end = new Date(plan.endDate).toLocaleDateString("en-GB", { day: '2-digit', month: '2-digit', year: 'numeric' });
               const isExpired = new Date(plan.endDate) < new Date();
 
               return (

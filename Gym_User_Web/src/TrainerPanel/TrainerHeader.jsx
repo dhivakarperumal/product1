@@ -425,7 +425,7 @@ const TrainerHeader = ({ onMenuClick, isLargeScreen }) => {
                                   {daysLeft <= 0 ? "Expiring Today" : `In ${daysLeft} days`}
                                 </span>
                                 <span className="text-[9px] text-gray-600">
-                                  {new Date(alert.endDate).toLocaleDateString()}
+                                  {new Date(alert.endDate).toLocaleDateString('en-GB')}
                                 </span>
                               </div>
                             </div>

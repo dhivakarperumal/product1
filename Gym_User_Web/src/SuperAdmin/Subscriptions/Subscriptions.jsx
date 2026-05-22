@@ -123,7 +123,7 @@ const Subscriptions = () => {
 
   const formatDate = (dateStr) => {
     if (!dateStr) return 'Not set';
-    return new Date(dateStr).toLocaleDateString();
+    return new Date(dateStr).toLocaleDateString('en-GB');
   };
 
   const getStatusIcon = (status) => {

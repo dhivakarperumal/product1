@@ -180,7 +180,7 @@ const TrainerFeeCollection = () => {
                 <div className="flex flex-col gap-2">
                   <p className="text-sm uppercase tracking-[0.2em] text-gray-400">Active Target</p>
                   <h2 className="text-2xl font-semibold text-white">{currentTarget.trainer_name || 'Your Target'}</h2>
-                  <p className="text-sm text-gray-400">Created on {dayjs(currentTarget.created_at).format('DD MMM YYYY')}</p>
+                  <p className="text-sm text-gray-400">Created on {dayjs(currentTarget.created_at).format('DD/MM/YYYY')}</p>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-3">
@@ -283,7 +283,7 @@ const TrainerFeeCollection = () => {
                   </div>
                   <div className="rounded-2xl bg-white/5 p-4 border border-white/10">
                     <p className="text-sm text-gray-400">Last updated</p>
-                    <p className="mt-2 text-lg font-semibold text-white">{dayjs(currentTarget.updated_at || currentTarget.created_at).format('DD MMM YYYY')}</p>
+                    <p className="mt-2 text-lg font-semibold text-white">{dayjs(currentTarget.updated_at || currentTarget.created_at).format('DD/MM/YYYY')}</p>
                   </div>
                 </div>
               </div>

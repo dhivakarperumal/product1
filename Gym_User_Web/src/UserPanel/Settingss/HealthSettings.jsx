@@ -171,7 +171,7 @@ const HealthSettings = () => {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-sm text-white/60">
-                      {new Date(metric.createdAt).toLocaleDateString()}
+                      {new Date(metric.createdAt).toLocaleDateString('en-GB')}
                     </p>
                     <div className="mt-2 space-y-1">
                       <p className="text-white">Weight: <span className="font-bold text-orange-400">{metric.weight} kg</span></p>

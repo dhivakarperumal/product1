@@ -413,21 +413,114 @@ async function getMembershipById(req, res) {
 async function updateMembership(req, res) {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const body = req.body || {};
 
     // Get audit trail data (updated_by with admin UUID)
     const auditTrail = updateAuditTrail(req.user);
 
-    const [result] = await db.query(
-      "UPDATE memberships SET status = ?, updated_by = ? WHERE id = ?",
-      [status, auditTrail.updated_by, id]
-    );
+    // Map incoming fields to DB columns
+    const fieldMap = {
+      userId: 'userId',
+      user_id: 'userId',
+      memberId: 'memberId',
+      member_id: 'member_id',
+      member_name: 'member_name',
+      member_email: 'member_email',
+      planId: 'planId',
+      plan_id: 'plan_id',
+      planName: 'planName',
+      pricePaid: 'pricePaid',
+      price: 'pricePaid',
+      duration: 'duration',
+      startDate: 'startDate',
+      endDate: 'endDate',
+      paymentId: 'paymentId',
+      paymentMode: 'paymentMode',
+      status: 'status',
+      isEMI: 'isEMI',
+      emiMonths: 'emiMonths',
+      totalAmount: 'totalAmount',
+      trainerId: 'trainerId',
+      trainer_id: 'trainerId'
+    };
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: "Membership not found" });
+    const setClauses = [];
+    const params = [];
+
+    Object.keys(fieldMap).forEach((key) => {
+      if (Object.prototype.hasOwnProperty.call(body, key) && body[key] !== undefined) {
+        setClauses.push(`${fieldMap[key]} = ?`);
+        params.push(body[key]);
+      }
+    });
+
+    // Always update updated_by
+    setClauses.push('updated_by = ?');
+    params.push(auditTrail.updated_by);
+
+    if (setClauses.length === 1) {
+      // only updated_by was set => nothing meaningful to update
+      return res.status(400).json({ success: false, message: 'No updatable fields provided' });
     }
 
-    res.json({ success: true, message: "Membership updated successfully" });
+    const sql = `UPDATE memberships SET ${setClauses.join(', ')} WHERE id = ?`;
+    params.push(id);
+
+    const [result] = await db.query(sql, params);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Membership not found' });
+    }
+
+    // If startDate or endDate provided, also update the member's join/expiry dates
+    try {
+      const membersTable = await resolveMemberTable();
+      const joinDate = body.startDate || body.start_date || null;
+      const expiryDate = body.endDate || body.end_date || null;
+
+      if ((joinDate || expiryDate) && membersTable) {
+        // Prefer explicit memberId/member_id, else try userId
+        const memberIdValue = body.memberId || body.member_id || null;
+        const userIdValue = body.userId || body.user_id || null;
+
+        const updateClauses = [];
+        const updateParams = [];
+        if (joinDate !== null && joinDate !== undefined) {
+          updateClauses.push('join_date = ?');
+          updateParams.push(joinDate);
+        }
+        if (expiryDate !== null && expiryDate !== undefined) {
+          updateClauses.push('expiry_date = ?');
+          updateParams.push(expiryDate);
+        }
+
+        if (updateClauses.length > 0) {
+          // always set updated_by
+          updateClauses.push('updated_by = ?');
+          updateParams.push(auditTrail.updated_by);
+
+          let whereSql = '';
+          const whereParams = [];
+          if (memberIdValue) {
+            // try numeric id and member_id string
+            whereSql = 'WHERE id = ? OR member_id = ?';
+            whereParams.push(memberIdValue, memberIdValue);
+          } else if (userIdValue) {
+            whereSql = 'WHERE user_id = ? OR id = ?';
+            whereParams.push(userIdValue, userIdValue);
+          }
+
+          if (whereSql) {
+            const updateSql = `UPDATE ${membersTable} SET ${updateClauses.join(', ')} ${whereSql} LIMIT 1`;
+            await db.query(updateSql, [...updateParams, ...whereParams]);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to update member join/expiry dates after membership update:', err);
+    }
+
+    res.json({ success: true, message: 'Membership updated successfully' });
   } catch (error) {
     console.error("Update membership error:", error);
     res.status(500).json({ success: false, message: "Failed to update membership" });

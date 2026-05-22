@@ -152,9 +152,9 @@ const BuyPlanadmin = () => {
 
   // ================= CALCULATE END DATE =================
   useEffect(() => {
-    if (!selectedPlan || membershipToEdit || endDateManuallyEdited) return;
+    if (!selectedPlan || endDateManuallyEdited) return;
 
-    const durationMonths = parseInt(selectedPlan.duration) || 0;
+    const durationMonths = parseInt(selectedPlan.duration, 10) || 0;
 
     const start = new Date(form.startDate || today);
     const end = new Date(start);
@@ -166,7 +166,7 @@ const BuyPlanadmin = () => {
       startDate: form.startDate || today,
       endDate: end.toISOString().split("T")[0],
     }));
-  }, [selectedPlan, membershipToEdit, endDateManuallyEdited, form.startDate]);
+  }, [selectedPlan, endDateManuallyEdited, form.startDate]);
 
   // ================= AOS =================
   useEffect(() => {

@@ -295,10 +295,10 @@ const OrderDetails = () => {
 
                       <div className="text-xs text-gray-400 mt-1">
                         {entry?.time
-                          ? new Date(entry.time).toLocaleDateString("en-IN", {
-                              month: "short",
-                              day: "numeric",
-                              weekday: "short",
+                          ? new Date(entry.time).toLocaleDateString("en-GB", {
+                              year: "numeric",
+                              month: "2-digit",
+                              day: "2-digit",
                             })
                           : currentIndex === idx
                           ? "Current"

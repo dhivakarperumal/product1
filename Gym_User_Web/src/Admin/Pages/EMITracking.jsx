@@ -9,7 +9,7 @@ let formatDate, getDaysTillDue;
 const emiUtils = emiUtilsModule || {};
 formatDate = emiUtils.formatDate || ((dateStr) => {
   const date = new Date(dateStr + 'T00:00:00');
-  return date.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' });
+  return date.toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' });
 });
 getDaysTillDue = emiUtils.getDaysTillDue || ((dueDate) => {
   const due = new Date(dueDate);

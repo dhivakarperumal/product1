@@ -35,7 +35,7 @@ const downloadPDF = (title, headers, rows) => {
   doc.text(title, 14, 15);
   doc.setFontSize(10);
   doc.setTextColor(100);
-  doc.text(`Generated: ${dayjs().format("DD MMM YYYY, h:mm A")}`, 14, 22);
+  doc.text(`Generated: ${dayjs().format("DD/MM/YYYY, h:mm A")}`, 14, 22);
   autoTable(doc, {
     startY: 28,
     head: [headers],
@@ -137,7 +137,7 @@ const Reports = () => {
         m.phone || "-",
         m.plan || m.role || "Member",
         m.status || "Active",
-        m.join_date ? dayjs(m.join_date).format("DD MMM YYYY") : "-",
+        m.join_date ? dayjs(m.join_date).format("DD/MM/YYYY") : "-",
       ]),
     },
     {
@@ -153,7 +153,7 @@ const Reports = () => {
         o.name || o.user_name || o.customer_name || "-",
         `₹${parseFloat(o.total || o.total_amount || 0).toFixed(2)}`,
         o.status || "-",
-        o.created_at ? dayjs(o.created_at).format("DD MMM YYYY") : "-",
+        o.created_at ? dayjs(o.created_at).format("DD/MM/YYYY") : "-",
       ]),
     },
     {
@@ -171,8 +171,8 @@ const Reports = () => {
         p.pricePaid != null ? `₹${parseFloat(p.pricePaid).toFixed(2)}` : "-",
         p.paymentMode || p.paymentId ? (p.paymentMode || "Razorpay") : "-",
         p.status || "active",
-        p.startDate ? dayjs(p.startDate).format("DD MMM YYYY") : "-",
-        p.endDate ? dayjs(p.endDate).format("DD MMM YYYY") : "-",
+        p.startDate ? dayjs(p.startDate).format("DD/MM/YYYY") : "-",
+        p.endDate ? dayjs(p.endDate).format("DD/MM/YYYY") : "-",
       ]),
     },
     {
@@ -189,7 +189,7 @@ const Reports = () => {
         e.phone || "-",
         e.subject || "-",
         e.status || "pending",
-        e.created_at ? dayjs(e.created_at).format("DD MMM YYYY") : "-",
+        e.created_at ? dayjs(e.created_at).format("DD/MM/YYYY") : "-",
       ]),
     },
   ];

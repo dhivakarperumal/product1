@@ -275,6 +275,12 @@ const router = createHashRouter([
 
       // Workout & Diet route
       { path: "commenworkoutdiet", element: <CommenWorkoutDiet /> },
+      { path: "addworkouts", element: <AddWorkout /> },
+      { path: "addworkouts/:id", element: <AddWorkout /> },
+      { path: "alladdworkouts", element: <AllWorkouts /> },
+      { path: "adddietplans", element: <AddDietPlans /> },
+      { path: "adddietplans/:id", element: <AddDietPlans /> },
+      { path: "alladddietplans", element: <AllDietPlans /> },
 
       // Reports route
       { path: "reports", element: <AdminReports /> },

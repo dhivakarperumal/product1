@@ -128,10 +128,10 @@ export const formatDate = (dateStr) => {
   const date = parseDateValue(dateStr);
   if (!date) return 'N/A';
 
-  return new Intl.DateTimeFormat('en-IN', {
+  return new Intl.DateTimeFormat('en-GB', {
     year: 'numeric',
-    month: 'short',
-    day: 'numeric'
+    month: '2-digit',
+    day: '2-digit'
   }).format(date);
 };
 

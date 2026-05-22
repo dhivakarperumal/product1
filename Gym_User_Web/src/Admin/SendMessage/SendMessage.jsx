@@ -374,8 +374,8 @@ const SendMessage = () => {
                     <div>
                       <p className="font-semibold text-white">{h.subject}</p>
                       <p className="text-xs text-white/40 mt-0.5">
-                        {new Date(h.sent_at).toLocaleString("en-IN", {
-                          day: "2-digit", month: "short", year: "numeric",
+                        {new Date(h.sent_at).toLocaleString("en-GB", {
+                          day: "2-digit", month: "2-digit", year: "numeric",
                           hour: "2-digit", minute: "2-digit",
                         })}
                       </p>

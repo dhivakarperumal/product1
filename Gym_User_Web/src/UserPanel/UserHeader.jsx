@@ -410,7 +410,7 @@ const UserHeader = ({ onMenuClick, isLargeScreen }) => {
                                   {daysLeft <= 0 ? "Expiring Today" : `In ${daysLeft} days`}
                                 </span>
                                 <span className="text-gray-500">
-                                  {new Date(alert.endDate).toLocaleDateString()}
+                                  {new Date(alert.endDate).toLocaleDateString('en-GB')}
                                 </span>
                               </div>
                             </div>
@@ -435,7 +435,7 @@ const UserHeader = ({ onMenuClick, isLargeScreen }) => {
                               </p>
                               <div className="flex justify-between mt-2 text-[10px]">
                                 <span className="text-white/60">{reminder.member_name || reminder.member_email || 'Your EMI'}</span>
-                                <span className="text-gray-500">{dueDate.toLocaleDateString()}</span>
+                                <span className="text-gray-500">{dueDate.toLocaleDateString('en-GB')}</span>
                               </div>
                             </div>
                           );

@@ -531,7 +531,7 @@ const OverallAttendance = () => {
                 <h3 className="text-2xl font-black text-white">
                   {isEditMode ? "Edit Attendance" : "Attendance Checklist"}
                 </h3>
-                <p className="text-white/80 mt-1 uppercase text-xs tracking-widest">{dayjs(date).format("DD MMMM YYYY")}</p>
+                <p className="text-white/80 mt-1 uppercase text-xs tracking-widest">{dayjs(date).format("DD/MM/YYYY")}</p>
               </div>
               <button onClick={() => setShowMarkModal(false)} className="text-white/50 hover:text-white">
                 <XCircle className="w-6 h-6" />
@@ -681,7 +681,7 @@ const OverallAttendance = () => {
             <div className="bg-gradient-to-r from-blue-600 to-indigo-500 p-6 flex justify-between items-center">
               <div>
                 <h3 className="text-xl font-black text-white">Edit Status</h3>
-                <p className="text-white/70 text-xs mt-1 uppercase tracking-widest">{dayjs(date).format("DD MMMM YYYY")}</p>
+                <p className="text-white/70 text-xs mt-1 uppercase tracking-widest">{dayjs(date).format("DD/MM/YYYY")}</p>
               </div>
               <button onClick={() => setEditMember(null)} className="text-white/50 hover:text-white">
                 <X className="w-5 h-5" />

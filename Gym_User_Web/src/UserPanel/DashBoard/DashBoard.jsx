@@ -10,7 +10,7 @@ const dashboardCache = {};
 
 /* ---------- HELPERS ---------- */
 const formatDate = (date) =>
-  date ? dayjs(date).format("DD MMM YYYY") : "-";
+  date ? dayjs(date).format("DD/MM/YYYY") : "-";
 
 const normalizeStatus = (status) => {
   if (!status) return "OrderPlaced";

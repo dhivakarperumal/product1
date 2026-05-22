@@ -368,9 +368,9 @@ const MemberAttendance = () => {
                       <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold">
                         <Calendar className="w-3 h-3" />
                         {r.date
-                          ? dayjs(r.date).format("DD MMM YYYY")
+                          ? dayjs(r.date).format("DD/MM/YYYY")
                           : r.check_in
-                          ? dayjs(r.check_in).format("DD MMM YYYY")
+                          ? dayjs(r.check_in).format("DD/MM/YYYY")
                           : "—"}
                       </div>
                     </td>
@@ -397,7 +397,7 @@ const MemberAttendance = () => {
                   MEMBER CHECKLIST
                 </h3>
                 <p className="text-white/80 mt-1 uppercase text-xs font-black tracking-widest">
-                  {dayjs(date).format("DD MMMM YYYY")}
+                  {dayjs(date).format("DD/MM/YYYY")}
                 </p>
               </div>
               <button

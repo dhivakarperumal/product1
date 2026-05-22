@@ -611,7 +611,7 @@ const AlertDropdown = ({ title, items, icon, type, onClose, badgeColor }) => (
                       <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-red-500/20 text-red-400 uppercase">
                         Expiring {daysLeft <= 0 ? 'Today' : `in ${daysLeft}d`}
                       </span>
-                      <span className="text-[9px] text-gray-600">{new Date(item.endDate).toLocaleDateString()}</span>
+                      <span className="text-[9px] text-gray-600">{new Date(item.endDate).toLocaleDateString('en-GB')}</span>
                     </div>
                   </>
                 );

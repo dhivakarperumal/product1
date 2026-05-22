@@ -553,7 +553,7 @@ const AddWorkout = () => {
 
                 return (
                   <h3 className="font-semibold mb-4 text-orange-400 border-b border-white/10 pb-2">
-                    {date.format("DD MMM YYYY")}
+                    {date.format("DD/MM/YYYY")}
                     <span className="text-xs text-white/40 ml-2">
                       ({date.format("dddd")})
                     </span>

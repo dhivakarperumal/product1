@@ -240,7 +240,7 @@ const TrainerTarget = () => {
               <div>
                 <h2 className="text-2xl font-bold text-white">Current Target</h2>
                 <p className="text-gray-400 text-sm mt-1">
-                  Created on {dayjs(currentTarget.created_at).format('DD MMM YYYY')}
+                  Created on {dayjs(currentTarget.created_at).format('DD/MM/YYYY')}
                 </p>
               </div>
               {currentTarget.is_completed || currentTarget.completed ? (
@@ -327,7 +327,7 @@ const TrainerTarget = () => {
                       ₹{Number(target.assigned_amount || target.amount || 0).toLocaleString('en-IN')} in {target.assigned_days || target.days || '-'} days
                     </p>
                     <p className="text-sm text-gray-400">
-                      {dayjs(target.created_at).format('DD MMM YYYY')}
+                      {dayjs(target.created_at).format('DD/MM/YYYY')}
                     </p>
                   </div>
                   <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
