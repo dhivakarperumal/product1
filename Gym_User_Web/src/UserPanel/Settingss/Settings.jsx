@@ -138,12 +138,7 @@ const Settings = () => {
           path="/user/settings/notifications"
         /> */}
 
-        <SettingCard
-          icon={Shield}
-          title="Privacy & Preferences"
-          desc="Control your privacy settings and data preferences."
-          path="/user/settings/privacy"
-        />
+     
 
         <SettingCard
           icon={LogOut}

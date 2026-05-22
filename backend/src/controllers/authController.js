@@ -574,6 +574,141 @@ async function setMemberPassword(req, res) {
   }
 }
 
+// Change password (requires current password verification)
+async function changePassword(req, res) {
+  const { currentPassword, newPassword } = req.body;
+  const userId = req.user?.userId || req.user?.user_id || req.user?.id;
+
+  // additional identifiers that may be present in JWT
+  const jwtEmail = req.user?.email || null;
+  const jwtMobile = req.user?.mobile || req.user?.phone || null;
+  const jwtUsername = req.user?.username || null;
+
+  if (!userId) {
+    return res.status(401).json({ message: 'User not authenticated' });
+  }
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ message: 'Current password and new password are required' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ message: 'New password must be at least 6 characters' });
+  }
+
+  try {
+    // Attempt several lookups to handle different account layouts:
+    // 1) members_auth by id
+    // 2) members_auth by email/mobile/username
+    // 3) members by id (for phone fallback)
+    // 4) users by id (admins)
+
+    let found = null;
+
+    if (userId) {
+      const [rows] = await pool.query('SELECT * FROM members_auth WHERE id = ?', [userId]);
+      if (rows && rows.length) found = { table: 'members_auth', row: rows[0] };
+    }
+
+    if (!found && jwtEmail) {
+      const [rows] = await pool.query(
+        'SELECT * FROM members_auth WHERE email = ? OR username = ? OR mobile = ? LIMIT 1',
+        [jwtEmail, jwtUsername || jwtEmail, jwtMobile || jwtEmail]
+      );
+      if (rows && rows.length) found = { table: 'members_auth', row: rows[0] };
+    }
+
+    if (!found && jwtMobile) {
+      const [rows] = await pool.query('SELECT * FROM members_auth WHERE mobile = ? LIMIT 1', [jwtMobile]);
+      if (rows && rows.length) found = { table: 'members_auth', row: rows[0] };
+    }
+
+    // Try members table (phone fallback or linked member record)
+    if (!found && userId) {
+      const [rows] = await pool.query('SELECT * FROM members WHERE id = ?', [userId]);
+      if (rows && rows.length) found = { table: 'members', row: rows[0] };
+    }
+
+    // Try users table (admins)
+    if (!found && userId) {
+      const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [userId]);
+      if (rows && rows.length) found = { table: 'users', row: rows[0] };
+    }
+
+    if (!found) {
+      // As a last resort, try to find members_auth by username or mobile
+      const [rows] = await pool.query(
+        'SELECT * FROM members_auth WHERE username = ? OR mobile = ? OR email = ? LIMIT 1',
+        [jwtUsername, jwtMobile, jwtEmail]
+      );
+      if (rows && rows.length) found = { table: 'members_auth', row: rows[0] };
+    }
+
+    if (!found) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const userRow = found.row;
+
+    // Determine stored password value for verification
+    let storedHash = userRow.password_hash || null;
+    // Phone fallback for members table
+    if (!storedHash && found.table === 'members' && (userRow.phone || userRow.mobile)) {
+      storedHash = String(userRow.phone || userRow.mobile);
+    }
+
+    // If still no storedHash, attempt to look up legacy members_auth linked by email/mobile
+    if (!storedHash && jwtEmail) {
+      const [legacy] = await pool.query('SELECT * FROM members_auth WHERE email = ? LIMIT 1', [jwtEmail]);
+      if (legacy && legacy.length) {
+        storedHash = legacy[0].password_hash;
+        found = { table: 'members_auth', row: legacy[0] };
+      }
+    }
+
+    // Verify current password
+    let passwordMatch = false;
+    if (!storedHash) {
+      passwordMatch = false;
+    } else if (storedHash.startsWith && (storedHash.startsWith('$2a$') || storedHash.startsWith('$2b$') || storedHash.startsWith('$2y$'))) {
+      passwordMatch = await bcrypt.compare(currentPassword, storedHash);
+    } else {
+      // Plaintext fallback (not ideal but handles legacy cases)
+      passwordMatch = currentPassword === String(storedHash);
+    }
+
+    if (!passwordMatch) {
+      return res.status(401).json({ message: 'Current password is incorrect' });
+    }
+
+    // Hash new password
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update correct table and row
+    if (found.table === 'members_auth') {
+      await pool.query('UPDATE members_auth SET password_hash = ? WHERE id = ?', [hashedNewPassword, userRow.id]);
+    } else if (found.table === 'members') {
+      // prefer updating members_auth if it exists for this member by email/mobile
+      const [ma] = await pool.query('SELECT * FROM members_auth WHERE email = ? OR mobile = ? LIMIT 1', [userRow.email, userRow.phone || userRow.mobile]);
+      if (ma && ma.length) {
+        await pool.query('UPDATE members_auth SET password_hash = ? WHERE id = ?', [hashedNewPassword, ma[0].id]);
+      } else {
+        // fallback: update members table (if it stores password_hash)
+        await pool.query('UPDATE members SET password_hash = ? WHERE id = ?', [hashedNewPassword, userRow.id]);
+      }
+    } else {
+      // users table
+      await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [hashedNewPassword, userRow.id]);
+    }
+
+    logger.info('Password changed for user id %d', userId);
+    return res.json({ message: 'Password changed successfully' });
+  } catch (err) {
+    logger.error('changePassword error: %O', err);
+    return res.status(500).json({ message: 'Unable to change password', error: process.env.NODE_ENV === 'development' ? err.message : undefined });
+  }
+}
+
 // Get all admins (for super admin to filter by admin)
 async function getAllAdmins(req, res) {
   try {
@@ -595,4 +730,4 @@ async function getAllAdmins(req, res) {
   }
 }
 
-module.exports = { register, login, googleLogin, registerSuperAdmin, registerAdmin, registerMember, setMemberPassword, getAllAdmins };
+module.exports = { register, login, googleLogin, registerSuperAdmin, registerAdmin, registerMember, setMemberPassword, changePassword, getAllAdmins };

@@ -1,8 +1,31 @@
 const jwt = require('jsonwebtoken');
 
+// helper to parse a raw Cookie header without adding a dependency
+function parseCookies(cookieHeader) {
+  if (!cookieHeader) return {};
+  return cookieHeader.split(';').map(c => c.trim()).reduce((acc, pair) => {
+    const [k, ...v] = pair.split('=');
+    acc[k] = decodeURIComponent(v.join('='));
+    return acc;
+  }, {});
+}
+
 const authenticateToken = (req, res, next) => {
+  // Check standard Authorization header first
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  let token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  // Fallback to common alternate headers
+  if (!token) {
+    token = req.headers['x-access-token'] || req.headers['token'] || null;
+  }
+
+  // Fallback to cookie named 'token' if present (useful when frontend sets token as cookie)
+  if (!token && req.headers && req.headers.cookie) {
+    const cookies = parseCookies(req.headers.cookie);
+    if (cookies.token) token = cookies.token;
+    if (!token && cookies.access_token) token = cookies.access_token;
+  }
 
   if (!token) {
     return res.status(401).json({ error: 'Access token required' });
@@ -19,11 +42,16 @@ const authenticateToken = (req, res, next) => {
 
 const optionalAuthenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
+  let token = authHeader && authHeader.split(' ')[1];
   if (!token) {
-    return next();
+    token = req.headers['x-access-token'] || req.headers['token'] || null;
   }
+  if (!token && req.headers && req.headers.cookie) {
+    const cookies = parseCookies(req.headers.cookie);
+    token = cookies.token || cookies.access_token || null;
+  }
+
+  if (!token) return next();
 
   jwt.verify(token, process.env.JWT_SECRET || 'secret', (err, user) => {
     if (!err && user) {

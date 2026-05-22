@@ -90,6 +90,7 @@ async function getAllMembers(req, res) {
         gm.phone, 
         gm.email, 
         gm.gender,
+        gm.date_of_birth,
         gm.height,
         gm.weight,
         gm.bmi,
@@ -133,7 +134,7 @@ async function getMemberById(req, res) {
     let params;
     if (isNum) {
       sql = `
-        SELECT gm.*,
+        SELECT gm.*, gm.date_of_birth AS dateOfBirth,
                (SELECT COUNT(*) FROM workout_programs wp WHERE wp.member_id = gm.id) AS workout_count,
                (SELECT COUNT(*) FROM diet_plans dp WHERE dp.member_id = gm.id) AS diet_count
         FROM ${membersTable} gm
@@ -142,7 +143,7 @@ async function getMemberById(req, res) {
       params = [idNum];
     } else {
       sql = `
-        SELECT gm.*,
+        SELECT gm.*, gm.date_of_birth AS dateOfBirth,
                (SELECT COUNT(*) FROM workout_programs wp WHERE wp.member_id = gm.id) AS workout_count,
                (SELECT COUNT(*) FROM diet_plans dp WHERE dp.member_id = gm.id) AS diet_count
         FROM ${membersTable} gm
@@ -166,10 +167,12 @@ async function createMember(req, res) {
   const {
     name, phone, email, gender, height, weight, bmi,
     plan, duration, status,
-    photo, notes, address
+    photo, notes, address,
+    dateOfBirth, date_of_birth,
   } = req.body;
   const joinDate = req.body.joinDate || req.body.join_date || new Date().toISOString().split('T')[0];
   const expiryDate = req.body.expiryDate || req.body.expiry_date || null;
+  const dob = dateOfBirth || date_of_birth || null;
 
   console.log('createMember received:', { name, phone, email, gender, height, weight, bmi, plan, duration, joinDate, expiryDate, status, photo: photo ? 'base64...' : null, notes, address });
 
@@ -241,11 +244,11 @@ async function createMember(req, res) {
     try {
       [result] = await connection.query(
         `INSERT INTO ${membersTable}
-      (member_id, name, phone, email, gender, height, weight, bmi, plan, duration,
+      (member_id, name, phone, email, gender, date_of_birth, height, weight, bmi, plan, duration,
        join_date, expiry_date, status, photo, notes, address, user_id, created_by, updated_by)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [
-          memberId, name, phone, email, gender, numHeight, numWeight, numBmi,
+          memberId, name, phone, email, gender, dob, numHeight, numWeight, numBmi,
           plan, numDuration, joinDate, expiryDate, status, photo, notes, address,
           linkedUserId, currentUserUuid, currentUserUuid
         ]
@@ -259,7 +262,7 @@ async function createMember(req, res) {
     // fetch back the inserted member with counts
     const [fetched] = await connection.query(
       `
-      SELECT gm.*,
+      SELECT gm.*, gm.date_of_birth AS dateOfBirth,
              (SELECT COUNT(*) FROM workout_programs wp WHERE wp.member_id = gm.member_id OR wp.member_id = gm.member_id OR wp.member_id = gm.id) AS workout_count,
              (SELECT COUNT(*) FROM diet_plans dp WHERE dp.member_id = gm.id) AS diet_count
       FROM ${membersTable} gm
@@ -270,7 +273,7 @@ async function createMember(req, res) {
     const member = fetched[0] || {
       id: result.insertId,
       member_id: memberId,
-      name, phone, email, gender, height: numHeight, weight: numWeight, bmi: numBmi, plan, duration: numDuration,
+      name, phone, email, gender, date_of_birth: dob, height: numHeight, weight: numWeight, bmi: numBmi, plan, duration: numDuration,
       join_date: joinDate, expiry_date: expiryDate, status, photo, notes, address,
       user_id: linkedUserId
     };
@@ -301,7 +304,8 @@ async function updateMember(req, res) {
 
     const { name, phone, email, gender, height, weight, bmi,
       plan, duration, joinDate, expiryDate, status,
-      photo, notes, address } = req.body;
+      photo, notes, address,
+      dateOfBirth, date_of_birth } = req.body;
 
     // ensure numeric values are correctly typed
     const numHeight = height != null && !isNaN(height) ? Number(height) : null;
@@ -312,8 +316,8 @@ async function updateMember(req, res) {
     // Determine the member owner so uniqueness is enforced per admin
     let ownerUuid = currentUserUuid;
     const selectOwnerQuery = isNum
-      ? `SELECT created_by, phone, email, join_date, expiry_date FROM ${membersTable} WHERE id = ?`
-      : `SELECT created_by, phone, email, join_date, expiry_date FROM ${membersTable} WHERE member_id = ?`;
+      ? `SELECT created_by, phone, email, join_date, expiry_date, date_of_birth FROM ${membersTable} WHERE id = ?`
+      : `SELECT created_by, phone, email, join_date, expiry_date, date_of_birth FROM ${membersTable} WHERE member_id = ?`;
     const [ownerRows] = await connection.query(selectOwnerQuery, [isNum ? idNum : id]);
     if (ownerRows.length === 0) {
       await connection.rollback();
@@ -327,6 +331,9 @@ async function updateMember(req, res) {
     const existingEmail = ownerRows[0].email;
     const existingJoinDate = ownerRows[0].join_date;
     const existingExpiryDate = ownerRows[0].expiry_date;
+    const existingDateOfBirth = ownerRows[0].date_of_birth;
+    const rawDateOfBirth = dateOfBirth !== undefined ? dateOfBirth : date_of_birth;
+    const finalDateOfBirth = rawDateOfBirth !== undefined ? rawDateOfBirth : existingDateOfBirth;
     const finalJoinDate = joinDate !== undefined ? joinDate : existingJoinDate;
     const finalExpiryDate = expiryDate !== undefined ? expiryDate : existingExpiryDate;
     const hasPhoneChanged = phone && existingPhone !== String(phone);
@@ -390,26 +397,26 @@ async function updateMember(req, res) {
     if (isNum) {
       updateQuery = `UPDATE ${membersTable} SET
         name=?, phone=?, email=?, gender=?,
-        height=?, weight=?, bmi=?, plan=?, duration=?,
+        date_of_birth=?, height=?, weight=?, bmi=?, plan=?, duration=?,
         join_date=?, expiry_date=?, status=?,
         photo=?, notes=?, address=?, user_id=?,
         updated_by=?, updated_at=CURRENT_TIMESTAMP
        WHERE id=?`;
       updateParams = [
-        name, phone, email, gender, numHeight, numWeight, numBmi,
+        name, phone, email, gender, finalDateOfBirth, numHeight, numWeight, numBmi,
         plan, numDuration, finalJoinDate, finalExpiryDate, status,
         photo, notes, address, linkedUserId, currentUserUuid, idNum
       ];
     } else {
       updateQuery = `UPDATE ${membersTable} SET
         name=?, phone=?, email=?, gender=?,
-        height=?, weight=?, bmi=?, plan=?, duration=?,
+        date_of_birth=?, height=?, weight=?, bmi=?, plan=?, duration=?,
         join_date=?, expiry_date=?, status=?,
         photo=?, notes=?, address=?, user_id=?,
         updated_by=?, updated_at=CURRENT_TIMESTAMP
        WHERE member_id=?`;
       updateParams = [
-        name, phone, email, gender, numHeight, numWeight, numBmi,
+        name, phone, email, gender, finalDateOfBirth, numHeight, numWeight, numBmi,
         plan, numDuration, finalJoinDate, finalExpiryDate, status,
         photo, notes, address, linkedUserId, currentUserUuid, id
       ];

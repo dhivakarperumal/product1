@@ -16,6 +16,7 @@ const AddMember = () => {
     phone: "",
     email: "",
     gender: "",
+    dateOfBirth: "",
     height: "",
     weight: "",
     bmi: "",
@@ -47,6 +48,7 @@ const AddMember = () => {
           height: data.height || "",
           weight: data.weight || "",
           bmi: data.bmi || "",
+          dateOfBirth: data.date_of_birth || data.dateOfBirth || "",
           notes: data.notes || "",
           address: data.address || "",
           joinDate: data.join_date ? dayjs(data.join_date).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD"),
@@ -117,6 +119,12 @@ const AddMember = () => {
     
     setLoading(true);
 
+    if (!form.name || !form.phone || !form.email || !form.gender || !form.dateOfBirth || !form.height || !form.weight || !form.address) {
+      toast.error("Please fill all required fields.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const payload = {
         ...form,
@@ -124,6 +132,7 @@ const AddMember = () => {
         weight: form.weight ? Number(form.weight) : null,
         bmi: form.bmi ? Number(form.bmi) : null,
         duration: form.duration ? Number(form.duration) : null,
+        dateOfBirth: form.dateOfBirth || null,
       };
 
       console.log('Submitting payload:', payload);
@@ -223,11 +232,13 @@ const AddMember = () => {
               <label className="block text-sm text-slate-200">
                 <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">Email</span>
                 <input
+                  type="email"
                   name="email"
                   value={form.email}
                   onChange={handleChange}
                   placeholder="member@example.com"
                   className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                  required
                 />
               </label>
 
@@ -239,12 +250,26 @@ const AddMember = () => {
                     value={form.gender}
                     onChange={handleChange}
                     className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                    required
                   >
                     <option value="">Select gender</option>
                     <option className="text-black">Male</option>
                     <option className="text-black">Female</option>
                   </select>
                 </label>
+                <label className="block text-sm text-slate-200">
+                  <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">Date of Birth</span>
+                  <input
+                    type="date"
+                    name="dateOfBirth"
+                    value={form.dateOfBirth}
+                    onChange={handleChange}
+                    className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                    required
+                  />
+                </label>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block text-sm text-slate-200">
                   <span className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-500">Status</span>
                   <select
@@ -270,6 +295,7 @@ const AddMember = () => {
                     onChange={handleChange}
                     placeholder="165"
                     className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                    required
                   />
                 </label>
                 <label className="block text-sm text-slate-200">
@@ -280,6 +306,7 @@ const AddMember = () => {
                     onChange={handleChange}
                     placeholder="70"
                     className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                    required
                   />
                 </label>
                 <label className="block text-sm text-slate-200">
@@ -328,6 +355,7 @@ const AddMember = () => {
                   rows={3}
                   placeholder="Member address"
                   className="w-full rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                  required
                 />
               </label>
               <label className="block text-sm text-slate-200">

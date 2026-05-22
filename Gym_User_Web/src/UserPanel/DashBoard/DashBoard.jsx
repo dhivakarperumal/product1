@@ -3,7 +3,7 @@ import api from "../../api";
 import dayjs from "dayjs";
 import { useAuth } from "../../PrivateRouter/AuthContext";
 import { resolveUserId } from "../../utils/userUtils";
-import { Dumbbell, Salad, ShoppingCart, CreditCard } from "lucide-react";
+import { Dumbbell, Salad, ShoppingCart, CreditCard, Flame, Clock, CheckCircle2, AlertCircle, TrendingUp, Calendar } from "lucide-react";
 
 /* ---------- CACHE ---------- */
 const dashboardCache = {};
@@ -229,11 +229,19 @@ const Dashboard = () => {
   }, [resolvedUserId, user?.email]);
 
   return (
-    <div className="min-h-screen p-6 text-white space-y-8">
+    <div className="min-h-screen bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 p-4 sm:p-6 lg:p-8 text-white space-y-8">
+      {/* ================= HEADER ================= */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl sm:text-4xl font-bold bg-linear-to-r from-orange-400 via-pink-500 to-violet-500 bg-clip-text text-transparent">
+            Dashboard
+          </h1>
+          <p className="text-gray-400 mt-2">{dayjs().format("dddd, MMMM D, YYYY")}</p>
+        </div>
+      </div>
 
       {/* ================= STATS ================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <StatCard
           title="ACTIVE PLAN"
           value={
@@ -247,190 +255,303 @@ const Dashboard = () => {
             "No Plan"
           }
           sub={`${formatDate(dashboardData.userPlan?.startDate)} → ${formatDate(dashboardData.userPlan?.endDate)}`}
-          icon={<CreditCard />}
-          color="bg-blue-500"
+          icon={<CreditCard size={24} />}
+          color="bg-gradient-to-br from-blue-500 to-blue-600"
+          borderColor="border-blue-500/30"
         />
 
         <StatCard
           title="TODAY DIET"
           value={Object.keys(dashboardData.todayDiet).length}
           sub="Meals"
-          icon={<Salad />}
-          color="bg-green-500"
+          icon={<Salad size={24} />}
+          color="bg-gradient-to-br from-green-500 to-emerald-600"
+          borderColor="border-green-500/30"
         />
 
         <StatCard
           title="TODAY WORKOUT"
           value={dashboardData.todayWorkout.length}
           sub="Exercises"
-          icon={<Dumbbell />}
-          color="bg-pink-500"
+          icon={<Dumbbell size={24} />}
+          color="bg-gradient-to-br from-pink-500 to-rose-600"
+          borderColor="border-pink-500/30"
         />
 
         <StatCard
           title="TODAY ORDERS"
           value={dashboardData.orders.length}
           sub="Active Today"
-          icon={<ShoppingCart />}
-          color="bg-orange-500"
+          icon={<ShoppingCart size={24} />}
+          color="bg-gradient-to-br from-orange-500 to-amber-600"
+          borderColor="border-orange-500/30"
         />
       </div>
 
+      {/* ================= ACTIVE PLAN PROGRESS ================= */}
+      {dashboardData.userPlan && (
+        <div className="relative overflow-hidden rounded-3xl border border-blue-500/20 bg-linear-to-br from-slate-900/80 via-blue-950/30 to-slate-950/80 p-6 sm:p-8 shadow-2xl shadow-blue-500/10 backdrop-blur-xl">
+          <div className="absolute inset-0 bg-linear-to-r from-blue-500/10 via-transparent to-transparent opacity-50" />
+          <div className="relative space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl sm:text-2xl font-bold text-white">Your Active Plan</h3>
+                <p className="text-sm text-gray-400 mt-1">{dashboardData.userPlan?.planName || 'Membership Plan'}</p>
+              </div>
+              <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/20 border border-blue-500/30">
+                <TrendingUp className="text-blue-400" size={24} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-300">Plan Duration</span>
+                <span className="text-blue-400 font-semibold">
+                  {dayjs(dashboardData.userPlan?.startDate).format('MMM DD')} - {dayjs(dashboardData.userPlan?.endDate).format('MMM DD')}
+                </span>
+              </div>
+              <div className="h-3 rounded-full bg-slate-800 border border-blue-500/20 overflow-hidden">
+                {(() => {
+                  const start = dayjs(dashboardData.userPlan?.startDate);
+                  const end = dayjs(dashboardData.userPlan?.endDate);
+                  const now = dayjs();
+                  const totalDays = end.diff(start, 'day');
+                  const elapsedDays = now.diff(start, 'day');
+                  const percentage = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
+                  return (
+                    <div
+                      className="h-full bg-linear-to-r from-blue-500 to-blue-400 transition-all duration-1000"
+                      style={{ width: `${percentage}%` }}
+                    />
+                  );
+                })()}
+              </div>
+              <div className="flex items-center justify-between text-xs text-gray-500 mt-2">
+                <span>Started: {formatDate(dashboardData.userPlan?.startDate)}</span>
+                <span>Ends: {formatDate(dashboardData.userPlan?.endDate)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ================= DIET + WORKOUT ================= */}
       <div className="grid lg:grid-cols-2 gap-6">
+        {/* DIET CARD */}
+        <div className="relative overflow-hidden rounded-3xl border border-green-500/20 bg-linear-to-br from-slate-900/80 via-green-950/30 to-slate-950/80 p-6 shadow-2xl shadow-green-500/10 backdrop-blur-xl">
+          <div className="absolute inset-0 bg-linear-to-r from-green-500/10 via-transparent to-transparent opacity-50" />
+          <div className="relative space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-white">Today's Diet</h2>
+                <p className="text-xs text-gray-400 mt-1">{Object.keys(dashboardData.todayDiet).length} meal plan</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-500/20 border border-green-500/30">
+                <Salad className="text-green-400" size={20} />
+              </div>
+            </div>
 
-        {/* DIET TABLE */}
-        <div className="bg-white/5 p-6 rounded-2xl">
-          <h2 className="text-lg font-semibold mb-4">Today's Diet</h2>
-
-          {Object.keys(dashboardData.todayDiet).length ? (
-            <table className="w-full text-sm">
-              <thead className="text-gray-400 border-b border-white/10">
-                <tr>
-                  <th className="text-left py-2">Meal</th>
-                  <th className="text-left py-2">Food</th>
-                  <th className="text-left py-2">Calories</th>
-                  <th className="text-left py-2">Time</th>
-                  <th className="text-left py-2">Qty</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {Object.entries(dashboardData.todayDiet).map(([meal, val]) => {
+            {Object.keys(dashboardData.todayDiet).length ? (
+              <div className="space-y-3">
+                {Object.entries(dashboardData.todayDiet).map(([meal, val], idx) => {
                   const item = typeof val === "object" ? val : { food: val };
+                  const mealIcons = {
+                    'Morning': '🌅',
+                    'Breakfast': '🥞',
+                    'Lunch': '🍽️',
+                    'Afternoon': '☕',
+                    'Dinner': '🌙',
+                    'Evening': '🌆'
+                  };
 
                   return (
-                    <tr key={meal} className="border-b border-white/5">
-                      <td className="py-2 text-green-400 font-medium">{meal}</td>
-                      <td className="py-2">{item.food || "-"}</td>
-                      <td className="py-2">{item.calories || "-"}</td>
-                      <td className="py-2">{item.time || "-"}</td>
-                      <td className="py-2">{item.quantity || "-"}</td>
-                    </tr>
+                    <div key={meal} className="group relative overflow-hidden rounded-2xl border border-green-500/10 bg-green-500/5 p-4 transition duration-300 hover:border-green-500/30 hover:bg-green-500/10">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">{mealIcons[meal] || '🍽️'}</span>
+                            <h4 className="font-semibold text-green-300">{meal}</h4>
+                            {item.time && <span className="text-xs text-gray-500 ml-auto">{item.time}</span>}
+                          </div>
+                          <p className="text-sm text-gray-300">{item.food || "-"}</p>
+                          <div className="flex items-center gap-3 text-xs text-gray-400 mt-2">
+                            {item.calories && <span className="flex items-center gap-1"><Flame size={14} className="text-orange-400" /> {item.calories} cal</span>}
+                            {item.quantity && <span>Qty: {item.quantity}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
-          ) : (
-            <p className="text-gray-400">No Diet Assigned</p>
-          )}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-gray-500/30 bg-white/5 p-8 text-center">
+                <Salad className="mx-auto text-gray-500 mb-2" size={32} />
+                <p className="text-gray-400 text-sm">No Diet Assigned Today</p>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* WORKOUT TABLE */}
-        <div className="bg-white/5 p-6 rounded-2xl">
-          <h2 className="text-lg font-semibold mb-4">Today's Workout</h2>
+        {/* WORKOUT CARD */}
+        <div className="relative overflow-hidden rounded-3xl border border-pink-500/20 bg-linear-to-br from-slate-900/80 via-pink-950/30 to-slate-950/80 p-6 shadow-2xl shadow-pink-500/10 backdrop-blur-xl">
+          <div className="absolute inset-0 bg-linear-to-r from-pink-500/10 via-transparent to-transparent opacity-50" />
+          <div className="relative space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-white">Today's Workout</h2>
+                <p className="text-xs text-gray-400 mt-1">{dashboardData.todayWorkout.length} exercise{dashboardData.todayWorkout.length !== 1 ? 's' : ''}</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pink-500/20 border border-pink-500/30">
+                <Dumbbell className="text-pink-400" size={20} />
+              </div>
+            </div>
 
-          {dashboardData.todayWorkout.length ? (
-            <table className="w-full text-sm">
-              <thead className="text-gray-400 border-b border-white/10">
-                <tr>
-                  <th className="text-left py-2">Exercise</th>
-                  <th className="text-left py-2">Type</th>
-                  <th className="text-left py-2">Sets</th>
-                  <th className="text-left py-2">Reps</th>
-                  <th className="text-left py-2">Time</th>
-                </tr>
-              </thead>
-
-              <tbody>
+            {dashboardData.todayWorkout.length ? (
+              <div className="space-y-3">
                 {dashboardData.todayWorkout.map((ex, i) => (
-                  <tr key={i} className="border-b border-white/5">
-                    <td className="py-2 text-orange-400 font-medium">
-                      {ex.name}
-                    </td>
-                    <td className="py-2">{ex.type || "-"}</td>
-                    <td className="py-2">{ex.sets || "-"}</td>
-                    <td className="py-2">{ex.count || "-"}</td>
-                    <td className="py-2 text-gray-400">
-                      {ex.time || "-"}
-                    </td>
-                  </tr>
+                  <div key={i} className="group relative overflow-hidden rounded-2xl border border-pink-500/10 bg-pink-500/5 p-4 transition duration-300 hover:border-pink-500/30 hover:bg-pink-500/10">
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-pink-300">{ex.name}</h4>
+                      <div className="grid grid-cols-3 gap-3 text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-400">Sets</span>
+                          <span className="font-semibold text-white">{ex.sets || "-"}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-400">Reps</span>
+                          <span className="font-semibold text-white">{ex.count || "-"}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Clock size={14} className="text-gray-500" />
+                          <span className="text-gray-400">{ex.time || "-"}</span>
+                        </div>
+                      </div>
+                      {ex.type && <p className="text-xs text-gray-400 uppercase tracking-wide">{ex.type}</p>}
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="text-gray-400">Rest Day</p>
-          )}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-gray-500/30 bg-white/5 p-8 text-center">
+                <Dumbbell className="mx-auto text-gray-500 mb-2" size={32} />
+                <p className="text-gray-400 text-sm">Rest Day - Take it Easy!</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* ================= ORDERS ================= */}
-      <div className="bg-slate-950/80 border border-white/10 p-6 rounded-3xl shadow-2xl shadow-black/40 backdrop-blur-xl animate-fade-in-up">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-white">
-              Today's Orders
-            </h2>
-            <p className="text-sm text-gray-400 mt-1">
-              Only active orders placed today are shown here.
-            </p>
+      <div className="relative overflow-hidden rounded-3xl border border-orange-500/20 bg-linear-to-br from-slate-900/80 via-orange-950/30 to-slate-950/80 p-6 sm:p-8 shadow-2xl shadow-orange-500/10 backdrop-blur-xl">
+        <div className="absolute inset-0 bg-linear-to-r from-orange-500/10 via-transparent to-transparent opacity-50" />
+        <div className="relative">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                <ShoppingCart className="text-orange-400" size={28} />
+                Today's Orders
+              </h2>
+              <p className="text-sm text-gray-400 mt-2">
+                {dashboardData.orders.length > 0 
+                  ? `${dashboardData.orders.length} order${dashboardData.orders.length !== 1 ? 's' : ''} placed today` 
+                  : 'Active orders placed today'}
+              </p>
+            </div>
+            {dashboardData.orders.length > 0 && (
+              <div className="inline-flex items-center gap-3 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-2 text-sm text-orange-300">
+                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-orange-400 animate-pulse"></span>
+                {dashboardData.orders.length} order{dashboardData.orders.length !== 1 ? 's' : ''} active
+              </div>
+            )}
           </div>
-          <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-gray-300">
-            <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            {dashboardData.orders.length} order(s) updated today
-          </div>
-        </div>
 
-        {dashboardData.orders.length ? (
-          <div className="mt-6 grid gap-4">
-            {dashboardData.orders.map((order) => (
-              <div
-                key={order.id || order.order_id}
-                className="group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/90 via-slate-800/80 to-slate-950/80 p-5 shadow-2xl shadow-orange-500/10 transition duration-500 hover:-translate-y-1 hover:border-orange-400/30"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-500/20 to-transparent opacity-0 transition duration-700 group-hover:opacity-100" />
-                <div className="relative flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.35em] text-orange-300/80">
-                      #{order.order_id || order.orderId}
-                    </p>
-                    <h3 className="text-lg font-bold text-white">
-                      ₹{order.total ?? order.amount ?? 0}
-                    </h3>
-                    <p className="text-sm text-gray-400 mt-1">
-                      {order.product_name || order.note || "Order details"}
-                    </p>
-                  </div>
+          {dashboardData.orders.length ? (
+            <div className="grid gap-3 sm:gap-4">
+              {dashboardData.orders.map((order, idx) => (
+                <div
+                  key={order.id || order.order_id}
+                  className="group relative overflow-hidden rounded-2xl border border-orange-500/10 bg-linear-to-br from-orange-500/5 to-orange-500/0 p-5 transition duration-300 hover:border-orange-500/40 hover:bg-orange-500/10"
+                >
+                  <div className="absolute inset-0 bg-linear-to-r from-orange-500/20 via-transparent to-transparent opacity-0 transition duration-500 group-hover:opacity-100" />
+                  <div className="relative">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.2em] text-orange-300/70 font-semibold">Order #{order.order_id || order.orderId}</p>
+                            <h3 className="text-lg sm:text-xl font-bold text-white mt-1">₹{order.total ?? order.amount ?? 0}</h3>
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-300">{order.product_name || order.note || "Order details"}</p>
+                        <p className="text-xs text-gray-500 flex items-center gap-1 mt-2">
+                          <Calendar size={14} />
+                          {dayjs(order.created_at || order.createdAt).format("ddd, MMM D • HH:mm")}
+                        </p>
+                      </div>
 
-                  <div className="flex flex-col items-start gap-2 sm:items-end">
-                    <span className="rounded-full border border-orange-400/15 bg-orange-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-orange-200 shadow-sm shadow-orange-500/10">
-                      {normalizeStatus(order.status)}
-                    </span>
-                    <p className="text-xs text-gray-500">
-                      {dayjs(order.created_at || order.createdAt).format("ddd, MMM D • HH:mm")}
-                    </p>
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-wide whitespace-nowrap
+                          ${
+                            normalizeStatus(order.status) === 'Delivered'
+                              ? 'border border-green-400/50 bg-green-500/20 text-green-200'
+                              : normalizeStatus(order.status) === 'OutForDelivery'
+                              ? 'border border-blue-400/50 bg-blue-500/20 text-blue-200'
+                              : normalizeStatus(order.status) === 'Shipped'
+                              ? 'border border-purple-400/50 bg-purple-500/20 text-purple-200'
+                              : 'border border-orange-400/50 bg-orange-500/20 text-orange-200'
+                          }
+                        `}>
+                          {normalizeStatus(order.status) === 'Delivered' && <CheckCircle2 size={14} />}
+                          {normalizeStatus(order.status) === 'OutForDelivery' && <TrendingUp size={14} />}
+                          {normalizeStatus(order.status) !== 'Delivered' && normalizeStatus(order.status) !== 'OutForDelivery' && <AlertCircle size={14} />}
+                          {normalizeStatus(order.status)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="mt-6 rounded-3xl border border-dashed border-white/10 bg-white/5 p-8 text-center text-gray-400">
-            No active orders for today.
-          </div>
-        )}
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-orange-500/20 bg-orange-500/5 p-8 sm:p-12 text-center">
+              <ShoppingCart className="mx-auto text-orange-400/50 mb-3" size={40} />
+              <p className="text-gray-300 text-sm font-medium">No active orders for today</p>
+              <p className="text-gray-500 text-xs mt-2">Place an order to see it here</p>
+            </div>
+          )}
+        </div>
       </div>
-
     </div>
   );
 };
 
 export default Dashboard;
 
-/* ---------- UI ---------- */
+/* ---------- UI COMPONENTS ---------- */
 
-const StatCard = ({ title, value, sub, icon, color }) => (
-  <div className="group relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/85 p-6 shadow-2xl shadow-black/30 transition duration-500 hover:-translate-y-1 hover:border-orange-400/30 animate-fade-in-up">
-    <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-orange-400 via-pink-500 to-violet-500 opacity-50 blur-xl" />
-    <div className="relative space-y-3">
-      <p className="text-sm text-gray-400 uppercase tracking-[0.2em]">
-        {title}
-      </p>
-      <h2 className="text-3xl font-bold text-white">{value}</h2>
-      <p className="text-xs text-gray-500">{sub}</p>
-    </div>
-    <div className={`ml-auto grid h-14 w-14 place-items-center rounded-3xl ${color} shadow-lg shadow-black/25`}>
-      {icon}
+const StatCard = ({ title, value, sub, icon, color, borderColor }) => (
+  <div className={`group relative overflow-hidden rounded-3xl border ${borderColor || 'border-white/10'} bg-linear-to-br from-slate-900/80 to-slate-950/80 p-6 shadow-2xl shadow-black/30 transition duration-500 hover:-translate-y-1 hover:border-opacity-100 backdrop-blur-xl`}>
+    <div className={`pointer-events-none absolute inset-x-0 top-0 h-1 bg-linear-to-r from-orange-400 via-pink-500 to-violet-500 opacity-50 blur-xl`} />
+    
+    <div className="absolute inset-0 opacity-0 transition duration-500 group-hover:opacity-100" style={{
+      background: `linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%)`
+    }} />
+    
+    <div className="relative space-y-4">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <p className="text-xs font-medium text-gray-400 uppercase tracking-[0.15em]">
+            {title}
+          </p>
+          <h2 className="text-3xl sm:text-4xl font-bold text-white mt-2">{value}</h2>
+          <p className="text-xs text-gray-500 mt-2">{sub}</p>
+        </div>
+        <div className={`ml-auto shrink-0 grid h-16 w-16 place-items-center rounded-2xl ${color} shadow-lg shadow-black/25 border border-white/10`}>
+          <div className="text-white">
+            {icon}
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 );

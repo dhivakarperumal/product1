@@ -130,7 +130,7 @@ const HealthSettings = () => {
             </div>
 
             {/* Fitness Goal */}
-            <div>
+            {/* <div>
               <label className="text-sm font-semibold text-white/80 mb-2 block">Fitness Goal</label>
               <select
                 name="fitnessGoal"
@@ -145,7 +145,7 @@ const HealthSettings = () => {
                 <option value="flexibility">Increase Flexibility</option>
                 <option value="general">General Fitness</option>
               </select>
-            </div>
+            </div> */}
           </div>
 
           <button

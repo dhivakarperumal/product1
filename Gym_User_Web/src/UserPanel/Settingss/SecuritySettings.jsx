@@ -3,6 +3,7 @@ import { Lock, Eye, EyeOff } from "lucide-react";
 import api from "../../api";
 import toast from "react-hot-toast";
 import { useAuth } from "../../PrivateRouter/AuthContext";
+import { resolveUserId } from "../../utils/userUtils";
 
 const SecuritySettings = () => {
   const { user } = useAuth();
@@ -39,7 +40,7 @@ const SecuritySettings = () => {
 
     try {
       setLoading(true);
-      await api.post(`/users/${user?.id}/change-password`, {
+      await api.post(`/auth/change-password`, {
         currentPassword: formData.currentPassword,
         newPassword: formData.newPassword,
       });
@@ -129,7 +130,7 @@ const SecuritySettings = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold hover:scale-105 transition disabled:opacity-50 mt-6"
+            className="w-full px-6 py-3 rounded-lg bg-linear-to-r from-orange-500 to-orange-600 text-white font-semibold hover:scale-105 transition disabled:opacity-50 mt-6"
           >
             {loading ? "Updating..." : "Update Password"}
           </button>
