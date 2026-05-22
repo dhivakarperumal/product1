@@ -37,7 +37,7 @@ const Memberships = () => {
     const paymentType = isEMI ? "EMI" : paymentMode ? paymentMode : row.paymentId ? "Paid" : "Pending";
 
     return {
-      id: row.id,
+      id: row.id || row.membershipId || row.membership_id,
       name:
         row.member_name ||
         row.username ||
@@ -364,173 +364,209 @@ const Memberships = () => {
               </div>
             </div>
 
-            <div className="mt-6 flex flex-col items-stretch gap-6 lg:flex-row lg:items-start">
-              <div className="flex-1 self-start overflow-hidden rounded-4xl border border-white/10 bg-slate-900/80 shadow-2xl shadow-black/20">
-              <table className="min-w-full divide-y divide-white/5 text-sm text-white">
-                <thead className="bg-slate-950/90 text-left text-xs uppercase tracking-[0.24em] text-slate-400">
-                  <tr>
-                    <th className="px-4 py-4">S.No</th>
-                    <th className="px-4 py-4">Name</th>
-                    <th className="px-4 py-4">Phone</th>
-                    <th className="px-4 py-4">Plan Name</th>
-                    <th className="px-4 py-4">Start</th>
-                    <th className="px-4 py-4">End</th>
-                    <th className="px-4 py-4">Days</th>
-                    <th className="px-4 py-4">Trainer</th>
-                    <th className="px-4 py-4">Payment</th>
-                    <th className="px-4 py-4">Next EMI</th>
-                    <th className="px-4 py-4">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5 bg-slate-900/80">
-                  {paginatedMemberships.length === 0 ? (
+            <div className="space-y-6">
+              <div className="self-start overflow-x-auto rounded-4xl border border-white/10 bg-slate-900/80 shadow-2xl shadow-black/20">
+                <table className="w-full divide-y divide-white/5 text-sm text-white">
+                  <thead className="sticky top-0 bg-slate-950/90 text-left text-xs uppercase tracking-[0.24em] text-slate-400">
                     <tr>
-                      <td colSpan="11" className="px-4 py-10 text-center text-slate-400">
-                        {error ? error : "No memberships found"}
-                      </td>
+                      <th className="whitespace-nowrap px-3 py-4 font-semibold">S.No</th>
+                      <th className="whitespace-nowrap px-3 py-4 font-semibold">Name</th>
+                      <th className="hidden whitespace-nowrap px-3 py-4 font-semibold sm:table-cell">Phone</th>
+                      <th className="whitespace-nowrap px-3 py-4 font-semibold">Plan</th>
+                      <th className="hidden whitespace-nowrap px-3 py-4 font-semibold md:table-cell">Start</th>
+                      <th className="whitespace-nowrap px-3 py-4 font-semibold">End</th>
+                      <th className="hidden whitespace-nowrap px-3 py-4 font-semibold lg:table-cell">Days</th>
+                      <th className="hidden whitespace-nowrap px-3 py-4 font-semibold xl:table-cell">Trainer</th>
+                      <th className="whitespace-nowrap px-3 py-4 font-semibold">Payment</th>
+                      <th className="hidden whitespace-nowrap px-3 py-4 font-semibold xl:table-cell">Next EMI</th>
+                      <th className="whitespace-nowrap px-3 py-4 font-semibold text-right">Action</th>
                     </tr>
-                  ) : (
-                    paginatedMemberships.map((membership, index) => {
-                      const notification = getNotificationBadge(membership.endDate, membership.status);
-                      return (
-                        <tr key={membership.id} className="hover:bg-white/5 transition-colors">
-                          <td className="px-4 py-4 font-semibold text-slate-200">{(currentPage - 1) * itemsPerPage + index + 1}</td>
-                          <td className="px-4 py-4 font-medium text-white">{membership.name}</td>
-                          <td className="px-4 py-4 text-slate-300">{membership.phone}</td>
-                          <td className="px-4 py-4 text-slate-300">{membership.planName}</td>
-                          <td className="px-4 py-4 text-slate-300">{formatDate(membership.startDate)}</td>
-                          <td className="px-4 py-4 text-slate-300">{formatDate(membership.endDate)}</td>
-                          <td className="px-4 py-4 text-slate-300">{getDaysRemaining(membership.endDate)}</td>
-                          <td className="px-4 py-4 text-slate-300">{membership.trainerName}</td>
-                          <td className="px-4 py-4">
-                            <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-semibold ${membership.paymentType === 'EMI' ? 'bg-orange-500/20 text-orange-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
-                              {membership.paymentType}
-                            </span>
-                          </td>
-                          <td className="px-4 py-4 text-slate-300">{membership.nextEMIDate ? formatDate(membership.nextEMIDate) : "-"}</td>
-                          <td className="px-4 py-4">
-                            <div className="flex items-center gap-3">
-                              <button
-                                type="button"
-                                onClick={() => showMembershipPopup(membership)}
-                                title="View membership"
-                                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-slate-950/80 text-slate-200 transition hover:bg-slate-900"
-                              >
-                                <Eye className="h-5 w-5" />
-                              </button>
+                  </thead>
+                  <tbody className="divide-y divide-white/5 bg-slate-900/80">
+                    {paginatedMemberships.length === 0 ? (
+                      <tr>
+                        <td colSpan="11" className="px-3 py-10 text-center text-slate-400">
+                          {error ? error : "No memberships found"}
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedMemberships.map((membership, index) => {
+                        return (
+                          <tr key={membership.id} className="hover:bg-white/5 transition-colors">
+                            <td className="whitespace-nowrap px-3 py-4 font-semibold text-slate-200">{(currentPage - 1) * itemsPerPage + index + 1}</td>
+                            <td className="whitespace-nowrap px-3 py-4 font-medium text-white max-w-xs truncate">{membership.name}</td>
+                            <td className="hidden whitespace-nowrap px-3 py-4 text-slate-300 sm:table-cell">{membership.phone}</td>
+                            <td className="whitespace-nowrap px-3 py-4 text-slate-300 max-w-xs truncate">{membership.planName}</td>
+                            <td className="hidden whitespace-nowrap px-3 py-4 text-slate-300 md:table-cell">{formatDate(membership.startDate)}</td>
+                            <td className="whitespace-nowrap px-3 py-4 text-slate-300">{formatDate(membership.endDate)}</td>
+                            <td className="hidden whitespace-nowrap px-3 py-4 text-slate-300 lg:table-cell">{getDaysRemaining(membership.endDate)}</td>
+                            <td className="hidden whitespace-nowrap px-3 py-4 text-slate-300 xl:table-cell">{membership.trainerName}</td>
+                            <td className="whitespace-nowrap px-3 py-4">
+                              <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-semibold whitespace-nowrap ${membership.paymentType === 'EMI' ? 'bg-orange-500/20 text-orange-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
+                                {membership.paymentType}
+                              </span>
+                            </td>
+                            <td className="hidden whitespace-nowrap px-3 py-4 text-slate-300 xl:table-cell">{membership.nextEMIDate ? formatDate(membership.nextEMIDate) : "-"}</td>
+                            <td className="whitespace-nowrap px-3 py-4 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => showMembershipPopup(membership)}
+                                  title="View membership"
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-slate-950/80 text-slate-200 transition hover:bg-slate-900"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </button>
 
-                              <button
-                                type="button"
-                                onClick={() => navigate('/admin/buyplanadmin', { state: { membership } })}
-                                title="Edit plan"
-                                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-blue-500/10 text-blue-300 transition hover:bg-blue-500/20"
-                              >
-                                <Edit3 className="h-5 w-5" />
-                              </button>
+                                <button
+                                  type="button"
+                                  onClick={() => navigate('/admin/buyplanadmin', { state: { membership } })}
+                                  title="Edit plan"
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-blue-500/10 text-blue-300 transition hover:bg-blue-500/20"
+                                >
+                                  <Edit3 className="h-4 w-4" />
+                                </button>
 
-                              <button
-                                type="button"
-                                onClick={() => handleDelete(membership.id)}
-                                title="Delete membership"
-                                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-rose-500/10 text-rose-200 transition hover:bg-rose-500/20"
-                              >
-                                <Trash2 className="h-5 w-5" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-slate-900/80 p-4 text-sm text-slate-300 sm:flex-row sm:items-center sm:justify-between">
-              <p>
-                Showing <span className="font-semibold text-white">{paginatedMemberships.length}</span> of <span className="font-semibold text-white">{filteredMemberships.length}</span> memberships
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-xs text-white transition disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-xs text-white transition disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDelete(membership.id)}
+                                  title="Delete membership"
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-rose-500/10 text-rose-200 transition hover:bg-rose-500/20"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
 
-              <div className="flex w-full max-w-xs flex-col gap-6 lg:ml-6 lg:w-80 self-start lg:sticky lg:top-24">
-                <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-6 shadow-2xl shadow-black/20">
-                  <div className="flex items-center gap-3 text-white">
-                    <ShieldCheck className="h-5 w-5 text-emerald-300" />
-                    <div>
-                      <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Notification</p>
-                      <p className="mt-2 text-lg font-semibold">Plan complete alerts</p>
-                    </div>
+              <div className="flex flex-col gap-3 border-t border-white/10 bg-slate-900/80 rounded-2xl p-4 text-sm text-slate-300 sm:flex-row sm:items-center sm:justify-between">
+                <p>
+                  Showing <span className="font-semibold text-white">{paginatedMemberships.length}</span> of <span className="font-semibold text-white">{filteredMemberships.length}</span> memberships
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-xs text-white transition disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-xs text-white transition disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-1 auto-rows-max">
+              <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-6 shadow-2xl shadow-black/20 backdrop-blur-xl">
+                <div className="mb-6 flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
+                    <ShieldCheck className="h-6 w-6 text-emerald-400" />
                   </div>
-                  <div className="mt-4 space-y-3">
-                    {filteredMemberships.slice(0, 4).map((m) => {
-                      const note = getNotificationBadge(m.endDate, m.status);
-                      if (!note) return null;
-                      return (
-                        <div key={m.id} className="rounded-2xl bg-white/5 p-4 text-sm text-slate-200">
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <p className="font-semibold text-white">{m.name}</p>
-                              <p className="text-slate-400">{m.planName}</p>
-                            </div>
-                            <span className="rounded-full bg-orange-500/15 px-3 py-1 text-xs text-orange-200">{note}</span>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-slate-400 font-medium">Notification</p>
+                    <p className="mt-1 text-lg font-bold text-white">Plan Complete Alerts</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-800">
+                  {filteredMemberships.filter((m) => getNotificationBadge(m.endDate, m.status)).slice(0, 8).map((m) => {
+                    const note = getNotificationBadge(m.endDate, m.status);
+                    return (
+                      <div key={m.id} className="group relative rounded-2xl bg-gradient-to-r from-orange-500/10 to-orange-500/5 p-4 border border-orange-500/20 transition hover:border-orange-500/40 hover:bg-gradient-to-r hover:from-orange-500/15 hover:to-orange-500/10">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-white truncate text-sm">{m.name}</p>
+                            <p className="text-slate-400 text-xs mt-1 truncate">{m.planName}</p>
+                            <p className="text-slate-500 text-xs mt-2">Ends: <span className="text-slate-300">{formatDate(m.endDate)}</span></p>
                           </div>
-                          <p className="mt-2 text-slate-400 text-xs">End Date: {formatDate(m.endDate)}</p>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-orange-500/20 px-3 py-2 text-xs font-bold text-orange-300 whitespace-nowrap flex-shrink-0">
+                            <BellRing className="h-3 w-3" />
+                            {note}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {filteredMemberships.filter((m) => getNotificationBadge(m.endDate, m.status)).length === 0 && (
+                    <div className="rounded-2xl bg-slate-800/50 p-4 text-center">
+                      <p className="text-slate-400 text-sm">✓ No alerts within 5 days</p>
+                    </div>
+                  )}
+                </div>
+                
+                {filteredMemberships.filter((m) => getNotificationBadge(m.endDate, m.status)).length > 0 && (
+                  <p className="mt-4 text-xs text-slate-500 border-t border-slate-700 pt-4">
+                    Total alerts: <span className="font-semibold text-orange-300">{filteredMemberships.filter((m) => getNotificationBadge(m.endDate, m.status)).length}</span>
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-6 shadow-2xl shadow-black/20 backdrop-blur-xl">
+                <div className="mb-6 flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-teal-500/10">
+                    <BellRing className="h-6 w-6 text-teal-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-slate-400 font-medium">Next EMI</p>
+                    <p className="mt-1 text-lg font-bold text-white">Upcoming Payments</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-800">
+                  {filteredMemberships
+                    .filter((m) => m.paymentType === "EMI" && m.nextEMIDate)
+                    .slice(0, 8)
+                    .map((m) => {
+                      const emiDate = dayjs(m.nextEMIDate);
+                      const daysUntilEMI = emiDate.startOf('day').diff(dayjs().startOf('day'), 'day');
+                      const isUpcoming = daysUntilEMI <= 7 && daysUntilEMI >= 0;
+                      
+                      return (
+                        <div key={m.id} className={`group relative rounded-2xl p-4 border transition ${isUpcoming ? 'bg-gradient-to-r from-teal-500/10 to-teal-500/5 border-teal-500/20 hover:border-teal-500/40 hover:bg-gradient-to-r hover:from-teal-500/15 hover:to-teal-500/10' : 'bg-gradient-to-r from-slate-700/10 to-slate-700/5 border-slate-600/20 hover:border-slate-600/40 hover:bg-gradient-to-r hover:from-slate-700/15 hover:to-slate-700/10'}`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-white truncate text-sm">{m.name}</p>
+                              <p className="text-slate-400 text-xs mt-1 truncate">{m.planName}</p>
+                              <p className="text-slate-500 text-xs mt-2">EMI Date: <span className="text-slate-300 font-medium">{formatDate(m.nextEMIDate)}</span></p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                              <span className={`inline-flex rounded-full px-3 py-2 text-xs font-bold whitespace-nowrap ${isUpcoming ? 'bg-teal-500/20 text-teal-300' : 'bg-slate-600/20 text-slate-300'}`}>
+                                {daysUntilEMI < 0 ? 'Overdue' : daysUntilEMI === 0 ? 'Today' : `${daysUntilEMI}d`}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       );
                     })}
-                    {filteredMemberships.filter((m) => getNotificationBadge(m.endDate, m.status)).length === 0 && (
-                      <p className="text-slate-400 text-sm">No upcoming plan completions within 5 days.</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-6 shadow-2xl shadow-black/20">
-                  <div className="flex items-center gap-3 text-white">
-                    <BellRing className="h-5 w-5 text-orange-300" />
-                    <div>
-                      <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Next EMI</p>
-                      <p className="mt-2 text-lg font-semibold">Upcoming dates</p>
+                  {filteredMemberships.filter((m) => m.paymentType === "EMI" && m.nextEMIDate).length === 0 && (
+                    <div className="rounded-2xl bg-slate-800/50 p-4 text-center">
+                      <p className="text-slate-400 text-sm">✓ No upcoming EMI dates</p>
                     </div>
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    {filteredMemberships
-                      .filter((m) => m.paymentType === "EMI" && m.nextEMIDate)
-                      .slice(0, 4)
-                      .map((m) => (
-                        <div key={m.id} className="rounded-2xl bg-white/5 p-4 text-sm text-slate-200">
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="font-semibold text-white">{m.name}</p>
-                            <span className="rounded-full bg-teal-500/15 px-3 py-1 text-xs text-teal-200">{formatDate(m.nextEMIDate)}</span>
-                          </div>
-                          <p className="mt-2 text-slate-400 text-xs">{m.planName}</p>
-                        </div>
-                      ))}
-                    {filteredMemberships.filter((m) => m.paymentType === "EMI" && m.nextEMIDate).length === 0 && (
-                      <p className="text-slate-400 text-sm">No upcoming EMI dates found.</p>
-                    )}
-                  </div>
+                  )}
                 </div>
+                
+                {filteredMemberships.filter((m) => m.paymentType === "EMI" && m.nextEMIDate).length > 0 && (
+                  <p className="mt-4 text-xs text-slate-500 border-t border-slate-700 pt-4">
+                    Total EMI plans: <span className="font-semibold text-teal-300">{filteredMemberships.filter((m) => m.paymentType === "EMI" && m.nextEMIDate).length}</span>
+                  </p>
+                )}
               </div>
             </div>
         </div>
       </div>
+    </div>
     </div>
   );
 };

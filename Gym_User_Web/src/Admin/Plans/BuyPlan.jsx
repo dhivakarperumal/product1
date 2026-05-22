@@ -19,8 +19,29 @@ const BuyPlanadmin = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [endDateManuallyEdited, setEndDateManuallyEdited] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
+
+  const normalizeDateForInput = (val) => {
+    if (!val) return "";
+    if (typeof val !== 'string') {
+      const parsed = new Date(val);
+      return isNaN(parsed) ? "" : parsed.toISOString().split('T')[0];
+    }
+    // already yyyy-mm-dd
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+    // dd/mm/yyyy -> convert
+    if (/\//.test(val)) {
+      const parts = val.split('/');
+      if (parts.length === 3) {
+        const [d, m, y] = parts;
+        return `${y.padStart(4, '0')}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+      }
+    }
+    const parsed = new Date(val);
+    return isNaN(parsed) ? "" : parsed.toISOString().split('T')[0];
+  };
 
   const createInitialForm = () => ({
     phone: "",
@@ -42,6 +63,7 @@ const BuyPlanadmin = () => {
     setSelectedUser(null);
     setSelectedPlan(null);
     setForm(createInitialForm());
+    setEndDateManuallyEdited(false);
   };
 
   const fetchMembers = async () => {
@@ -76,8 +98,8 @@ const BuyPlanadmin = () => {
             height: membershipUser.height || prev.height,
             weight: membershipUser.weight || prev.weight,
             bmi: membershipUser.bmi || prev.bmi,
-            startDate: membershipToEdit.startDate || membershipToEdit.raw?.start_date || prev.startDate,
-            endDate: membershipToEdit.endDate || membershipToEdit.raw?.end_date || prev.endDate,
+            startDate: normalizeDateForInput(membershipToEdit.startDate || membershipToEdit.raw?.start_date || prev.startDate),
+            endDate: normalizeDateForInput(membershipToEdit.endDate || membershipToEdit.raw?.end_date || prev.endDate),
             paymentMode: membershipToEdit.paymentType === 'EMI' ? 'upi' : prev.paymentMode,
           }));
         }
@@ -130,21 +152,21 @@ const BuyPlanadmin = () => {
 
   // ================= CALCULATE END DATE =================
   useEffect(() => {
-    if (!selectedPlan || membershipToEdit) return;
+    if (!selectedPlan || membershipToEdit || endDateManuallyEdited) return;
 
     const durationMonths = parseInt(selectedPlan.duration) || 0;
 
-    const start = new Date(today);
+    const start = new Date(form.startDate || today);
     const end = new Date(start);
 
     end.setMonth(start.getMonth() + durationMonths);
 
     setForm((prev) => ({
       ...prev,
-      startDate: today,
+      startDate: form.startDate || today,
       endDate: end.toISOString().split("T")[0],
     }));
-  }, [selectedPlan, membershipToEdit]);
+  }, [selectedPlan, membershipToEdit, endDateManuallyEdited, form.startDate]);
 
   // ================= AOS =================
   useEffect(() => {
@@ -230,12 +252,31 @@ const BuyPlanadmin = () => {
       };
 
       let membershipId = null;
-      if (membershipToEdit?.id) {
-        await api.put(`${MEMBERSHIP_API}/${membershipToEdit.id}`, membershipData);
-        membershipId = membershipToEdit.id;
+      const updateId = membershipToEdit
+        ? (membershipToEdit.id || membershipToEdit.raw?.id || membershipToEdit.raw?.membershipId || membershipToEdit.raw?.membership_id)
+        : null;
+
+      if (membershipToEdit && !updateId) {
+        console.warn('Cannot determine membership id for update:', membershipToEdit);
+      }
+
+      if (updateId) {
+        try {
+          console.log('Updating membership id:', updateId, 'with', membershipData);
+          const res = await api.put(`${MEMBERSHIP_API}/${updateId}`, membershipData);
+          membershipId = res?.data?.membershipId || res?.data?.id || updateId;
+        } catch (err) {
+          console.error('Failed to update membership:', err?.response || err.message || err);
+          if (err?.response?.status === 404) {
+            const membershipRes = await api.post("/memberships", membershipData);
+            membershipId = membershipRes.data.membershipId || membershipRes.data?.id;
+          } else {
+            throw err;
+          }
+        }
       } else {
         const membershipRes = await api.post("/memberships", membershipData);
-        membershipId = membershipRes.data.membershipId;
+        membershipId = membershipRes.data.membershipId || membershipRes.data?.id;
       }
 
       // ===== CREATE EMI SCHEDULE IF NEEDED =====
@@ -430,20 +471,32 @@ const BuyPlanadmin = () => {
           </div>
 
           {/* DATES */}
-          <div className="grid grid-cols-2 gap-4">
-            <input
-              type="date"
-              value={form.startDate}
-              readOnly
-              className="p-3 bg-gray-900 rounded-lg"
-            />
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="text-white text-xs mb-2 block font-semibold">Start Date</label>
+              <input
+                type="date"
+                value={form.startDate}
+                onChange={(e) => {
+                  setForm({ ...form, startDate: e.target.value });
+                  setEndDateManuallyEdited(false);
+                }}
+                className="w-full p-3 bg-gray-900 rounded-lg text-white border border-gray-700 focus:border-orange-500 outline-none transition"
+              />
+            </div>
 
-            <input
-              type="date"
-              value={form.endDate}
-              readOnly
-              className="p-3 bg-gray-900 rounded-lg"
-            />
+            <div>
+              <label className="text-white text-xs mb-2 block font-semibold">End Date</label>
+              <input
+                type="date"
+                value={form.endDate}
+                onChange={(e) => {
+                  setForm({ ...form, endDate: e.target.value });
+                  setEndDateManuallyEdited(true);
+                }}
+                className="w-full p-3 bg-gray-900 rounded-lg text-white border border-gray-700 focus:border-orange-500 outline-none transition"
+              />
+            </div>
           </div>
 
           {/* PAYMENT */}
