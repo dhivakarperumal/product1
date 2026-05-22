@@ -7,6 +7,7 @@ import Dashboard from "../Admin/Dashboard/Dashboard";
 import Users from "../Admin/Users/Users";
 import AddUser from "../Admin/Users/AddUser";
 import Members from "../Admin/Members/Members";
+import Memberships from "../Admin/Memberships";
 import Staff from "../Admin/Staff/Staffs";
 import Equipment from "../Admin/Equipment/Equipment";
 import Products from "../Admin/Products/Products";
@@ -27,6 +28,7 @@ const AdminRouter = () => {
         <Route path="users" element={<Users />} />
         <Route path="adduser" element={<AddUser />} />
         <Route path="members" element={<Members />} />
+        <Route path="memberships" element={<Memberships />} />
         <Route path="staff" element={<Staff />} />
         <Route path="equipment" element={<Equipment />} />
         <Route path="products" element={<Products />} />

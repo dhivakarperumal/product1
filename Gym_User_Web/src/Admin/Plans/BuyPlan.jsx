@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import AOS from "aos";
 import "aos/dist/aos.css";
 import api from "../../api";
@@ -10,6 +10,8 @@ const MEMBERSHIP_API = "/memberships";
 
 const BuyPlanadmin = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const membershipToEdit = location.state?.membership || null;
 
   const [members, setMembers] = useState([]);
   const [plans, setPlans] = useState([]);
@@ -53,6 +55,33 @@ const BuyPlanadmin = () => {
       console.log('Fetched members from API:', data);
       console.log('Sample member fields:', data?.[0] ? Object.keys(data[0]) : 'No members');
       setMembers(data);
+
+      if (membershipToEdit) {
+        const membershipUser = data.find(
+          (m) => m.id === membershipToEdit.raw?.member_id ||
+                 m.id === membershipToEdit.memberId ||
+                 m.u_id === membershipToEdit.raw?.member_id ||
+                 m.id === membershipToEdit.raw?.user_id ||
+                 m.u_id === membershipToEdit.raw?.user_id ||
+                 m.phone === membershipToEdit.phone
+        );
+
+        if (membershipUser) {
+          setSelectedUser(membershipUser);
+          setForm((prev) => ({
+            ...prev,
+            phone: membershipUser.phone || prev.phone,
+            email: membershipUser.email || prev.email,
+            address: membershipUser.address || prev.address,
+            height: membershipUser.height || prev.height,
+            weight: membershipUser.weight || prev.weight,
+            bmi: membershipUser.bmi || prev.bmi,
+            startDate: membershipToEdit.startDate || membershipToEdit.raw?.start_date || prev.startDate,
+            endDate: membershipToEdit.endDate || membershipToEdit.raw?.end_date || prev.endDate,
+            paymentMode: membershipToEdit.paymentType === 'EMI' ? 'upi' : prev.paymentMode,
+          }));
+        }
+      }
     } catch (err) {
       console.error('Failed to fetch members:', err);
       alert('Failed to load members');
@@ -69,7 +98,17 @@ const BuyPlanadmin = () => {
     const fetchPlans = async () => {
       try {
         const res = await api.get(PLANS_API);
-        setPlans((res.data || []).filter((p) => p.active));
+        const activePlans = (res.data || []).filter((p) => p.active);
+        setPlans(activePlans);
+
+        if (membershipToEdit) {
+          const matchedPlan = activePlans.find(
+            (p) => p.id === membershipToEdit.raw?.plan_id || p.id === membershipToEdit.planId || p.name === membershipToEdit.planName
+          );
+          if (matchedPlan) {
+            setSelectedPlan(matchedPlan);
+          }
+        }
       } catch (err) {
         console.error(err);
         alert("Failed to load plans");
@@ -77,7 +116,7 @@ const BuyPlanadmin = () => {
     };
 
     fetchPlans();
-  }, []);
+  }, [membershipToEdit]);
 
   // ================= CALCULATE BMI =================
   useEffect(() => {
@@ -91,7 +130,7 @@ const BuyPlanadmin = () => {
 
   // ================= CALCULATE END DATE =================
   useEffect(() => {
-    if (!selectedPlan) return;
+    if (!selectedPlan || membershipToEdit) return;
 
     const durationMonths = parseInt(selectedPlan.duration) || 0;
 
@@ -105,7 +144,7 @@ const BuyPlanadmin = () => {
       startDate: today,
       endDate: end.toISOString().split("T")[0],
     }));
-  }, [selectedPlan]);
+  }, [selectedPlan, membershipToEdit]);
 
   // ================= AOS =================
   useEffect(() => {
@@ -161,7 +200,7 @@ const BuyPlanadmin = () => {
     console.log('selectedUser.id:', selectedUser.id, 'type:', typeof selectedUser.id);
     console.log('selectedPlan.id:', selectedPlan.id, 'type:', typeof selectedPlan.id);
 
-    if (selectedUser.status === "active" && selectedUser.plan) {
+    if (!membershipToEdit && selectedUser.status === "active" && selectedUser.plan) {
       alert("Member already has active plan");
       return;
     }
@@ -190,8 +229,14 @@ const BuyPlanadmin = () => {
         totalAmount: planPrice,
       };
 
-      const membershipRes = await api.post("/memberships", membershipData);
-      const membershipId = membershipRes.data.membershipId;
+      let membershipId = null;
+      if (membershipToEdit?.id) {
+        await api.put(`${MEMBERSHIP_API}/${membershipToEdit.id}`, membershipData);
+        membershipId = membershipToEdit.id;
+      } else {
+        const membershipRes = await api.post("/memberships", membershipData);
+        membershipId = membershipRes.data.membershipId;
+      }
 
       // ===== CREATE EMI SCHEDULE IF NEEDED =====
       if (useEMI && membershipId) {
@@ -242,7 +287,8 @@ const BuyPlanadmin = () => {
       }
 
       const emiText = useEMI ? ` (EMI: ₹${Math.ceil((planPrice / form.emiMonths) * 100) / 100} x ${form.emiMonths} months)` : "";
-      alert(`Plan assigned successfully${emiText}`);
+      const actionText = membershipToEdit ? 'updated' : 'assigned';
+      alert(`Plan ${actionText} successfully${emiText}`);
 
       resetBuyPlanForm();
       fetchMembers();
@@ -257,7 +303,7 @@ const BuyPlanadmin = () => {
 
   return (
     <div className="text-white min-h-screen p-6">
-      <h1 className="text-3xl font-bold mb-6">Assign Plan</h1>
+      <h1 className="text-3xl font-bold mb-6">{membershipToEdit ? 'Update Plan' : 'Assign Plan'}</h1>
 
       <div className="grid md:grid-cols-2 gap-10">
 
@@ -303,14 +349,13 @@ const BuyPlanadmin = () => {
               const seenPhones = new Set();
               return members
                 .filter((m) => {
-                  // 1. Skip if already has active plan
+                  const isSelectedMember = selectedUser && (m.id === selectedUser.id || m.u_id === selectedUser.u_id);
                   const hasPlan = m.status === "active" && m.plan;
-                  if (hasPlan) return false;
-                  
-                  // 2. Skip duplicates by phone
+                  if (hasPlan && !isSelectedMember) return false;
+
                   if (seenPhones.has(m.phone)) return false;
                   seenPhones.add(m.phone);
-                  
+
                   return true;
                 })
                 .map((m) => {

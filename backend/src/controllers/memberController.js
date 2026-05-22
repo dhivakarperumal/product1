@@ -90,7 +90,7 @@ async function getAllMembers(req, res) {
         gm.phone, 
         gm.email, 
         gm.gender,
-        gm.date_of_birth,
+        gm.date_of_birth AS dateOfBirth,
         gm.height,
         gm.weight,
         gm.bmi,

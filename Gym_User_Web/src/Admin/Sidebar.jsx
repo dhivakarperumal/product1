@@ -40,6 +40,7 @@ const navItems = [
   { path: "/admin/emi-tracking", label: "EMI Tracking", icon: TrendingUp },
 
   { path: "/admin/members", label: "Members", icon: Users },
+  { path: "/admin/memberships", label: "Memberships", icon: ClipboardList },
 
   { path: "/admin/buyplanadmin", label: "Buy Plans", icon: CreditCard },
 
@@ -114,13 +115,17 @@ const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
 
   /* ================= HELPERS ================= */
   const isRouteActive = (basePath) => {
+    const currentPath = location.pathname;
+    const isPathMatch = (path) =>
+      currentPath === path || currentPath.startsWith(`${path}/`);
+
     const paths = activeRouteMap[basePath];
     if (!paths) {
-      if (basePath === "/admin") return location.pathname === "/admin";
-      if (basePath === "/") return location.pathname === "/";
-      return location.pathname.startsWith(basePath);
+      if (basePath === "/admin") return currentPath === "/admin";
+      if (basePath === "/") return currentPath === "/";
+      return isPathMatch(basePath);
     }
-    return paths.some((p) => location.pathname.startsWith(p));
+    return paths.some(isPathMatch);
   };
 
   /* ===== AUTO OPEN DROPDOWN WHEN CHILD ACTIVE ===== */

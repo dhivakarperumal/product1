@@ -81,6 +81,7 @@ const Dashboard = lazy(() => import("./Admin/Dashboard/Dashboard.jsx"));
 
 // ✅ Admin Route Components
 const AdminMembers = lazy(() => import("./Admin/Members/Members.jsx"));
+const Memberships = lazy(() => import("./Admin/Memberships.jsx"));
 const UserManagement = lazy(() => import("./Admin/Settingss/UserManagement.jsx"));
 const ReviewsSettings = lazy(() => import("./Admin/Settingss/Review.jsx"));
 const AddMembers = lazy(() => import("./Admin/Members/AddMembers.jsx"));
@@ -163,7 +164,7 @@ const router = createHashRouter([
   },
 
   {
-    path: "/user",
+    path: "/user/*",
     element: (
       <PrivateRoute allowedRoles={["user", "member"]}>
         <UserPanel />
@@ -203,7 +204,7 @@ const router = createHashRouter([
 
   // ✅ Admin protected
   {
-    path: "/admin",
+    path: "/admin/*",
     element: (
       <PrivateRoute allowedRoles={["admin"]}>
         <AdminPanel />
@@ -215,6 +216,7 @@ const router = createHashRouter([
 
       // Members routes
       { path: "members", element: <AdminMembers /> },
+      { path: "memberships", element: <Memberships /> },
       { path: "addmembers", element: <AddMembers /> },
       { path: "addmembers/:id", element: <AddMembers /> },
 
@@ -287,7 +289,7 @@ const router = createHashRouter([
 
   // ✅ Trainer protected
   {
-    path: "/trainer",
+    path: "/trainer/*",
     element: (
       <PrivateRoute allowedRoles={["trainer"]}>
         <TrainerPanel />
@@ -322,7 +324,7 @@ const router = createHashRouter([
   },
 
   {
-    path: "/superadmin",
+    path: "/superadmin/*",
     element: <SuperAdminAccess />,
     errorElement: <RouteError />,
     children: [

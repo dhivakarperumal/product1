@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { Trash2, Pencil, Plus, ChevronLeft, ChevronRight, LayoutGrid, List, Search, Users, Mail, Phone, Calendar } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
+import dayjs from "dayjs";
 import api from "../../api"
 import cache from "../../cache";
 import * as XLSX from "xlsx";
@@ -369,6 +370,7 @@ const Members = () => {
                 <th className="p-4 text-left font-medium">Name</th>
                 <th className="p-4 text-left font-medium">Phone</th>
                 <th className="p-4 text-left font-medium">Email</th>
+                <th className="p-4 text-left font-medium">DOB</th>
                 <th className="p-4 text-left font-medium">Height</th>
                 <th className="p-4 text-left font-medium">Weight</th>
                 <th className="p-4 text-left font-medium">BMI</th>
@@ -380,7 +382,7 @@ const Members = () => {
             <tbody>
               {paginatedData.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="p-8 text-center text-gray-400">
+                  <td colSpan="11" className="p-8 text-center text-gray-400">
                     {loading ? "Loading members..." : filtered.length === 0 ? "No records found" : "No data on this page"}
                   </td>
                 </tr>
@@ -391,6 +393,7 @@ const Members = () => {
                     <td className="p-4 font-medium text-white">{m.name || "N/A"}</td>
                     <td className="p-4">{m.phone || "N/A"}</td>
                     <td className="p-4">{m.email || "-"}</td>
+                    <td className="p-4 text-gray-400">{(m.dateOfBirth || m.date_of_birth) ? dayjs(m.dateOfBirth || m.date_of_birth).format("DD/MM/YYYY") : "-"}</td>
                     <td className="p-4 text-gray-400">{m.height ? `${m.height} cm` : "-"}</td>
                     <td className="p-4 text-gray-400">{m.weight ? `${m.weight} kg` : "-"}</td>
                     <td className="p-4">
@@ -478,6 +481,10 @@ const Members = () => {
                     <div className="flex items-center gap-3 text-sm text-gray-300">
                       <Mail size={14} className="text-orange-500" />
                       <span className="truncate">{m.email || "No email"}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-gray-300">
+                      <Calendar size={14} className="text-orange-500" />
+                      <span>{(m.dateOfBirth || m.date_of_birth) ? dayjs(m.dateOfBirth || m.date_of_birth).format("YYYY-MM-DD") : "No DOB"}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="px-2.5 py-1 rounded-lg text-[10px] uppercase font-bold bg-orange-500/20 text-orange-400 ring-1 ring-orange-500/30">

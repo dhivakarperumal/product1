@@ -48,7 +48,11 @@ const AddMember = () => {
           height: data.height || "",
           weight: data.weight || "",
           bmi: data.bmi || "",
-          dateOfBirth: data.date_of_birth || data.dateOfBirth || "",
+          dateOfBirth: data.date_of_birth
+            ? dayjs(data.date_of_birth).format("YYYY-MM-DD")
+            : data.dateOfBirth
+            ? dayjs(data.dateOfBirth).format("YYYY-MM-DD")
+            : "",
           notes: data.notes || "",
           address: data.address || "",
           joinDate: data.join_date ? dayjs(data.join_date).format("YYYY-MM-DD") : dayjs().format("YYYY-MM-DD"),
