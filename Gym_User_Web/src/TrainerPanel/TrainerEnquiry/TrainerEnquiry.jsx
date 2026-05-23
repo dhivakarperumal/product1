@@ -477,6 +477,7 @@ const TrainerEnquiry = () => {
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Phone</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Message</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Trainer</th>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Trainer ID</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Status</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Date</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Actions</th>
@@ -496,7 +497,25 @@ const TrainerEnquiry = () => {
                         <td className="px-6 py-4 text-white">{enquiry.phone || 'No phone'}</td>
                         <td className="px-6 py-4 text-white">{enquiry.message || 'No message'}</td>
                         <td className="px-6 py-4 text-white">
-                          <div>{enquiry.trainer_display_name || resolveTrainerDisplay(enquiry.trainer_id || enquiry.trainerId)}</div>
+                          {enquiry.trainer_display_name ? (
+                            <div>
+                              <div className="font-medium">{enquiry.trainer_display_name}</div>
+                              {enquiry.trainer_email && (
+                                <div className="text-gray-400 text-xs">{enquiry.trainer_email}</div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-500 italic">Unassigned</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-white">
+                          {enquiry.trainer_employee_id ? (
+                            <code className="bg-slate-800 px-2 py-1 rounded text-yellow-400 text-xs">
+                              {enquiry.trainer_employee_id.substring(0, 8)}...
+                            </code>
+                          ) : (
+                            <span className="text-gray-500 italic">-</span>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${
@@ -549,7 +568,7 @@ const TrainerEnquiry = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="7" className="px-6 py-12 text-center text-gray-400">
+                    <td colSpan="9" className="px-6 py-12 text-center text-gray-400">
                       <div className="flex flex-col items-center gap-3">
                         <Users size={48} className="opacity-30" />
                         <p className="text-lg font-medium">No enquiries found</p>

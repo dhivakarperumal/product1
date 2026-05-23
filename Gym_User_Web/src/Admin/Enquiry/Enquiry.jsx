@@ -7,7 +7,6 @@ import { filterByDateRange } from "../utils/dateUtils";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../../PrivateRouter/AuthContext";
-import AdminFilter from "../../components/AdminFilter";
 
 const CustomDropdown = ({ label, options, value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -109,7 +108,6 @@ const Enquiry = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [trainerFilter, setTrainerFilter] = useState("all");
-  const [adminFilter, setAdminFilter] = useState("");
   const [dateRange, setDateRange] = useState({ type: 'All Time', range: null });
   const [showForm, setShowForm] = useState(false);
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
@@ -156,11 +154,7 @@ const Enquiry = () => {
     try {
       setError(null);
       setLoading(true);
-      let url = '/enquiries';
-      if (adminFilter) {
-        url += `?created_by=${encodeURIComponent(adminFilter)}`;
-      }
-      const response = await api.get(url);
+      const response = await api.get('/enquiries');
       const data = Array.isArray(response.data) ? response.data : [];
       setEnquiries(data);
     } catch (error) {
@@ -173,7 +167,7 @@ const Enquiry = () => {
     } finally {
       setLoading(false);
     }
-  }, [handleAuthError, adminFilter]);
+  }, [handleAuthError]);
 
   const fetchPlans = useCallback(async () => {
     try {
@@ -189,12 +183,7 @@ const Enquiry = () => {
 
   const fetchTrainers = useCallback(async () => {
     try {
-      let url = '/staff';
-      // If admin filter is selected, only get trainers for that admin
-      if (adminFilter) {
-        url += `?created_by=${encodeURIComponent(adminFilter)}`;
-      }
-      const response = await api.get(url);
+      const response = await api.get('/staff');
       const data = Array.isArray(response.data) ? response.data : [];
       const trainerRows = data.filter((staff) =>
         String(staff.role || '').toLowerCase() === 'trainer'
@@ -229,17 +218,17 @@ const Enquiry = () => {
       console.error('Error fetching trainers:', error);
       setTrainers([]);
     }
-  }, [role, user, adminFilter]);
+  }, [role, user]);
 
   useEffect(() => {
     fetchEnquiries();
     fetchPlans();
-  }, [fetchEnquiries, fetchPlans, adminFilter]);
+  }, [fetchEnquiries, fetchPlans]);
 
   useEffect(() => {
     if (role?.toLowerCase() === 'trainer' && !user) return;
     fetchTrainers();
-  }, [fetchTrainers, role, user, adminFilter]);
+  }, [fetchTrainers, role, user]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -517,11 +506,6 @@ const Enquiry = () => {
             <div className="flex flex-wrap items-center gap-4">
               <DateRangeFilter onRangeChange={(type, range) => setDateRange({ type, range })} />
 
-              <AdminFilter 
-                value={adminFilter} 
-                onChange={setAdminFilter}
-              />
-
               <CustomDropdown
                 label="Trainer"
                 value={trainerFilter}
@@ -564,6 +548,7 @@ const Enquiry = () => {
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Subject</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Location</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Trainer</th>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Trainer ID</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Status</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Date</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Actions</th>
@@ -582,7 +567,27 @@ const Enquiry = () => {
                       </td>
                       <td className="px-6 py-4 text-white">{enquiry.subject || 'No subject'}</td>
                       <td className="px-6 py-4 text-white">{enquiry.location || 'Not specified'}</td>
-                      <td className="px-6 py-4 text-white">{enquiry.trainer_display_name || resolveTrainerDisplay(enquiry.trainer_id || enquiry.trainerId)}</td>
+                      <td className="px-6 py-4 text-white">
+                        {enquiry.trainer_display_name ? (
+                          <div>
+                            <div className="font-medium">{enquiry.trainer_display_name}</div>
+                            {enquiry.trainer_email && (
+                              <div className="text-gray-400 text-xs">{enquiry.trainer_email}</div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-500 italic">Unassigned</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-white">
+                        {enquiry.trainer_employee_id ? (
+                          <code className="bg-slate-800 px-2 py-1 rounded text-yellow-400 text-xs">
+                            {enquiry.trainer_employee_id.substring(0, 8)}...
+                          </code>
+                        ) : (
+                          <span className="text-gray-500 italic">-</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${
                           enquiry.status === 'completed'
@@ -641,7 +646,7 @@ const Enquiry = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="8" className="px-6 py-12 text-center text-gray-400">
+                    <td colSpan="9" className="px-6 py-12 text-center text-gray-400">
                       <div className="flex flex-col items-center gap-3">
                         <Users size={48} className="opacity-30" />
                         <p className="text-lg font-medium">No enquiries found</p>

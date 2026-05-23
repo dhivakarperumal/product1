@@ -4,9 +4,17 @@ const { getActorUuid } = require('../utils/auditTrail');
 // NOTE: use getActorUuid(req.user) from utils/auditTrail for actor UUID
 
 const getEnquirySelectQuery = () =>
-  `SELECT enquiries.*, COALESCE(staff.username, staff.name, staff.email, staff.employee_id, enquiries.trainer_id) AS trainer_display_name
+  `SELECT enquiries.*, 
+          COALESCE(staff.username, staff.name, staff.email) AS trainer_display_name,
+          staff.username AS trainer_username,
+          staff.name AS trainer_name,
+          staff.email AS trainer_email,
+          staff.employee_id AS trainer_employee_id
    FROM enquiries
-   LEFT JOIN staff ON enquiries.trainer_id = staff.employee_id OR enquiries.trainer_id = staff.id`;
+   LEFT JOIN staff ON (CAST(enquiries.trainer_id AS CHAR) COLLATE utf8mb4_unicode_ci = CAST(staff.employee_id AS CHAR) COLLATE utf8mb4_unicode_ci OR 
+                       CAST(enquiries.trainer_id AS CHAR) COLLATE utf8mb4_unicode_ci = CAST(staff.id AS CHAR) COLLATE utf8mb4_unicode_ci OR
+                       CAST(enquiries.trainer_id AS CHAR) COLLATE utf8mb4_unicode_ci = CAST(staff.employee_id AS CHAR) COLLATE utf8mb4_unicode_ci OR
+                       CAST(enquiries.trainer_id AS CHAR) COLLATE utf8mb4_unicode_ci = CAST(staff.id AS CHAR) COLLATE utf8mb4_unicode_ci)`;
 
 const isNumeric = (value) =>
   typeof value === 'number' || (/^\d+$/.test(String(value || '').trim()));
@@ -79,22 +87,34 @@ const enquiryController = {
 
             // If super admin passes created_by query param, filter by that admin
             if (isSuperAdmin && created_by) {
-                whereClauses.push('created_by = ?');
+                whereClauses.push('enquiries.created_by = ?');
                 params.push(created_by);
             } else if (!isSuperAdmin && req.user) {
                 if (userRole === 'trainer') {
+                    // For trainers: Get their admin_uuid from staff table and show ALL enquiries from that admin
                     const trainerUuid = req.user.userUuid || req.user.employee_id || req.user.employeeId || null;
                     const trainerId = req.user.id || req.user.userId || req.user.user_id || null;
-                    if (trainerUuid || trainerId) {
-                        if (trainerUuid && trainerId) {
-                            whereClauses.push('(trainer_id = ? OR trainer_id = ?)');
-                            params.push(trainerUuid, trainerId);
-                        } else if (trainerUuid) {
-                            whereClauses.push('trainer_id = ?');
-                            params.push(trainerUuid);
-                        } else {
-                            whereClauses.push('trainer_id = ?');
-                            params.push(trainerId);
+                    
+                    // Query to get trainer's admin_uuid
+                    let trainerStaffQuery = 'SELECT admin_uuid FROM staff WHERE ';
+                    let trainerParams = [];
+                    if (trainerUuid && trainerId) {
+                        trainerStaffQuery += '(employee_id = ? OR id = ?)';
+                        trainerParams = [trainerUuid, trainerId];
+                    } else if (trainerUuid) {
+                        trainerStaffQuery += 'employee_id = ?';
+                        trainerParams = [trainerUuid];
+                    } else if (trainerId) {
+                        trainerStaffQuery += 'id = ?';
+                        trainerParams = [trainerId];
+                    }
+                    
+                    if (trainerParams.length > 0) {
+                        const [staffRows] = await pool.query(trainerStaffQuery, trainerParams);
+                        if (staffRows.length > 0 && staffRows[0].admin_uuid) {
+                            // Trainer's admin UUID found - show all enquiries from this admin
+                            whereClauses.push('enquiries.created_by = ?');
+                            params.push(staffRows[0].admin_uuid);
                         }
                     }
                 } else if (userRole === 'admin') {
@@ -102,10 +122,10 @@ const enquiryController = {
                     const adminFilterParams = getAdminFilterParams(req.user);
                     if (adminFilterParams.length > 0) {
                         if (adminFilterParams.length === 2) {
-                            whereClauses.push('(created_by = ? OR created_by = ?)');
+                            whereClauses.push('(enquiries.created_by = ? OR enquiries.created_by = ?)');
                             params.push(...adminFilterParams);
                         } else {
-                            whereClauses.push('created_by = ?');
+                            whereClauses.push('enquiries.created_by = ?');
                             params.push(...adminFilterParams);
                         }
                     }
@@ -140,17 +160,29 @@ const enquiryController = {
             // Add authorization check for regular admins and trainers
             if (!isSuperAdmin && req.user) {
                 if (userRole === 'trainer') {
+                    // For trainers: Get their admin_uuid and allow access to any enquiry from that admin
                     const trainerUuid = req.user.userUuid || req.user.employee_id || req.user.employeeId || null;
                     const trainerId = req.user.id || req.user.userId || req.user.user_id || null;
+                    
+                    let trainerStaffQuery = 'SELECT admin_uuid FROM staff WHERE ';
+                    let trainerParams = [];
                     if (trainerUuid && trainerId) {
-                        authClauses.push('(enquiries.trainer_id = ? OR enquiries.trainer_id = ?)');
-                        params.push(trainerUuid, trainerId);
+                        trainerStaffQuery += '(employee_id = ? OR id = ?)';
+                        trainerParams = [trainerUuid, trainerId];
                     } else if (trainerUuid) {
-                        authClauses.push('enquiries.trainer_id = ?');
-                        params.push(trainerUuid);
-                    } else {
-                        authClauses.push('enquiries.trainer_id = ?');
-                        params.push(trainerId);
+                        trainerStaffQuery += 'employee_id = ?';
+                        trainerParams = [trainerUuid];
+                    } else if (trainerId) {
+                        trainerStaffQuery += 'id = ?';
+                        trainerParams = [trainerId];
+                    }
+                    
+                    if (trainerParams.length > 0) {
+                        const [staffRows] = await pool.query(trainerStaffQuery, trainerParams);
+                        if (staffRows.length > 0 && staffRows[0].admin_uuid) {
+                            authClauses.push('enquiries.created_by = ?');
+                            params.push(staffRows[0].admin_uuid);
+                        }
                     }
                 } else if (userRole === 'admin') {
                     // Regular admins can only view enquiries they created
@@ -272,25 +304,41 @@ const enquiryController = {
             
             if (!isSuperAdmin && req.user) {
                 if (userRole === 'trainer') {
+                    // For trainers: Get their admin_uuid and allow updating any enquiry from that admin
                     const trainerUuid = req.user.userUuid || req.user.employee_id || req.user.employeeId || null;
                     const trainerId = req.user.id || req.user.userId || req.user.user_id || null;
+                    
+                    let trainerStaffQuery = 'SELECT admin_uuid FROM staff WHERE ';
+                    let trainerParams = [];
                     if (trainerUuid && trainerId) {
-                        whereClause += ' AND (trainer_id = ? OR trainer_id = ?)';
-                        params = [trainerUuid, trainerId, id];
+                        trainerStaffQuery += '(employee_id = ? OR id = ?)';
+                        trainerParams = [trainerUuid, trainerId];
                     } else if (trainerUuid) {
-                        whereClause += ' AND trainer_id = ?';
-                        params = [trainerUuid, id];
+                        trainerStaffQuery += 'employee_id = ?';
+                        trainerParams = [trainerUuid];
+                    } else if (trainerId) {
+                        trainerStaffQuery += 'id = ?';
+                        trainerParams = [trainerId];
+                    }
+                    
+                    if (trainerParams.length > 0) {
+                        const [staffRows] = await pool.query(trainerStaffQuery, trainerParams);
+                        if (staffRows.length > 0 && staffRows[0].admin_uuid) {
+                            whereClause += ' AND enquiries.created_by = ?';
+                            params = [staffRows[0].admin_uuid, id];
+                        } else {
+                            params = [id];
+                        }
                     } else {
-                        whereClause += ' AND trainer_id = ?';
-                        params = [trainerId, id];
+                        params = [id];
                     }
                 } else if (userRole === 'admin') {
                     // Regular admins can only update enquiries they created
                     if (adminParams.length === 2) {
-                        whereClause += ' AND (created_by = ? OR created_by = ?)';
+                        whereClause += ' AND (enquiries.created_by = ? OR enquiries.created_by = ?)';
                         params = [...adminParams, id];
                     } else if (adminParams.length === 1) {
-                        whereClause += ' AND created_by = ?';
+                        whereClause += ' AND enquiries.created_by = ?';
                         params = [...adminParams, id];
                     } else {
                         params = [id];
@@ -365,26 +413,42 @@ const enquiryController = {
             
             if (!isSuperAdmin && req.user) {
                 if (userRole === 'trainer') {
+                    // For trainers: Get their admin_uuid and allow updating status of any enquiry from that admin
                     const trainerUuid = req.user.userUuid || req.user.employee_id || req.user.employeeId || null;
                     const trainerId = req.user.id || req.user.userId || req.user.user_id || null;
+                    
+                    let trainerStaffQuery = 'SELECT admin_uuid FROM staff WHERE ';
+                    let trainerParams = [];
                     if (trainerUuid && trainerId) {
-                        whereClause += ' AND (trainer_id = ? OR trainer_id = ?)';
-                        params = [trainerUuid, trainerId, id];
+                        trainerStaffQuery += '(employee_id = ? OR id = ?)';
+                        trainerParams = [trainerUuid, trainerId];
                     } else if (trainerUuid) {
-                        whereClause += ' AND trainer_id = ?';
-                        params = [trainerUuid, id];
+                        trainerStaffQuery += 'employee_id = ?';
+                        trainerParams = [trainerUuid];
+                    } else if (trainerId) {
+                        trainerStaffQuery += 'id = ?';
+                        trainerParams = [trainerId];
+                    }
+                    
+                    if (trainerParams.length > 0) {
+                        const [staffRows] = await pool.query(trainerStaffQuery, trainerParams);
+                        if (staffRows.length > 0 && staffRows[0].admin_uuid) {
+                            whereClause += ' AND enquiries.created_by = ?';
+                            params = [staffRows[0].admin_uuid, id];
+                        } else {
+                            params = [id];
+                        }
                     } else {
-                        whereClause += ' AND trainer_id = ?';
-                        params = [trainerId, id];
+                        params = [id];
                     }
                 } else if (userRole === 'admin') {
                     // Regular admins can only update status of enquiries they created
                     const adminParams = getAdminFilterParams(req.user);
                     if (adminParams.length === 2) {
-                        whereClause += ' AND (created_by = ? OR created_by = ?)';
+                        whereClause += ' AND (enquiries.created_by = ? OR enquiries.created_by = ?)';
                         params = [...adminParams, id];
                     } else if (adminParams.length === 1) {
-                        whereClause += ' AND created_by = ?';
+                        whereClause += ' AND enquiries.created_by = ?';
                         params = [...adminParams, id];
                     } else {
                         params = [id];
@@ -426,26 +490,42 @@ const enquiryController = {
             
             if (!isSuperAdmin && req.user) {
                 if (userRole === 'trainer') {
+                    // For trainers: Get their admin_uuid and allow deleting any enquiry from that admin
                     const trainerUuid = req.user.userUuid || req.user.employee_id || req.user.employeeId || null;
                     const trainerId = req.user.id || req.user.userId || req.user.user_id || null;
+                    
+                    let trainerStaffQuery = 'SELECT admin_uuid FROM staff WHERE ';
+                    let trainerParams = [];
                     if (trainerUuid && trainerId) {
-                        whereClause += ' AND (trainer_id = ? OR trainer_id = ?)';
-                        params = [trainerUuid, trainerId, id];
+                        trainerStaffQuery += '(employee_id = ? OR id = ?)';
+                        trainerParams = [trainerUuid, trainerId];
                     } else if (trainerUuid) {
-                        whereClause += ' AND trainer_id = ?';
-                        params = [trainerUuid, id];
+                        trainerStaffQuery += 'employee_id = ?';
+                        trainerParams = [trainerUuid];
+                    } else if (trainerId) {
+                        trainerStaffQuery += 'id = ?';
+                        trainerParams = [trainerId];
+                    }
+                    
+                    if (trainerParams.length > 0) {
+                        const [staffRows] = await pool.query(trainerStaffQuery, trainerParams);
+                        if (staffRows.length > 0 && staffRows[0].admin_uuid) {
+                            whereClause += ' AND enquiries.created_by = ?';
+                            params = [staffRows[0].admin_uuid, id];
+                        } else {
+                            params = [id];
+                        }
                     } else {
-                        whereClause += ' AND trainer_id = ?';
-                        params = [trainerId, id];
+                        params = [id];
                     }
                 } else if (userRole === 'admin') {
                     // Regular admins can only delete enquiries they created
                     const adminParams = getAdminFilterParams(req.user);
                     if (adminParams.length === 2) {
-                        whereClause += ' AND (created_by = ? OR created_by = ?)';
+                        whereClause += ' AND (enquiries.created_by = ? OR enquiries.created_by = ?)';
                         params = [...adminParams, id];
                     } else if (adminParams.length === 1) {
-                        whereClause += ' AND created_by = ?';
+                        whereClause += ' AND enquiries.created_by = ?';
                         params = [...adminParams, id];
                     } else {
                         params = [id];
