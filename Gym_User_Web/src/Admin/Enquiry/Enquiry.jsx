@@ -7,6 +7,7 @@ import { filterByDateRange } from "../utils/dateUtils";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../../PrivateRouter/AuthContext";
+import AdminFilter from "../../components/AdminFilter";
 
 const CustomDropdown = ({ label, options, value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -108,6 +109,7 @@ const Enquiry = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [trainerFilter, setTrainerFilter] = useState("all");
+  const [adminFilter, setAdminFilter] = useState("");
   const [dateRange, setDateRange] = useState({ type: 'All Time', range: null });
   const [showForm, setShowForm] = useState(false);
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
@@ -154,7 +156,11 @@ const Enquiry = () => {
     try {
       setError(null);
       setLoading(true);
-      const response = await api.get('/enquiries');
+      let url = '/enquiries';
+      if (adminFilter) {
+        url += `?created_by=${encodeURIComponent(adminFilter)}`;
+      }
+      const response = await api.get(url);
       const data = Array.isArray(response.data) ? response.data : [];
       setEnquiries(data);
     } catch (error) {
@@ -167,7 +173,7 @@ const Enquiry = () => {
     } finally {
       setLoading(false);
     }
-  }, [handleAuthError]);
+  }, [handleAuthError, adminFilter]);
 
   const fetchPlans = useCallback(async () => {
     try {
@@ -183,7 +189,12 @@ const Enquiry = () => {
 
   const fetchTrainers = useCallback(async () => {
     try {
-      const response = await api.get('/staff');
+      let url = '/staff';
+      // If admin filter is selected, only get trainers for that admin
+      if (adminFilter) {
+        url += `?created_by=${encodeURIComponent(adminFilter)}`;
+      }
+      const response = await api.get(url);
       const data = Array.isArray(response.data) ? response.data : [];
       const trainerRows = data.filter((staff) =>
         String(staff.role || '').toLowerCase() === 'trainer'
@@ -218,17 +229,17 @@ const Enquiry = () => {
       console.error('Error fetching trainers:', error);
       setTrainers([]);
     }
-  }, [role, user]);
+  }, [role, user, adminFilter]);
 
   useEffect(() => {
     fetchEnquiries();
     fetchPlans();
-  }, [fetchEnquiries, fetchPlans]);
+  }, [fetchEnquiries, fetchPlans, adminFilter]);
 
   useEffect(() => {
     if (role?.toLowerCase() === 'trainer' && !user) return;
     fetchTrainers();
-  }, [fetchTrainers, role, user]);
+  }, [fetchTrainers, role, user, adminFilter]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -505,6 +516,11 @@ const Enquiry = () => {
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-4">
               <DateRangeFilter onRangeChange={(type, range) => setDateRange({ type, range })} />
+
+              <AdminFilter 
+                value={adminFilter} 
+                onChange={setAdminFilter}
+              />
 
               <CustomDropdown
                 label="Trainer"

@@ -34,7 +34,6 @@ const navItems = [
   { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
 
   { path: "/admin/enquiry", label: "Enquiry", icon: MessageSquare },
-  { path: "/admin/users", label: "Users", icon: Users },
   { path: "/admin/payments", label: "Payments", icon: CreditCard },
 
   { path: "/admin/emi-tracking", label: "EMI Tracking", icon: TrendingUp },

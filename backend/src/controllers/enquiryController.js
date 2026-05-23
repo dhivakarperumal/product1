@@ -71,12 +71,17 @@ const enquiryController = {
         try {
             const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
             const userRole = req.user && String(req.user.role || '').toLowerCase();
+            const { created_by } = req.query;
 
             let query = getEnquirySelectQuery();
             let params = [];
             let whereClauses = [];
 
-            if (!isSuperAdmin && req.user) {
+            // If super admin passes created_by query param, filter by that admin
+            if (isSuperAdmin && created_by) {
+                whereClauses.push('created_by = ?');
+                params.push(created_by);
+            } else if (!isSuperAdmin && req.user) {
                 if (userRole === 'trainer') {
                     const trainerUuid = req.user.userUuid || req.user.employee_id || req.user.employeeId || null;
                     const trainerId = req.user.id || req.user.userId || req.user.user_id || null;
@@ -92,8 +97,19 @@ const enquiryController = {
                             params.push(trainerId);
                         }
                     }
+                } else if (userRole === 'admin') {
+                    // Regular admins should only see enquiries created by them
+                    const adminFilterParams = getAdminFilterParams(req.user);
+                    if (adminFilterParams.length > 0) {
+                        if (adminFilterParams.length === 2) {
+                            whereClauses.push('(created_by = ? OR created_by = ?)');
+                            params.push(...adminFilterParams);
+                        } else {
+                            whereClauses.push('created_by = ?');
+                            params.push(...adminFilterParams);
+                        }
+                    }
                 }
-                // Admin users should see enquiries for all trainers, not just those they created.
             }
 
             if (whereClauses.length > 0) {
@@ -114,7 +130,46 @@ const enquiryController = {
     getEnquiryById: async (req, res) => {
         try {
             const { id } = req.params;
-            const [rows] = await pool.query(`${getEnquirySelectQuery()} WHERE enquiries.id = ?`, [id]);
+            const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+            const userRole = req.user && String(req.user.role || '').toLowerCase();
+            
+            let query = `${getEnquirySelectQuery()} WHERE enquiries.id = ?`;
+            let params = [id];
+            let authClauses = [];
+            
+            // Add authorization check for regular admins and trainers
+            if (!isSuperAdmin && req.user) {
+                if (userRole === 'trainer') {
+                    const trainerUuid = req.user.userUuid || req.user.employee_id || req.user.employeeId || null;
+                    const trainerId = req.user.id || req.user.userId || req.user.user_id || null;
+                    if (trainerUuid && trainerId) {
+                        authClauses.push('(enquiries.trainer_id = ? OR enquiries.trainer_id = ?)');
+                        params.push(trainerUuid, trainerId);
+                    } else if (trainerUuid) {
+                        authClauses.push('enquiries.trainer_id = ?');
+                        params.push(trainerUuid);
+                    } else {
+                        authClauses.push('enquiries.trainer_id = ?');
+                        params.push(trainerId);
+                    }
+                } else if (userRole === 'admin') {
+                    // Regular admins can only view enquiries they created
+                    const adminFilterParams = getAdminFilterParams(req.user);
+                    if (adminFilterParams.length === 2) {
+                        authClauses.push('(enquiries.created_by = ? OR enquiries.created_by = ?)');
+                        params.push(...adminFilterParams);
+                    } else if (adminFilterParams.length === 1) {
+                        authClauses.push('enquiries.created_by = ?');
+                        params.push(...adminFilterParams);
+                    }
+                }
+            }
+            
+            if (authClauses.length > 0) {
+                query += ' AND ' + authClauses.join(' AND ');
+            }
+            
+            const [rows] = await pool.query(query, params);
 
             if (rows.length === 0) {
                 return res.status(404).json({ error: 'Enquiry not found' });
@@ -208,6 +263,44 @@ const enquiryController = {
             const updatedByUuid = getCreatedByUuid(req.user) || null;
             const adminParams = getAdminFilterParams(req.user);
             const hasAdminFilter = adminParams.length > 0;
+            
+            // Add authorization check
+            const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+            const userRole = req.user && String(req.user.role || '').toLowerCase();
+            let whereClause = 'WHERE id = ?';
+            let params = [];
+            
+            if (!isSuperAdmin && req.user) {
+                if (userRole === 'trainer') {
+                    const trainerUuid = req.user.userUuid || req.user.employee_id || req.user.employeeId || null;
+                    const trainerId = req.user.id || req.user.userId || req.user.user_id || null;
+                    if (trainerUuid && trainerId) {
+                        whereClause += ' AND (trainer_id = ? OR trainer_id = ?)';
+                        params = [trainerUuid, trainerId, id];
+                    } else if (trainerUuid) {
+                        whereClause += ' AND trainer_id = ?';
+                        params = [trainerUuid, id];
+                    } else {
+                        whereClause += ' AND trainer_id = ?';
+                        params = [trainerId, id];
+                    }
+                } else if (userRole === 'admin') {
+                    // Regular admins can only update enquiries they created
+                    if (adminParams.length === 2) {
+                        whereClause += ' AND (created_by = ? OR created_by = ?)';
+                        params = [...adminParams, id];
+                    } else if (adminParams.length === 1) {
+                        whereClause += ' AND created_by = ?';
+                        params = [...adminParams, id];
+                    } else {
+                        params = [id];
+                    }
+                } else {
+                    params = [id];
+                }
+            } else {
+                params = [id];
+            }
 
             // Check for duplicate phone/email within the same admin (excluding current enquiry)
             if (phone && hasAdminFilter) {
@@ -235,8 +328,8 @@ const enquiryController = {
             const numBmi = bmi != null && !isNaN(bmi) ? Number(bmi) : null;
 
             const [result] = await pool.query(
-                'UPDATE enquiries SET name = ?, email = ?, phone = ?, subject = ?, message = ?, location = ?, height = ?, weight = ?, bmi = ?, status = ?, plan_id = ?, trainer_id = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                [name, email, phone || null, subject || null, message, location || null, numHeight, numWeight, numBmi, status || 'pending', plan_id, trainer_id, updatedByUuid, id]
+                `UPDATE enquiries SET name = ?, email = ?, phone = ?, subject = ?, message = ?, location = ?, height = ?, weight = ?, bmi = ?, status = ?, plan_id = ?, trainer_id = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP ${whereClause}`,
+                [name, email, phone || null, subject || null, message, location || null, numHeight, numWeight, numBmi, status || 'pending', plan_id, trainer_id, updatedByUuid, ...params]
             );
 
             if (result.affectedRows === 0) {
@@ -263,10 +356,49 @@ const enquiryController = {
 
             // Store correct UUID based on user role for audit trail
             const updatedByUuid = getCreatedByUuid(req.user) || null;
+            
+            // Add authorization check
+            const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+            const userRole = req.user && String(req.user.role || '').toLowerCase();
+            let whereClause = 'WHERE id = ?';
+            let params = [];
+            
+            if (!isSuperAdmin && req.user) {
+                if (userRole === 'trainer') {
+                    const trainerUuid = req.user.userUuid || req.user.employee_id || req.user.employeeId || null;
+                    const trainerId = req.user.id || req.user.userId || req.user.user_id || null;
+                    if (trainerUuid && trainerId) {
+                        whereClause += ' AND (trainer_id = ? OR trainer_id = ?)';
+                        params = [trainerUuid, trainerId, id];
+                    } else if (trainerUuid) {
+                        whereClause += ' AND trainer_id = ?';
+                        params = [trainerUuid, id];
+                    } else {
+                        whereClause += ' AND trainer_id = ?';
+                        params = [trainerId, id];
+                    }
+                } else if (userRole === 'admin') {
+                    // Regular admins can only update status of enquiries they created
+                    const adminParams = getAdminFilterParams(req.user);
+                    if (adminParams.length === 2) {
+                        whereClause += ' AND (created_by = ? OR created_by = ?)';
+                        params = [...adminParams, id];
+                    } else if (adminParams.length === 1) {
+                        whereClause += ' AND created_by = ?';
+                        params = [...adminParams, id];
+                    } else {
+                        params = [id];
+                    }
+                } else {
+                    params = [id];
+                }
+            } else {
+                params = [id];
+            }
 
             const [result] = await pool.query(
-                'UPDATE enquiries SET status = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                [status, updatedByUuid, id]
+                `UPDATE enquiries SET status = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP ${whereClause}`,
+                [status, updatedByUuid, ...params]
             );
 
             if (result.affectedRows === 0) {
@@ -285,7 +417,47 @@ const enquiryController = {
     deleteEnquiry: async (req, res) => {
         try {
             const { id } = req.params;
-            const [result] = await pool.query('DELETE FROM enquiries WHERE id = ?', [id]);
+            
+            // Add authorization check
+            const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
+            const userRole = req.user && String(req.user.role || '').toLowerCase();
+            let whereClause = 'WHERE id = ?';
+            let params = [];
+            
+            if (!isSuperAdmin && req.user) {
+                if (userRole === 'trainer') {
+                    const trainerUuid = req.user.userUuid || req.user.employee_id || req.user.employeeId || null;
+                    const trainerId = req.user.id || req.user.userId || req.user.user_id || null;
+                    if (trainerUuid && trainerId) {
+                        whereClause += ' AND (trainer_id = ? OR trainer_id = ?)';
+                        params = [trainerUuid, trainerId, id];
+                    } else if (trainerUuid) {
+                        whereClause += ' AND trainer_id = ?';
+                        params = [trainerUuid, id];
+                    } else {
+                        whereClause += ' AND trainer_id = ?';
+                        params = [trainerId, id];
+                    }
+                } else if (userRole === 'admin') {
+                    // Regular admins can only delete enquiries they created
+                    const adminParams = getAdminFilterParams(req.user);
+                    if (adminParams.length === 2) {
+                        whereClause += ' AND (created_by = ? OR created_by = ?)';
+                        params = [...adminParams, id];
+                    } else if (adminParams.length === 1) {
+                        whereClause += ' AND created_by = ?';
+                        params = [...adminParams, id];
+                    } else {
+                        params = [id];
+                    }
+                } else {
+                    params = [id];
+                }
+            } else {
+                params = [id];
+            }
+            
+            const [result] = await pool.query(`DELETE FROM enquiries ${whereClause}`, params);
 
             if (result.affectedRows === 0) {
                 return res.status(404).json({ error: 'Enquiry not found' });
