@@ -27,12 +27,19 @@ const authenticateToken = (req, res, next) => {
     if (!token && cookies.access_token) token = cookies.access_token;
   }
 
+  // Development convenience: accept token via query string when running locally
+  if (!token && process.env.NODE_ENV !== 'production' && req.query && req.query.token) {
+    token = req.query.token;
+  }
+
   if (!token) {
+    console.warn('[auth] No access token provided on request', { path: req.originalUrl, method: req.method });
     return res.status(401).json({ error: 'Access token required' });
   }
 
   jwt.verify(token, process.env.JWT_SECRET || 'secret', (err, user) => {
     if (err) {
+      console.warn('[auth] JWT verification failed:', err && (err.message || err));
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
     req.user = user;

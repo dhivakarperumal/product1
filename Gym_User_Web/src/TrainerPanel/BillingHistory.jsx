@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../PrivateRouter/AuthContext";
 import api from "../api";
 import toast from "react-hot-toast";
-import { Eye, Download, Filter, Calendar, DollarSign } from "lucide-react";
+import { Eye, Filter, DollarSign } from "lucide-react";
 
 const BillingHistory = () => {
   const { user } = useAuth();
@@ -16,98 +16,40 @@ const BillingHistory = () => {
   });
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
 
   const fetchBillingHistory = useCallback(async () => {
     try {
       setLoading(true);
-      if (!user?.id) {
-        setOrders([]);
-        setLoading(false);
-        return;
+
+      // Request orders for the authenticated trainer via server-side actor lookup
+      // debug: log token presence before request
+      try {
+        const token = localStorage.getItem('token');
+        console.log('[BillingHistory] token present:', !!token);
+        console.log('[BillingHistory] user object:', user);
+      } catch (e) {
+        console.warn('[BillingHistory] failed to read token/user for debug', e);
       }
 
-      // Get trainer's assigned memberships
-      const assignmentsRes = await api.get("/assignments", { params: { trainerUserId: user.id } });
-      const assignments = Array.isArray(assignmentsRes.data) ? assignmentsRes.data : [];
-
-      if (assignments.length === 0) {
-        setOrders([]);
-        setLoading(false);
-        return;
-      }
-
-      // Resolve member UUIDs for each assignment. Membership rows may contain numeric ids (memberId)
-      // so fetch member details when needed to obtain the member_id (UUID).
-      const memberUuidPromises = assignments.map(async (a) => {
-        const possible = a.memberId || a.gymMemberId || a.member_id || a.userId || a.user_id || a.id;
-        const ref = possible;
-
-        if (!ref) return null;
-
-        // If ref looks like a UUID (contains a hyphen), assume it's already member_uuid
-        if (typeof ref === 'string' && ref.includes('-')) return ref;
-
-        // Otherwise try to fetch member details by numeric id
-        try {
-          const memRes = await api.get(`/members/${ref}`);
-          const mem = memRes.data || {};
-          return mem.member_id || mem.memberId || mem.member_uuid || mem.memberUuid || null;
-        } catch (err) {
-          console.warn('Failed to resolve member UUID for assignment', a, err?.message || err);
-          return null;
-        }
-      });
-
-      const resolved = await Promise.all(memberUuidPromises);
-      const memberUuids = [...new Set(resolved.filter(Boolean))];
-
-      if (memberUuids.length === 0) {
-        setOrders([]);
-        setLoading(false);
-        return;
-      }
-
-      // Fetch orders for each member UUID using the user orders endpoint
-      const orderFetchPromises = memberUuids.map((mu) => api.get(`/orders/user/${encodeURIComponent(mu)}`));
-      const settled = await Promise.allSettled(orderFetchPromises);
-
-      const ordersForMembers = [];
-      const fetchErrors = [];
-      settled.forEach((s, idx) => {
-        const memberId = memberUuids[idx];
-        if (s.status === 'fulfilled') {
-          const data = s.value?.data;
-          if (Array.isArray(data) && data.length > 0) {
-            ordersForMembers.push(...data);
-          }
-        } else {
-          console.warn('Failed to fetch orders for member', memberId, s.reason || s.status);
-          fetchErrors.push({ memberId, error: s.reason });
-        }
-      });
-
-      if (fetchErrors.length > 0) {
-        console.warn('Some member order fetches failed:', fetchErrors);
-      }
-
-      // Show all orders for members assigned to this trainer
-      setOrders(ordersForMembers);
+      const res = await api.get('/orders/created-by/me');
+      const data = Array.isArray(res.data) ? res.data : [];
+      setOrders(data);
     } catch (err) {
-      console.error("Failed to fetch billing history:", err);
-      toast.error("Failed to load billing history");
+      console.error("Failed to fetch trainer-created orders:", err);
+      const status = err?.response?.status;
+      const body = err?.response?.data;
+      toast.error(`Failed to load billing history${status ? ` (${status})` : ''}`);
+      console.error('Response body:', body);
       setOrders([]);
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user]);
 
   useEffect(() => {
     fetchBillingHistory();
   }, [fetchBillingHistory]);
 
-  // Trainer identifier values to match against order creator fields
-  // Include UUIDs, numeric IDs, username, email and other common fields
   const getFilteredOrders = () => {
     return orders.filter((order) => {
       if (filterStatus !== "all" && order.status !== filterStatus) {
@@ -169,19 +111,8 @@ const BillingHistory = () => {
           <div>
             <h1 className="text-3xl font-bold text-white mb-1">Billing History</h1>
             <p className="text-gray-400">View all your billing orders</p>
+            <p className="text-gray-500 text-sm mt-1">Trainer: {user?.username || user?.name || user?.profileName || 'You'}</p>
           </div>
-          <button
-            onClick={fetchBillingHistory}
-            className="px-4 py-2 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border border-orange-500/30 rounded-lg transition-colors"
-          >
-            Refresh
-          </button>
-          <button
-            onClick={() => setShowDebug((s) => !s)}
-            className="ml-2 px-4 py-2 bg-slate-800/40 text-gray-300 hover:bg-slate-800/60 border border-white/5 rounded-lg transition-colors"
-          >
-            {showDebug ? 'Hide Debug' : 'Show Debug'}
-          </button>
         </div>
 
         {/* Summary Cards */}
@@ -299,33 +230,20 @@ const BillingHistory = () => {
                 </thead>
                 <tbody>
                   {filteredOrders.map((order) => (
-                    <tr key={order.id} className="border-b border-white/5 hover:bg-slate-800/30 transition-colors">
+                    <tr key={order.id || order.order_id} className="border-b border-white/5 hover:bg-slate-800/30 transition-colors">
                       <td className="px-6 py-4 text-sm font-mono text-orange-400">{order.order_id}</td>
-                      <td className="px-6 py-4 text-sm text-white">
-                        {order.shipping?.name || "N/A"}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-green-400">
-                        ₹{Number(order?.total || 0).toFixed(2)}
+                      <td className="px-6 py-4 text-sm text-white">{order.shipping?.name || "N/A"}</td>
+                      <td className="px-6 py-4 text-sm font-semibold text-green-400">₹{Number(order?.total || 0).toFixed(2)}</td>
+                      <td className="px-6 py-4 text-sm">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getTypeBadge(order.order_type)}`}>{order.order_type || "N/A"}</span>
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getTypeBadge(order.order_type)}`}>
-                          {order.order_type || "N/A"}
-                        </span>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusBadge(order.status)}`}>{order.status || "N/A"}</span>
                       </td>
-                      <td className="px-6 py-4 text-sm">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusBadge(order.status)}`}>
-                          {order.status || "N/A"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-400">
-                        {new Date(order.created_at).toLocaleDateString('en-GB')}
-                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-400">{new Date(order.created_at).toLocaleDateString('en-GB')}</td>
                       <td className="px-6 py-4 text-sm">
                         <button
-                          onClick={() => {
-                            setSelectedOrder(order);
-                            setShowDetails(true);
-                          }}
+                          onClick={() => { setSelectedOrder(order); setShowDetails(true); }}
                           className="px-3 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-lg transition-colors flex items-center gap-2"
                         >
                           <Eye size={16} />
@@ -341,35 +259,13 @@ const BillingHistory = () => {
         </div>
       </div>
 
-      {/* Debug panel (toggleable) */}
-      {showDebug && (
-        <div className="mx-auto max-w-7xl mt-4 p-4 bg-red-900/10 border border-red-800/20 rounded-lg text-sm text-white">
-          <h3 className="font-semibold mb-2">Debug Info</h3>
-          <div className="mt-3">
-            <strong>Sample orders (id to creators):</strong>
-            <div className="space-y-1 mt-2">
-              {orders.slice(0, 10).map((o) => (
-                <div key={o.order_id} className="text-xs text-gray-200">
-                  <span className="font-mono">{o.order_id}</span>{' => '}{JSON.stringify({ created_by: o.created_by, admin_uuid: o.admin_uuid, notes: o.notes, createdBy: o.createdBy })}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Order Details Modal */}
       {showDetails && selectedOrder && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-gradient-to-br from-slate-950 to-slate-900 border border-white/10 rounded-[2rem] p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-white">Order Details</h2>
-              <button
-                onClick={() => setShowDetails(false)}
-                className="text-gray-400 hover:text-white text-2xl"
-              >
-                ×
-              </button>
+              <button onClick={() => setShowDetails(false)} className="text-gray-400 hover:text-white text-2xl">×</button>
             </div>
 
             <div className="space-y-4">
@@ -380,18 +276,14 @@ const BillingHistory = () => {
                 </div>
                 <div>
                   <p className="text-gray-400 text-sm">Status</p>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium border inline-block ${getStatusBadge(selectedOrder.status)}`}>
-                    {selectedOrder.status}
-                  </span>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium border inline-block ${getStatusBadge(selectedOrder.status)}`}>{selectedOrder.status}</span>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-gray-400 text-sm">Order Type</p>
-                  <p className={`font-semibold ${selectedOrder.order_type === "ONLINE" ? "text-purple-400" : "text-orange-400"}`}>
-                    {selectedOrder.order_type}
-                  </p>
+                  <p className={`font-semibold ${selectedOrder.order_type === "ONLINE" ? "text-purple-400" : "text-orange-400"}`}>{selectedOrder.order_type}</p>
                 </div>
                 <div>
                   <p className="text-gray-400 text-sm">Payment Status</p>
@@ -434,12 +326,7 @@ const BillingHistory = () => {
               </div>
 
               <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => setShowDetails(false)}
-                  className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors"
-                >
-                  Close
-                </button>
+                <button onClick={() => setShowDetails(false)} className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-colors">Close</button>
               </div>
             </div>
           </div>

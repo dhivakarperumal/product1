@@ -9,14 +9,14 @@ router.get('/', authenticateToken, requireTrainerOrAdmin, enquiryController.getA
 // GET /api/enquiries/:id - Get enquiry by ID (admin or trainer access - read only)
 router.get('/:id', authenticateToken, requireTrainerOrAdmin, enquiryController.getEnquiryById);
 
-// POST /api/enquiries - Create new enquiry (admin only)
-router.post('/', authenticateToken, requireAdmin, enquiryController.createEnquiry);
+// POST /api/enquiries - Create new enquiry (admin or trainer)
+router.post('/', authenticateToken, requireTrainerOrAdmin, enquiryController.createEnquiry);
 
-// PUT /api/enquiries/:id - Update enquiry details (admin only)
-router.put('/:id', authenticateToken, requireAdmin, enquiryController.updateEnquiry);
+// PUT /api/enquiries/:id - Update enquiry details (admin or trainer)
+router.put('/:id', authenticateToken, requireTrainerOrAdmin, enquiryController.updateEnquiry);
 
-// PUT /api/enquiries/:id/status - Update enquiry status (admin only)
-router.put('/:id/status', authenticateToken, requireAdmin, enquiryController.updateEnquiryStatus);
+// PUT /api/enquiries/:id/status - Update enquiry status (trainer or admin)
+router.put('/:id/status', authenticateToken, requireTrainerOrAdmin, enquiryController.updateEnquiryStatus);
 
 // DELETE /api/enquiries/:id - Delete enquiry (admin only)
 router.delete('/:id', authenticateToken, requireAdmin, enquiryController.deleteEnquiry);

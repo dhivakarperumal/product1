@@ -111,6 +111,15 @@ app.use("/api/equipment", equipmentRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/orders", orderRoutes);
+// Log authorization header presence for orders to assist debugging auth issues
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api/orders', (req, res, next) => {
+    try {
+      console.log('[server] /api/orders request:', req.method, req.originalUrl, 'Authorization present:', !!req.headers.authorization, 'token header present:', !!req.headers.token);
+    } catch (e) {}
+    next();
+  });
+}
 app.use("/api/services", serviceRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/assignments", assignmentRoutes);

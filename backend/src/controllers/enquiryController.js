@@ -458,11 +458,11 @@ const enquiryController = {
             
             if (!isSuperAdmin && req.user) {
                 if (userRole === 'trainer') {
-                    // For trainers: Get their admin_uuid and allow updating any enquiry from that admin
+                    // For trainers: allow updates to enquiries created by their admin or assigned to them
                     const trainerUuid = req.user.userUuid || req.user.employee_id || req.user.employeeId || null;
                     const trainerId = req.user.id || req.user.userId || req.user.user_id || null;
                     
-                    let trainerStaffQuery = 'SELECT admin_uuid FROM staff WHERE ';
+                    let trainerStaffQuery = 'SELECT admin_uuid, employee_id, id FROM staff WHERE ';
                     let trainerParams = [];
                     if (trainerUuid && trainerId) {
                         trainerStaffQuery += '(employee_id = ? OR id = ?)';
@@ -477,9 +477,30 @@ const enquiryController = {
                     
                     if (trainerParams.length > 0) {
                         const [staffRows] = await pool.query(trainerStaffQuery, trainerParams);
-                        if (staffRows.length > 0 && staffRows[0].admin_uuid) {
-                            whereClause += ' AND enquiries.created_by = ?';
-                            params = [staffRows[0].admin_uuid, id];
+                        if (staffRows.length > 0) {
+                            const staffRow = staffRows[0];
+                            const allowedClauses = [];
+                            const allowedParams = [];
+
+                            if (staffRow.admin_uuid) {
+                                allowedClauses.push('enquiries.created_by = ?');
+                                allowedParams.push(staffRow.admin_uuid);
+                            }
+                            if (staffRow.employee_id) {
+                                allowedClauses.push('CAST(enquiries.trainer_id AS CHAR) = ?');
+                                allowedParams.push(String(staffRow.employee_id));
+                            }
+                            if (staffRow.id) {
+                                allowedClauses.push('CAST(enquiries.trainer_id AS CHAR) = ?');
+                                allowedParams.push(String(staffRow.id));
+                            }
+
+                            if (allowedClauses.length > 0) {
+                                whereClause = `WHERE enquiries.id = ? AND (${allowedClauses.join(' OR ')})`;
+                                params = [id, ...allowedParams];
+                            } else {
+                                params = [id];
+                            }
                         } else {
                             params = [id];
                         }
@@ -649,7 +670,7 @@ const enquiryController = {
                             const adminUuid = staffRows[0].admin_uuid;
                             const empId = staffRows[0].employee_id || staffRows[0].id;
                             whereClause += ' AND (enquiries.created_by = ? OR CAST(enquiries.trainer_id AS CHAR) = ? OR CAST(enquiries.trainer_id AS CHAR) = ?)';
-                            params = [adminUuid, empId, String(staffRows[0].id), id];
+                            params = [id, adminUuid, empId, String(staffRows[0].id)];
                         } else {
                             params = [id];
                         }
@@ -668,13 +689,15 @@ const enquiryController = {
 
                     const staffWhere = [];
                     const staffParams = [];
+                    let staffRows = [];
                     if (adminUuid) {
                         staffWhere.push('admin_uuid = ?');
                         staffParams.push(adminUuid);
                     }
 
                     if (staffWhere.length > 0) {
-                        const [staffRows] = await pool.query(`SELECT employee_id, id, admin_uuid FROM staff WHERE ${staffWhere.join(' OR ')}`, staffParams);
+                        const [rows] = await pool.query(`SELECT employee_id, id, admin_uuid FROM staff WHERE ${staffWhere.join(' OR ')}`, staffParams);
+                        staffRows = rows;
                         for (const s of staffRows) {
                             if (s.employee_id) createdByCandidates.push(String(s.employee_id));
                             if (s.admin_uuid) createdByCandidates.push(String(s.admin_uuid));

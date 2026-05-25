@@ -544,11 +544,9 @@ const Enquiry = () => {
               <thead className="bg-slate-800/50">
                 <tr>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">S.No</th>
-                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Admin ID</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Customer</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Subject</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Location</th>
-                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Trainer ID</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Trainer</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Status</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Date</th>
@@ -560,9 +558,6 @@ const Enquiry = () => {
                   filteredEnquiries.map((enquiry, ind) => (
                     <tr key={enquiry.id} className="border-b border-white/5 hover:bg-slate-800/30 transition-colors">
                       <td className="px-6 py-4 text-white font-medium">{ind + 1}</td>
-                      <td className="px-6 py-4 text-gray-300 text-sm font-mono truncate" title={enquiry.created_by}>
-                        {enquiry.created_by ? enquiry.created_by.substring(0, 12) + '...' : 'N/A'}
-                      </td>
                       <td className="px-6 py-4">
                         <div>
                           <div className="text-white font-medium">{enquiry.name}</div>
@@ -571,15 +566,6 @@ const Enquiry = () => {
                       </td>
                       <td className="px-6 py-4 text-white">{enquiry.subject || 'No subject'}</td>
                       <td className="px-6 py-4 text-white">{enquiry.location || 'Not specified'}</td>
-                      <td className="px-6 py-4 text-gray-300 text-sm font-mono">
-                        {enquiry.trainer_id || enquiry.raw_trainer_id ? (
-                          <span title={enquiry.trainer_id || enquiry.raw_trainer_id}>
-                            {String(enquiry.trainer_id || enquiry.raw_trainer_id).substring(0, 12)}
-                          </span>
-                        ) : (
-                          <span className="text-gray-500 italic">Unassigned</span>
-                        )}
-                      </td>
                       <td className="px-6 py-4 text-white">
                         {enquiry.trainer_display_name ? (
                           <div>
@@ -605,7 +591,13 @@ const Enquiry = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-gray-300">
-                        {new Date(enquiry.created_at).toLocaleString()}
+                        {(() => {
+                          const date = new Date(enquiry.created_at);
+                          const day = String(date.getDate()).padStart(2, '0');
+                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                          const year = date.getFullYear();
+                          return `${day}/${month}/${year}`;
+                        })()}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
@@ -699,24 +691,7 @@ const Enquiry = () => {
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Admin ID {selectedEnquiry ? '(Read-Only)' : ''}</label>
-                    <input
-                      type="text"
-                      value={selectedEnquiry ? (selectedEnquiry.created_by || 'N/A') : user?.adminUuid || user?.admin_uuid || user?.id || 'N/A'}
-                      readOnly={!!selectedEnquiry}
-                      className={selectedEnquiry ? "w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 placeholder-gray-400 focus:outline-none transition-all" : "w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Trainer ID</label>
-                    <input
-                      type="text"
-                      value={selectedEnquiry ? (selectedEnquiry.trainer_id || selectedEnquiry.raw_trainer_id || 'Unassigned') : formData.trainerId || 'Unassigned'}
-                      readOnly={!!selectedEnquiry}
-                      className={selectedEnquiry ? "w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 font-mono focus:outline-none transition-all" : "w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white font-mono focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"}
-                    />
-                  </div>
+                  {/* Admin ID and Trainer ID are hidden in all enquiry forms */}
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">Name *</label>
                     <input

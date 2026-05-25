@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Plus, Search, Eye, Trash2, CheckCircle, XCircle, Clock, Users } from "lucide-react";
+import { Plus, Search, Eye, Trash2, CheckCircle, XCircle, Clock, Users, Edit } from "lucide-react";
 import api from "../../api";
 import DateRangeFilter from "../../Admin/DateRangeFilter";
 import { filterByDateRange } from "../../Admin/utils/dateUtils";
@@ -123,6 +123,7 @@ const TrainerEnquiry = () => {
     planId: "",
     trainerId: "",
   });
+  const [viewOnly, setViewOnly] = useState(false);
 
   useEffect(() => {
     if (formData.height && formData.weight) {
@@ -136,6 +137,32 @@ const TrainerEnquiry = () => {
       setFormData(prev => ({ ...prev, bmi: "" }));
     }
   }, [formData.height, formData.weight]);
+
+  const getDefaultTrainerId = () => {
+    if (trainers.length === 0) return "";
+    return String(trainers[0].employee_id || trainers[0].id || "");
+  };
+
+  const initialFormData = {
+    name: "",
+    email: "",
+    phone: "",
+    subject: "",
+    message: "",
+    location: "",
+    height: "",
+    weight: "",
+    bmi: "",
+    status: "pending",
+    planId: "",
+    trainerId: getDefaultTrainerId(),
+  };
+
+  const openCreateForm = () => {
+    setSelectedEnquiry(null);
+    setFormData({ ...initialFormData, trainerId: getDefaultTrainerId() });
+    setShowForm(true);
+  };
 
   useEffect(() => {
     fetchEnquiries();
@@ -261,6 +288,14 @@ const TrainerEnquiry = () => {
     return resolvedPlan?.plan_id || String(planId);
   };
 
+  const getPlanLabelFromId = (planId) => {
+    if (!planId) return "No Plan";
+    const plan = plans.find(
+      (planItem) => String(planItem.plan_id) === String(planId) || String(planItem.id) === String(planId)
+    );
+    return plan?.name || plan?.title || plan?.planName || String(planId);
+  };
+
   const resolveTrainerIdForEdit = (trainerId) => {
     if (!trainerId) return "";
     const resolvedTrainer = trainers.find(
@@ -269,18 +304,8 @@ const TrainerEnquiry = () => {
     return resolvedTrainer?.employee_id || String(trainerId);
   };
 
-  const resolveTrainerDisplay = (trainerId) => {
-    if (!trainerId) return "Unassigned";
-    const resolvedTrainer = trainers.find(
-      (trainer) => String(trainer.employee_id) === String(trainerId) || String(trainer.id) === String(trainerId)
-    );
-    if (resolvedTrainer) {
-      return resolvedTrainer.username || resolvedTrainer.name || resolvedTrainer.email || resolvedTrainer.employee_id || String(trainerId);
-    }
-    return String(trainerId);
-  };
-
   const handleEdit = (enquiry) => {
+    setViewOnly(false);
     setSelectedEnquiry(enquiry);
     setFormData({
       name: enquiry.name,
@@ -300,18 +325,30 @@ const TrainerEnquiry = () => {
     setShowForm(true);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this enquiry?')) {
-      try {
-        await api.delete(`/enquiries/${id}`);
-        fetchEnquiries();
-        toast.success("Enquiry deleted successfully");
-      } catch (error) {
-        console.error('Error deleting enquiry:', error);
-        toast.error("Failed to delete enquiry");
-      }
-    }
+  const handleView = (enquiry) => {
+    setViewOnly(true);
+    setSelectedEnquiry(enquiry);
+    setFormData({
+      name: enquiry.name,
+      email: enquiry.email,
+      phone: enquiry.phone || "",
+      subject: enquiry.subject || "",
+      message: enquiry.message,
+      location: enquiry.location || "",
+      height: enquiry.height || "",
+      weight: enquiry.weight || "",
+      bmi: enquiry.bmi || "",
+      status: enquiry.status || 'pending',
+      planId: resolvePlanIdForEdit(enquiry.plan_id || enquiry.planId || ""),
+      trainerId: resolveTrainerIdForEdit(enquiry.trainer_id || enquiry.trainerId || ""),
+      adminId: enquiry.created_by || "N/A",
+    });
+    setShowForm(true);
   };
+
+  const canEdit = ['trainer', 'admin', 'super admin', 'superadmin'].includes(String(role || '').toLowerCase());
+
+  
 
   const updateStatus = async (id, status) => {
     try {
@@ -428,9 +465,17 @@ const TrainerEnquiry = () => {
             </div>
             <div>
               <h1 className="text-2xl font-semibold text-white">Enquiry Management</h1>
-              <p className="text-white/60 text-sm">View customer enquiries (Read-Only)</p>
+              <p className="text-white/60 text-sm">View customer enquiries and add new ones</p>
             </div>
           </div>
+
+          <button
+            onClick={openCreateForm}
+            className="flex items-center gap-2 px-6 py-3 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 rounded-xl font-medium transition-colors border border-orange-500/30 hover:shadow-lg hover:shadow-orange-500/20"
+          >
+            <Plus size={18} />
+            Add Enquiry
+          </button>
         </div>
 
         <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
@@ -523,16 +568,32 @@ const TrainerEnquiry = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-gray-300">
-                        {new Date(enquiry.created_at).toLocaleString()}
+                        {new Date(enquiry.created_at).toLocaleDateString('en-GB')}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => handleEdit(enquiry)}
-                            className="p-2 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-xl transition-colors border border-blue-500/30"
+                            onClick={() => handleView(enquiry)}
+                            className="p-2 bg-slate-800/20 text-sky-300 hover:bg-slate-800/30 rounded-xl transition-colors border border-slate-800/30"
                             title="View Details"
                           >
                             <Eye size={16} />
+                          </button>
+
+                          <button
+                            onClick={() => handleEdit(enquiry)}
+                            className="p-2 bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 rounded-xl transition-colors border border-purple-500/30"
+                            title="Edit Enquiry"
+                          >
+                            <Edit size={16} />
+                          </button>
+
+                          <button
+                            onClick={() => handleMoveToMembers(enquiry)}
+                            className="p-2 bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-xl transition-colors border border-green-500/30"
+                            title="Convert to Member"
+                          >
+                            <Users size={16} />
                           </button>
                         </div>
                       </td>
@@ -558,11 +619,14 @@ const TrainerEnquiry = () => {
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-x-hidden">
             <div className="bg-gradient-to-br from-slate-950 to-slate-900 border-2 border-orange-500/50 rounded-[2rem] p-8 w-full max-w-full md:max-w-4xl mx-4 shadow-[0_40px_120px_rgba(0,0,0,0.35)] max-h-[90vh] overflow-y-auto overflow-x-hidden">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-semibold text-white">View Enquiry Details (Read-Only)</h2>
+                <h2 className="text-2xl font-semibold text-white">
+                  {selectedEnquiry ? 'View Enquiry Details' : 'Add New Enquiry'}
+                </h2>
                 <button
                   onClick={() => {
                     setShowForm(false);
                     setSelectedEnquiry(null);
+                    setFormData({ ...initialFormData, trainerId: getDefaultTrainerId() });
                   }}
                   className="p-2 bg-slate-800/50 hover:bg-slate-800/70 rounded-xl transition-colors border border-white/10"
                 >
@@ -570,42 +634,29 @@ const TrainerEnquiry = () => {
                 </button>
               </div>
 
-              <form className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Trainer field hidden — trainerId is set from current trainer via getDefaultTrainerId() */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Admin ID</label>
-                    <input
-                      type="text"
-                      value={formData.adminId || 'N/A'}
-                      readOnly
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Trainer ID</label>
-                    <input
-                      type="text"
-                      value={formData.trainerId || 'Unassigned'}
-                      readOnly
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Name</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Name *</label>
                     <input
                       type="text"
                       value={formData.name}
-                      readOnly
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      readOnly={viewOnly || (selectedEnquiry && !canEdit)}
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                      required={!selectedEnquiry || (selectedEnquiry && canEdit && !viewOnly)}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Email *</label>
                     <input
                       type="email"
                       value={formData.email}
-                      readOnly
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      readOnly={viewOnly || (selectedEnquiry && !canEdit)}
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                      required={!selectedEnquiry || (selectedEnquiry && canEdit && !viewOnly)}
                     />
                   </div>
                   <div>
@@ -613,8 +664,9 @@ const TrainerEnquiry = () => {
                     <input
                       type="tel"
                       value={formData.phone}
-                      readOnly
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      readOnly={viewOnly || (selectedEnquiry && !canEdit)}
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
                     />
                   </div>
                   <div>
@@ -622,16 +674,20 @@ const TrainerEnquiry = () => {
                     <input
                       type="text"
                       value={formData.subject}
-                      readOnly
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
+                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                      readOnly={viewOnly || (selectedEnquiry && !canEdit)}
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Message</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Message *</label>
                     <textarea
                       value={formData.message}
-                      readOnly
-                      className="w-full min-h-30 px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
+                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                      readOnly={viewOnly || (selectedEnquiry && !canEdit)}
+                      className="w-full min-h-30 px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                      placeholder="Enter enquiry details or message here"
+                      required={!selectedEnquiry || (selectedEnquiry && canEdit && !viewOnly)}
                     />
                   </div>
                   <div>
@@ -639,35 +695,69 @@ const TrainerEnquiry = () => {
                     <input
                       type="text"
                       value={formData.location}
-                      readOnly
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      readOnly={viewOnly || (selectedEnquiry && !canEdit)}
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                      placeholder="e.g. Gym Branch Name"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">Plan</label>
-                    <input
-                      type="text"
-                      value={formData.planId}
-                      readOnly
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
-                    />
+                    {viewOnly || (selectedEnquiry && !canEdit) ? (
+                      <input
+                        type="text"
+                        value={getPlanLabelFromId(formData.planId)}
+                        readOnly
+                        className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
+                      />
+                    ) : (
+                      <select
+                        value={formData.planId}
+                        onChange={(e) => setFormData({ ...formData, planId: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                      >
+                        <option value="">Select Plan</option>
+                        {plans.map((plan) => (
+                          <option key={plan.plan_id || plan.id} value={plan.plan_id || plan.id}>
+                            {plan.name || plan.title || plan.planName || 'Unnamed Plan'}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
-                    <input
-                      type="text"
-                      value={formData.status}
-                      readOnly
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
-                    />
+                    {viewOnly || (selectedEnquiry && !canEdit) ? (
+                      <input
+                        type="text"
+                        value={formData.status}
+                        readOnly
+                        className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
+                      />
+                    ) : (
+                      <select
+                        value={formData.status}
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                        className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="interested">Interested</option>
+                        <option value="call u later">Call U Later</option>
+                        <option value="extra">Extra</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">Height (cm)</label>
                     <input
                       type="number"
                       value={formData.height}
-                      readOnly
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
+                      onChange={(e) => setFormData({ ...formData, height: e.target.value })}
+                      readOnly={!!selectedEnquiry}
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                      placeholder="Height in cm"
                     />
                   </div>
                   <div>
@@ -675,8 +765,10 @@ const TrainerEnquiry = () => {
                     <input
                       type="number"
                       value={formData.weight}
-                      readOnly
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
+                      onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+                      readOnly={!!selectedEnquiry}
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                      placeholder="Weight in kg"
                     />
                   </div>
                   <div>
@@ -686,20 +778,30 @@ const TrainerEnquiry = () => {
                       value={formData.bmi}
                       readOnly
                       className="w-full px-4 py-3 bg-slate-800/50 border border-orange-500/30 rounded-xl text-orange-400 font-bold focus:outline-none"
+                      placeholder="Auto-calculated"
                     />
                   </div>
                 </div>
 
                 <div className="flex gap-4 pt-6 border-t border-white/10">
+                  {!viewOnly && (
+                    <button
+                      type="submit"
+                      className="flex-1 px-6 py-3 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 rounded-xl font-medium transition-colors border border-orange-500/30 hover:shadow-lg hover:shadow-orange-500/20"
+                    >
+                      {selectedEnquiry ? 'Update Enquiry' : 'Create Enquiry'}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
                       setShowForm(false);
                       setSelectedEnquiry(null);
+                      setFormData({ ...initialFormData, trainerId: getDefaultTrainerId() });
                     }}
                     className="flex-1 px-6 py-3 bg-slate-800/50 text-gray-300 hover:bg-slate-800/70 rounded-xl font-medium transition-colors border border-white/10"
                   >
-                    Close
+                    Cancel
                   </button>
                 </div>
               </form>
