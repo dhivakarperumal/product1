@@ -134,10 +134,6 @@ const enquiryController = {
                         staffWhere.push('admin_uuid = ?');
                         staffParams.push(adminUuid);
                     }
-                    if (adminId) {
-                        staffWhere.push('admin_id = ?');
-                        staffParams.push(adminId);
-                    }
 
                     const createdByCandidates = [];
                     if (adminUuid) createdByCandidates.push(adminUuid);
@@ -260,10 +256,6 @@ const enquiryController = {
                     if (adminUuid) {
                         staffWhere.push('admin_uuid = ?');
                         staffParams.push(adminUuid);
-                    }
-                    if (adminId) {
-                        staffWhere.push('admin_id = ?');
-                        staffParams.push(adminId);
                     }
 
                     let staffRows = [];
@@ -510,16 +502,12 @@ const enquiryController = {
                         staffWhere.push('admin_uuid = ?');
                         staffParams.push(adminUuid);
                     }
-                    if (adminId) {
-                        staffWhere.push('admin_id = ?');
-                        staffParams.push(adminId);
-                    }
 
                     if (staffWhere.length > 0) {
-                        const [staffRows] = await pool.query(`SELECT employee_id, id, user_uuid FROM staff WHERE ${staffWhere.join(' OR ')}`, staffParams);
+                        const [staffRows] = await pool.query(`SELECT employee_id, id, admin_uuid FROM staff WHERE ${staffWhere.join(' OR ')}`, staffParams);
                         for (const s of staffRows) {
                             if (s.employee_id) createdByCandidates.push(String(s.employee_id));
-                            if (s.user_uuid) createdByCandidates.push(String(s.user_uuid));
+                            if (s.admin_uuid) createdByCandidates.push(String(s.admin_uuid));
                             if (s.id) createdByCandidates.push(String(s.id));
                         }
                     }
@@ -532,7 +520,7 @@ const enquiryController = {
                         if (staffRows && staffRows.length > 0) {
                             for (const s of staffRows) {
                                 if (s.employee_id) trainerCandidates.push(String(s.employee_id));
-                                if (s.user_uuid) trainerCandidates.push(String(s.user_uuid));
+                                if (s.admin_uuid) trainerCandidates.push(String(s.admin_uuid));
                                 if (s.id) trainerCandidates.push(String(s.id));
                             }
                         }
@@ -684,16 +672,12 @@ const enquiryController = {
                         staffWhere.push('admin_uuid = ?');
                         staffParams.push(adminUuid);
                     }
-                    if (adminId) {
-                        staffWhere.push('admin_id = ?');
-                        staffParams.push(adminId);
-                    }
 
                     if (staffWhere.length > 0) {
-                        const [staffRows] = await pool.query(`SELECT employee_id, id, user_uuid FROM staff WHERE ${staffWhere.join(' OR ')}`, staffParams);
+                        const [staffRows] = await pool.query(`SELECT employee_id, id, admin_uuid FROM staff WHERE ${staffWhere.join(' OR ')}`, staffParams);
                         for (const s of staffRows) {
                             if (s.employee_id) createdByCandidates.push(String(s.employee_id));
-                            if (s.user_uuid) createdByCandidates.push(String(s.user_uuid));
+                            if (s.admin_uuid) createdByCandidates.push(String(s.admin_uuid));
                             if (s.id) createdByCandidates.push(String(s.id));
                         }
                     }
@@ -706,7 +690,7 @@ const enquiryController = {
                         if (staffRows && staffRows.length > 0) {
                             for (const s of staffRows) {
                                 if (s.employee_id) trainerCandidates.push(String(s.employee_id));
-                                if (s.user_uuid) trainerCandidates.push(String(s.user_uuid));
+                                if (s.admin_uuid) trainerCandidates.push(String(s.admin_uuid));
                                 if (s.id) trainerCandidates.push(String(s.id));
                             }
                         }
@@ -800,16 +784,12 @@ const enquiryController = {
                         staffWhere.push('admin_uuid = ?');
                         staffParams.push(adminUuid);
                     }
-                    if (adminId) {
-                        staffWhere.push('admin_id = ?');
-                        staffParams.push(adminId);
-                    }
 
                     if (staffWhere.length > 0) {
-                        const [staffRows] = await pool.query(`SELECT employee_id, id, user_uuid FROM staff WHERE ${staffWhere.join(' OR ')}`, staffParams);
+                        const [staffRows] = await pool.query(`SELECT employee_id, id, admin_uuid FROM staff WHERE ${staffWhere.join(' OR ')}`, staffParams);
                         for (const s of staffRows) {
                             if (s.employee_id) createdByCandidates.push(String(s.employee_id));
-                            if (s.user_uuid) createdByCandidates.push(String(s.user_uuid));
+                            if (s.admin_uuid) createdByCandidates.push(String(s.admin_uuid));
                             if (s.id) createdByCandidates.push(String(s.id));
                         }
                     }
@@ -822,7 +802,7 @@ const enquiryController = {
                         if (staffRows && staffRows.length > 0) {
                             for (const s of staffRows) {
                                 if (s.employee_id) trainerCandidates.push(String(s.employee_id));
-                                if (s.user_uuid) trainerCandidates.push(String(s.user_uuid));
+                                if (s.admin_uuid) trainerCandidates.push(String(s.admin_uuid));
                                 if (s.id) trainerCandidates.push(String(s.id));
                             }
                         }
