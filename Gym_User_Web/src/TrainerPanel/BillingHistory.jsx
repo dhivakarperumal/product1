@@ -31,9 +31,47 @@ const BillingHistory = () => {
         console.warn('[BillingHistory] failed to read token/user for debug', e);
       }
 
-      const res = await api.get('/orders/created-by/me');
-      const data = Array.isArray(res.data) ? res.data : [];
-      setOrders(data);
+      // Primary: ask server to resolve actor from token
+      let res = null;
+      try {
+        res = await api.get('/orders/created-by/me');
+      } catch (err) {
+        // keep err for logging below and attempt client-side fallback
+        console.warn('[BillingHistory] /created-by/me failed:', err?.response?.status);
+      }
+
+      let data = Array.isArray(res?.data) ? res.data : [];
+
+      // Fallback: if server returned empty array or auth failed, try client-side identifiers
+      if ((!data || data.length === 0) && user) {
+        const candidates = [];
+        // prefer explicit UUID-like fields
+        if (user.userUuid) candidates.push(user.userUuid);
+        if (user.user_uuid) candidates.push(user.user_uuid);
+        if (user.uuid) candidates.push(user.uuid);
+        if (user.id) candidates.push(String(user.id));
+        if (user.userId) candidates.push(String(user.userId));
+        if (user.username) candidates.push(user.username);
+        if (user.email) candidates.push(user.email);
+        if (user.mobile) candidates.push(user.mobile);
+
+        // try each candidate until we find orders
+        for (const candidate of candidates.filter(Boolean)) {
+          try {
+            const r = await api.get(`/orders/created-by/${encodeURIComponent(candidate)}`);
+            const arr = Array.isArray(r.data) ? r.data : [];
+            if (arr.length > 0) {
+              data = arr;
+              break;
+            }
+          } catch (err) {
+            // ignore and continue
+            console.debug('[BillingHistory] fallback candidate failed', candidate, err?.response?.status);
+          }
+        }
+      }
+
+      setOrders(data || []);
     } catch (err) {
       console.error("Failed to fetch trainer-created orders:", err);
       const status = err?.response?.status;

@@ -21,4 +21,7 @@ router.put('/:id/status', authenticateToken, requireTrainerOrAdmin, enquiryContr
 // DELETE /api/enquiries/:id - Delete enquiry (admin only)
 router.delete('/:id', authenticateToken, requireAdmin, enquiryController.deleteEnquiry);
 
+// PUT /api/enquiries/:id/convert - Convert an enquiry into a member (trainer or admin)
+router.put('/:id/convert', authenticateToken, requireTrainerOrAdmin, enquiryController.convertToMember);
+
 module.exports = router;

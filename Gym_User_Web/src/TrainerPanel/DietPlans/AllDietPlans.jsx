@@ -52,6 +52,11 @@ const AllDietPlans = () => {
     });
   }, [dietPlans, search, calorieFilter]);
 
+  const totalPlans = dietPlans.length;
+  const uniqueMembers = [...new Set(dietPlans.map((d) => d.memberName).filter(Boolean))].length;
+  const caloriesLow = dietPlans.filter((d) => Number(d.calories || 0) > 0 && Number(d.calories || 0) < 1500).length;
+  const caloriesMedium = dietPlans.filter((d) => Number(d.calories || 0) >= 1500 && Number(d.calories || 0) <= 2500).length;
+
   /* ---------------- FETCH ---------------- */
   useEffect(() => {
     if (!trainerId) return;
@@ -96,54 +101,64 @@ const AllDietPlans = () => {
 
 
   return (
-    <div className="min-h-screen  p-6 text-white">
+    <div className="min-h-screen p-6 text-white bg-slate-950">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h2 className="text-2xl font-bold">All Diet Plans</h2>
+        <div className="grid gap-4 xl:grid-cols-[1.4fr_0.8fr]">
+          <div>
+            <h2 className="text-3xl font-bold">All Diet Plans</h2>
+            <p className="mt-2 text-sm text-slate-400 max-w-2xl">
+              Keep your diet plans organized with quick filters, instant search, and fast access to plan details.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-[1.75rem] border border-white/10 bg-slate-900/80 p-5 shadow-[0_30px_60px_rgba(15,23,42,0.35)]">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Diet Plans</p>
+              <p className="mt-4 text-3xl font-semibold">{totalPlans}</p>
+              <p className="mt-2 text-sm text-slate-400">Total plans created</p>
+            </div>
+            <div className="rounded-[1.75rem] border border-white/10 bg-slate-900/80 p-5 shadow-[0_30px_60px_rgba(15,23,42,0.35)]">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Members</p>
+              <p className="mt-4 text-3xl font-semibold">{uniqueMembers}</p>
+              <p className="mt-2 text-sm text-slate-400">Unique members assigned</p>
+            </div>
+            <div className="rounded-[1.75rem] border border-white/10 bg-slate-900/80 p-5 shadow-[0_30px_60px_rgba(15,23,42,0.35)]">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Balanced Plans</p>
+              <p className="mt-4 text-3xl font-semibold">{caloriesMedium}</p>
+              <p className="mt-2 text-sm text-slate-400">1500 - 2500 kcal</p>
+            </div>
+          </div>
+        </div>
 
-          <div className="flex flex-col gap-3 
-                sm:flex-row sm:items-center sm:justify-between">
+        <div className="grid gap-3 lg:grid-cols-[1fr_auto] items-center">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by member or title..."
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-2xl text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
 
-  {/* Search Input */}
-  <input
-    value={search}
-    onChange={(e) => setSearch(e.target.value)}
-    placeholder="Search by member or title..."
-    className="w-full sm:w-64 px-4 py-2 rounded-lg 
-               bg-white/10 border border-white/20 
-               focus:outline-none focus:ring-2 
-               focus:ring-cyan-500"
-  />
+            <select
+              value={calorieFilter}
+              onChange={(e) => setCalorieFilter(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-900 text-white border border-white/10 rounded-2xl text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            >
+              <option value="">All Calories</option>
+              <option value="low">&lt; 1500</option>
+              <option value="medium">1500 - 2500</option>
+              <option value="high">&gt; 2500</option>
+            </select>
 
-  {/* Calorie Filter */}
-  <select
-    value={calorieFilter}
-    onChange={(e) => setCalorieFilter(e.target.value)}
-    className="w-full sm:w-48 px-4 py-2 rounded-lg 
-               bg-slate-900/80 border border-cyan-400/40 text-white 
-               focus:outline-none focus:ring-2 
-               focus:ring-cyan-500"
-  >
-    <option value="">All Calories</option>
-    <option value="low">&lt; 1500</option>
-    <option value="medium">1500 - 2500</option>
-    <option value="high">&gt; 2500</option>
-  </select>
+            <div className="hidden sm:block" />
+          </div>
 
-  {/* Add Button */}
-  <button
-    onClick={() => navigate('/trainer/adddietplans')}
-    className="w-full sm:w-auto px-4 py-2 
-               bg-orange-500 hover:bg-orange-600  
-               rounded-lg flex items-center 
-               justify-center gap-2 transition"
-  >
-    <Plus size={16} />
-    Add New
-  </button>
-
-</div>
-
+          <button
+            onClick={() => navigate('/trainer/adddietplans')}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-orange-600"
+          >
+            <Plus size={16} />
+            Add New
+          </button>
         </div>
 
         {/* TABLE (desktop) */}

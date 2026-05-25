@@ -347,7 +347,6 @@ const Enquiry = () => {
 
     const phoneValue = enquiry.phone || enquiry.mobile || enquiry.mobile_number || enquiry.contact || '';
     const emailValue = enquiry.email || enquiry.email_address || enquiry.contact_email || '';
-    const usernameValue = enquiry.name ? enquiry.name.replace(/\s+/g, '').toLowerCase() : '';
 
     if (!phoneValue || !emailValue) {
       toast.error('Conversion requires both phone and email. Please update the enquiry first.');
@@ -355,18 +354,15 @@ const Enquiry = () => {
     }
 
     try {
-      const memberData = {
-        username: usernameValue,
-        email: emailValue,
-        mobile: phoneValue,
-        password: phoneValue || 'password123',
-        role: 'member',
-        admin_id: user?.id || null,
-      };
+      // Use server-side conversion which also updates enquiry status
+      const res = await api.put(`/enquiries/${enquiry.id}/convert`);
+      if (res?.data?.success) {
+        toast.success(res.data.message || 'Member created from enquiry');
+      } else {
+        toast.success('Member created from enquiry');
+      }
 
-      await api.post('/auth/register-member', memberData);
-      toast.success('Member auth account created successfully.');
-
+      // Try to create a member profile in members directory (best-effort)
       const profilePayload = {
         name: enquiry.name,
         phone: phoneValue,
@@ -389,25 +385,24 @@ const Enquiry = () => {
         toast.success('Member profile created successfully in member directory.');
       } catch (profileError) {
         const profileErrorMessage = profileError.response?.data?.message || profileError.response?.data?.error || profileError.message;
-        if (profileErrorMessage.includes('Phone already exists') || profileErrorMessage.includes('Email already exists')) {
-          toast.error('Member auth created, but member profile already exists in member directory.');
+        if (profileErrorMessage && (profileErrorMessage.includes('Phone already exists') || profileErrorMessage.includes('Email already exists'))) {
+          toast.error('Member profile already exists in member directory.');
         } else {
-          toast.error('Member auth created, but failed to create member profile.');
-          console.error('Profile creation error:', profileError);
+          console.warn('Profile creation error (non-blocking):', profileError);
         }
       }
 
-      await updateStatus(enquiry.id, 'completed');
+      await fetchEnquiries();
     } catch (err) {
       console.error('Error moving to members:', err);
-      const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Failed to create member';
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to create member';
 
-      if (errorMessage.includes('Phone already exists') || errorMessage.includes('mobile')) {
-        toast.error('Phone number already exists.');
-      } else if (errorMessage.includes('Email already exists') || errorMessage.includes('username already exists')) {
-        toast.error('Email or username already exists.');
-      } else {
+      if (errorMessage.includes('already exists')) {
         toast.error(errorMessage);
+      } else if (errorMessage.includes('Members auth table not found')) {
+        toast.error('Server misconfiguration: members auth table missing. Run migrations.');
+      } else {
+        toast.error('Server error: ' + errorMessage);
       }
     }
   };
@@ -600,7 +595,7 @@ const Enquiry = () => {
                         })()}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <button
                             onClick={() => handleEdit(enquiry)}
                             className="p-2 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-xl transition-colors border border-blue-500/30"
@@ -608,27 +603,41 @@ const Enquiry = () => {
                           >
                             <Eye size={16} />
                           </button>
-                          <button
-                            onClick={() => handleMoveToMembers(enquiry)}
-                            className="p-2 bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded-xl transition-colors border border-purple-500/30"
-                            title="Convert to Member"
-                          >
-                            <Users size={16} />
-                          </button>
-                          <button
-                            onClick={() => updateStatus(enquiry.id, 'completed')}
-                            className="p-2 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded-xl transition-colors border border-green-500/30"
-                            title="Mark Completed"
-                          >
-                            <CheckCircle size={16} />
-                          </button>
-                          <button
-                            onClick={() => updateStatus(enquiry.id, 'cancelled')}
-                            className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-xl transition-colors border border-red-500/30"
-                            title="Mark Cancelled"
-                          >
-                            <XCircle size={16} />
-                          </button>
+
+                          {enquiry.status !== 'completed' && enquiry.status !== 'cancelled' ? (
+                            <button
+                              onClick={() => handleMoveToMembers(enquiry)}
+                              className="p-2 bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded-xl transition-colors border border-purple-500/30"
+                              title="Convert to Member"
+                            >
+                              <Users size={16} />
+                            </button>
+                          ) : (
+                            <span className="px-3 py-2 rounded-full bg-slate-700/60 text-xs text-slate-200 border border-slate-600">
+                              {enquiry.status === 'completed' ? 'Converted' : 'Locked'}
+                            </span>
+                          )}
+
+                          {enquiry.status !== 'completed' && enquiry.status !== 'cancelled' && (
+                            <button
+                              onClick={() => updateStatus(enquiry.id, 'completed')}
+                              className="p-2 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded-xl transition-colors border border-green-500/30"
+                              title="Mark Completed"
+                            >
+                              <CheckCircle size={16} />
+                            </button>
+                          )}
+
+                          {enquiry.status !== 'cancelled' && (
+                            <button
+                              onClick={() => updateStatus(enquiry.id, 'cancelled')}
+                              className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-xl transition-colors border border-red-500/30"
+                              title="Mark Cancelled"
+                            >
+                              <XCircle size={16} />
+                            </button>
+                          )}
+
                           <button
                             onClick={() => handleDelete(enquiry.id)}
                             className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-xl transition-colors border border-red-500/30"

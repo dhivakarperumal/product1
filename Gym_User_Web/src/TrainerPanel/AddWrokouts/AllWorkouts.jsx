@@ -47,6 +47,11 @@ const AllWorkouts = () => {
     });
   }, [workouts, search, categoryFilter, levelFilter]);
 
+  const totalWorkouts = workouts.length;
+  const uniqueMembers = [...new Set(workouts.map((w) => w.memberName).filter(Boolean))].length;
+  const activeWorkouts = workouts.filter((w) => String(w.status || '').toLowerCase() === 'active').length;
+  const availableCategories = [...new Set(workouts.map((w) => w.category).filter(Boolean))];
+
   /* ---------------- FETCH WORKOUT PROGRAMS ---------------- */
   useEffect(() => {
     if (!trainerId) return;
@@ -103,68 +108,73 @@ const AllWorkouts = () => {
 
 
   return (
-    <div className="min-h-screen p-6 text-white">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h2 className="text-2xl font-bold">All Workout Programs</h2>
+    <div className="min-h-screen p-6 text-white bg-slate-950">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="grid gap-4 xl:grid-cols-[1.4fr_0.8fr]">
+          <div>
+            <h2 className="text-3xl font-bold">All Workout Programs</h2>
+            <p className="mt-2 text-sm text-slate-400 max-w-2xl">
+              Manage your workout schedules, preview plans, and quickly navigate to any trainer program.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-[1.75rem] border border-white/10 bg-slate-900/80 p-5 shadow-[0_30px_60px_rgba(15,23,42,0.35)]">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Programs</p>
+              <p className="mt-4 text-3xl font-semibold">{totalWorkouts}</p>
+              <p className="mt-2 text-sm text-slate-400">Total workout plans</p>
+            </div>
+            <div className="rounded-[1.75rem] border border-white/10 bg-slate-900/80 p-5 shadow-[0_30px_60px_rgba(15,23,42,0.35)]">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Members</p>
+              <p className="mt-4 text-3xl font-semibold">{uniqueMembers}</p>
+              <p className="mt-2 text-sm text-slate-400">Unique members assigned</p>
+            </div>
+            <div className="rounded-[1.75rem] border border-white/10 bg-slate-900/80 p-5 shadow-[0_30px_60px_rgba(15,23,42,0.35)]">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Active</p>
+              <p className="mt-4 text-3xl font-semibold">{activeWorkouts}</p>
+              <p className="mt-2 text-sm text-slate-400">Programs currently active</p>
+            </div>
+          </div>
+        </div>
 
-          <div className="flex flex-col gap-3 
-                sm:flex-row sm:flex-wrap 
-                sm:items-center sm:gap-3 
-                w-full sm:w-auto">
+        <div className="grid gap-3 lg:grid-cols-[1fr_auto] items-center">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by member or goal..."
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-2xl text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
 
-  {/* Search */}
-  <input
-    value={search}
-    onChange={(e) => setSearch(e.target.value)}
-    placeholder="Search by member or goal..."
-    className="w-full sm:w-64 px-4 py-2 
-               bg-white/10 border border-white/20 
-               rounded-lg focus:outline-none 
-               focus:ring-2 focus:ring-cyan-500"
-  />
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-900 text-white border border-white/10 rounded-2xl text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            >
+              <option value="">All Categories</option>
+              {availableCategories.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
 
-  {/* Category Filter */}
-  <select
-    value={categoryFilter}
-    onChange={(e) => setCategoryFilter(e.target.value)}
-    className="w-full sm:w-48 px-4 py-2 
-               bg-white/10 border border-white/20 
-               rounded-lg focus:outline-none 
-               focus:ring-2 focus:ring-cyan-500"
-  >
-    <option value="">All Categories</option>
-    {[...new Set(workouts.map(w => w.category).filter(Boolean))].map(c => (
-      <option key={c} value={c}>{c}</option>
-    ))}
-  </select>
+            <select
+              value={levelFilter}
+              onChange={(e) => setLevelFilter(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-900 text-white border border-white/10 rounded-2xl text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            >
+              <option value="">All Levels</option>
+              {[...new Set(workouts.map(w => w.level).filter(Boolean))].map((l) => (
+                <option key={l} value={l}>{l}</option>
+              ))}
+            </select>
+          </div>
 
-  {/* Level Filter */}
-  <select
-    value={levelFilter}
-    onChange={(e) => setLevelFilter(e.target.value)}
-    className="w-full sm:w-48 px-4 py-2 
-               bg-white/10 border border-white/20 
-               rounded-lg focus:outline-none 
-               focus:ring-2 focus:ring-cyan-500"
-  >
-    <option value="">All Levels</option>
-    {[...new Set(workouts.map(w => w.level).filter(Boolean))].map(l => (
-      <option key={l} value={l}>{l}</option>
-    ))}
-  </select>
-
-  {/* Add Button */}
-  <button
-    onClick={() => navigate('/trainer/addworkouts')}
-    className="w-full sm:w-auto px-4 py-2 rounded-lg flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 transition"
-  >
-    <Plus size={16} />
-    Add New
-  </button>
-
-</div>
-
+          <button
+            onClick={() => navigate('/trainer/addworkouts')}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-orange-600"
+          >
+            <Plus size={16} />
+            Add New
+          </button>
         </div>
 
         {/* ---------------- TABLE (desktop) ---------------- */}
@@ -174,18 +184,18 @@ const AllWorkouts = () => {
               <tr>
                 <th className="px-4 py-4">S No</th>
                 <th className="px-4 py-4">Member</th>
-              
+                <th className="px-4 py-4">Goal</th>
                 <th className="px-4 py-4">Level</th>
-                
                 <th className="px-4 py-4">Duration</th>
+                <th className="px-4 py-4">Status</th>
                 <th className="px-4 py-4 text-center">Action</th>
               </tr>
             </thead>
 
             <tbody>
-              {workouts.filter(Boolean).length === 0 ? (
+{filteredWorkouts.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="text-center py-6 text-gray-400">
+                  <td colSpan="8" className="text-center py-6 text-gray-400">
                     No workout programs added yet
                   </td>
                 </tr>
@@ -197,13 +207,18 @@ const AllWorkouts = () => {
                   >
                     <td className="px-4 py-4">{index + 1}</td>
                     <td className="px-4 py-4">{w.memberName}</td>
-                   
+                    <td className="px-4 py-4 text-slate-300">{w.goal || 'N/A'}</td>
                     <td className="px-4 py-4">{w.level}</td>
-               
+                    <td className="px-4 py-4">{w.durationWeeks} weeks</td>
                     <td className="px-4 py-4">
-                      {w.durationWeeks} weeks
+                      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${
+                        String(w.status || 'pending').toLowerCase() === 'active'
+                          ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20'
+                          : 'bg-slate-700/70 text-slate-200 border border-slate-700/70'
+                      }`}>
+                        {w.status || 'pending'}
+                      </span>
                     </td>
-
                     <td className="px-4 py-4 text-center space-x-3">
 
                       <button
@@ -241,12 +256,15 @@ const AllWorkouts = () => {
             ) : (
               filteredWorkouts.map((w, index) => (
                 <div key={w.id} className="bg-white/5 border border-white/10 rounded-lg p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-sm text-gray-300 font-semibold">{w.memberName || 'Member'}</p>
-                      <p className="text-xs text-gray-400">{w.category} • {w.level}</p>
-                      <p className="text-xs text-gray-400 mt-2">Goal: {w.goal}</p>
-                      <p className="text-xs text-gray-400">Duration: {w.durationWeeks} weeks</p>
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm text-gray-300 font-semibold truncate">{w.memberName || 'Member'}</p>
+                      <p className="text-xs text-gray-400">{w.category || 'General'} • {w.level || 'Any'} </p>
+                      <p className="text-xs text-gray-400 mt-2 truncate">Goal: {w.goal || 'N/A'}</p>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <span className="inline-flex rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300 border border-slate-700">{w.durationWeeks} weeks</span>
+                        <span className="inline-flex rounded-full bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300 border border-emerald-500/20">{w.status || 'pending'}</span>
+                      </div>
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       <div className="flex gap-2">

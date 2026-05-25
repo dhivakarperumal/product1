@@ -350,23 +350,14 @@ const TrainerEnquiry = () => {
 
   
 
-  const updateStatus = async (id, status) => {
-    try {
-      await api.put(`/enquiries/${id}/status`, { status });
-      fetchEnquiries();
-      toast.success(`Enquiry status updated to ${status}`);
-    } catch (error) {
-      console.error('Error updating status:', error);
-      toast.error("Failed to update enquiry status");
-    }
-  };
+  
 
   const handleMoveToMembers = async (enquiry) => {
     if (!window.confirm('Convert this enquiry into a member?')) return;
 
     const phoneValue = enquiry.phone || enquiry.mobile || enquiry.mobile_number || enquiry.contact || '';
     const emailValue = enquiry.email || enquiry.email_address || enquiry.contact_email || '';
-    const usernameValue = enquiry.name ? enquiry.name.replace(/\s+/g, '').toLowerCase() : '';
+    
 
     if (!phoneValue || !emailValue) {
       toast.error('Conversion requires both phone and email. Please update the enquiry first.');
@@ -374,28 +365,24 @@ const TrainerEnquiry = () => {
     }
 
     try {
-      const memberData = {
-        username: usernameValue,
-        email: emailValue,
-        mobile: phoneValue,
-        password: phoneValue || 'password123',
-        role: 'member',
-        admin_id: user?.id || null,
-      };
-
-      await api.post('/auth/register-member', memberData);
-      toast.success(`Member created successfully. Login using email/username/phone and password.`);
-      await updateStatus(enquiry.id, 'completed');
+      // Use server-side conversion endpoint which handles admin mapping and avoids client-side mismatches
+      const res = await api.put(`/enquiries/${enquiry.id}/convert`);
+      if (res?.data?.success) {
+        toast.success(res.data.message || 'Member created successfully');
+      } else {
+        toast.success('Member created successfully');
+      }
+      await fetchEnquiries();
     } catch (err) {
       console.error('Error moving to members:', err);
-      const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Failed to create member';
+      const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to create member';
 
-      if (errorMessage.includes('Phone already exists')) {
-        toast.error("Phone number already exists");
-      } else if (errorMessage.includes('Email already exists') || errorMessage.includes('username already exists')) {
-        toast.error("Email or username already exists");
-      } else {
+      if (errorMessage.includes('already exists')) {
         toast.error(errorMessage);
+      } else if (errorMessage.includes('Members auth table not found')) {
+        toast.error('Server misconfiguration: members auth table missing. Run migrations.');
+      } else {
+        toast.error('Server error: ' + errorMessage);
       }
     }
   };
@@ -571,7 +558,7 @@ const TrainerEnquiry = () => {
                         {new Date(enquiry.created_at).toLocaleDateString('en-GB')}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <button
                             onClick={() => handleView(enquiry)}
                             className="p-2 bg-slate-800/20 text-sky-300 hover:bg-slate-800/30 rounded-xl transition-colors border border-slate-800/30"
@@ -588,13 +575,19 @@ const TrainerEnquiry = () => {
                             <Edit size={16} />
                           </button>
 
-                          <button
-                            onClick={() => handleMoveToMembers(enquiry)}
-                            className="p-2 bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-xl transition-colors border border-green-500/30"
-                            title="Convert to Member"
-                          >
-                            <Users size={16} />
-                          </button>
+                          {enquiry.status !== 'completed' && enquiry.status !== 'cancelled' ? (
+                            <button
+                              onClick={() => handleMoveToMembers(enquiry)}
+                              className="p-2 bg-green-500/20 text-green-300 hover:bg-green-500/30 rounded-xl transition-colors border border-green-500/30"
+                              title="Convert to Member"
+                            >
+                              <Users size={16} />
+                            </button>
+                          ) : (
+                            <span className="px-3 py-2 rounded-full bg-slate-700/60 text-xs text-slate-200 border border-slate-600">
+                              {enquiry.status === 'completed' ? 'Converted' : 'Closed'}
+                            </span>
+                          )}
                         </div>
                       </td>
                     </tr>

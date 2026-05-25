@@ -797,3 +797,70 @@ module.exports = {
   getUserOrders,
   getTodayOrders
 };
+
+// --- Orders created-by helpers ---
+// Return orders where any audit field matches a given creator identifier
+async function getOrdersByCreator(req, res) {
+  const { id } = req.params;
+  try {
+    const identifiers = [id];
+    // Query across common audit columns
+    const query = `SELECT * FROM orders WHERE created_by IN (?) OR admin_uuid IN (?) OR updated_by IN (?) ORDER BY created_at DESC`;
+    const [orders] = await pool.query(query, [identifiers, identifiers, identifiers]);
+    if (!orders || orders.length === 0) return res.json([]);
+
+    const orderIds = orders.map(o => o.order_id);
+    const [items] = await pool.query('SELECT * FROM order_items WHERE order_id IN (?)', [orderIds]);
+
+    const ordersWithItems = orders.map(order => ({ ...parseOrder(order), items: items.filter(it => it.order_id === order.order_id) }));
+    return res.json(ordersWithItems);
+  } catch (err) {
+    console.error('[getOrdersByCreator] error', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+}
+
+// Resolve actor identifiers from token and query orders for those identifiers
+async function getMyOrdersByCreator(req, res) {
+  try {
+    console.log('[getMyOrdersByCreator] req.user:', req.user);
+    const candidates = new Set();
+    const actorUuid = getActorUuid(req.user);
+    if (actorUuid) candidates.add(actorUuid);
+    // add numeric ids and common fields
+    if (req.user?.userId) candidates.add(String(req.user.userId));
+    if (req.user?.id) candidates.add(String(req.user.id));
+    if (req.user?.username) candidates.add(req.user.username);
+    if (req.user?.email) candidates.add(req.user.email);
+    if (req.user?.mobile) candidates.add(req.user.mobile);
+
+    const identifiers = [...candidates].filter(Boolean);
+    console.log('[getMyOrdersByCreator] candidate identifiers:', identifiers);
+    if (identifiers.length === 0) return res.json([]);
+
+    const query = `SELECT * FROM orders WHERE created_by IN (?) OR admin_uuid IN (?) OR updated_by IN (?) ORDER BY created_at DESC`;
+    const [orders] = await pool.query(query, [identifiers, identifiers, identifiers]);
+
+    if (!orders || orders.length === 0) return res.json([]);
+    const orderIds = orders.map(o => o.order_id);
+    const [items] = await pool.query('SELECT * FROM order_items WHERE order_id IN (?)', [orderIds]);
+
+    const ordersWithItems = orders.map(order => ({ ...parseOrder(order), items: items.filter(it => it.order_id === order.order_id) }));
+    return res.json(ordersWithItems);
+  } catch (err) {
+    console.error('[getMyOrdersByCreator] error', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+}
+
+module.exports = { 
+  getAllOrders, 
+  getOrder, 
+  updateOrderStatus, 
+  createOrder, 
+  generateOrderId, 
+  getUserOrders,
+  getTodayOrders,
+  getOrdersByCreator,
+  getMyOrdersByCreator
+};

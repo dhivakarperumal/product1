@@ -513,6 +513,8 @@ async function registerMember(req, res) {
   const { username, email, mobile, phone, password, role = 'member', admin_id, branch_id } = req.body;
   const contactValue = phone || mobile;
 
+  console.debug('[registerMember] payload:', { username, email, mobile, phone, role, admin_id });
+
   if (!email || !password || !contactValue) {
     return res.status(400).json({ message: 'email, password and phone/mobile are required' });
   }
@@ -548,7 +550,8 @@ async function registerMember(req, res) {
       return res.status(500).json({ message: 'Members auth table not found. Run migrations.' });
     }
     logger.error('registerMember error: %O', err);
-    return res.status(500).json({ message: 'Server error' });
+    // Include error message in development to aid debugging
+    return res.status(500).json({ message: 'Server error', error: process.env.NODE_ENV === 'development' ? err.message : undefined });
   }
 }
 

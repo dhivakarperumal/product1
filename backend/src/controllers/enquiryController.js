@@ -859,4 +859,54 @@ const enquiryController = {
     }
 };
 
+// Convert enquiry to member - server-side helper to avoid client mis-mapping
+enquiryController.convertToMember = async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Fetch the enquiry (authorization is handled by route middleware)
+        const [rows] = await pool.query('SELECT * FROM enquiries WHERE id = ? LIMIT 1', [id]);
+        if (!rows || rows.length === 0) return res.status(404).json({ error: 'Enquiry not found' });
+        const enquiry = rows[0];
+
+        const phoneValue = enquiry.phone || enquiry.mobile || enquiry.mobile_number || enquiry.contact || '';
+        const emailValue = enquiry.email || enquiry.email_address || enquiry.contact_email || '';
+        const usernameValue = enquiry.name ? enquiry.name.replace(/\s+/g, '').toLowerCase() : '';
+
+        if (!phoneValue || !emailValue) {
+            return res.status(400).json({ error: 'Conversion requires both phone and email on the enquiry' });
+        }
+
+        // Basic duplicate check in members_auth
+        try {
+            const [existing] = await pool.query('SELECT * FROM members_auth WHERE email = ? OR mobile = ? LIMIT 1', [emailValue, phoneValue]);
+            if (existing && existing.length > 0) {
+                return res.status(400).json({ error: 'Member already exists with this email or phone' });
+            }
+        } catch (err) {
+            // If members_auth table is missing, surface a clear error
+            if (err && err.code === 'ER_NO_SUCH_TABLE') {
+                return res.status(500).json({ error: 'Members auth table not found. Run migrations.' });
+            }
+            throw err;
+        }
+
+        // Determine admin_id: prefer admin id of the authenticated user, fallback to null
+        const adminId = req.user?.id || null;
+
+        const password = phoneValue || 'password123';
+        const hashed = await require('bcryptjs').hash(password, 10);
+
+        const insertQuery = `INSERT INTO members_auth (email, password_hash, username, mobile, role, admin_id) VALUES (?, ?, ?, ?, ?, ?)`;
+        await pool.query(insertQuery, [emailValue, hashed, usernameValue || null, phoneValue, 'member', adminId]);
+
+        // mark enquiry completed
+        await pool.query('UPDATE enquiries SET status = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', ['completed', req.user?.userUuid || req.user?.user_uuid || null, id]);
+
+        return res.json({ success: true, message: 'Member created from enquiry' });
+    } catch (err) {
+        console.error('[convertToMember] error', err);
+        return res.status(500).json({ error: 'Internal server error', details: process.env.NODE_ENV === 'development' ? err.message : undefined });
+    }
+};
+
 module.exports = enquiryController;
