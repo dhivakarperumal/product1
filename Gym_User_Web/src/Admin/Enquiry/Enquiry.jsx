@@ -544,11 +544,12 @@ const Enquiry = () => {
               <thead className="bg-slate-800/50">
                 <tr>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">S.No</th>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Admin ID</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Customer</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Subject</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Location</th>
-                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Trainer</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Trainer ID</th>
+                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Trainer</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Status</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Date</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Actions</th>
@@ -559,6 +560,9 @@ const Enquiry = () => {
                   filteredEnquiries.map((enquiry, ind) => (
                     <tr key={enquiry.id} className="border-b border-white/5 hover:bg-slate-800/30 transition-colors">
                       <td className="px-6 py-4 text-white font-medium">{ind + 1}</td>
+                      <td className="px-6 py-4 text-gray-300 text-sm font-mono truncate" title={enquiry.created_by}>
+                        {enquiry.created_by ? enquiry.created_by.substring(0, 12) + '...' : 'N/A'}
+                      </td>
                       <td className="px-6 py-4">
                         <div>
                           <div className="text-white font-medium">{enquiry.name}</div>
@@ -567,6 +571,15 @@ const Enquiry = () => {
                       </td>
                       <td className="px-6 py-4 text-white">{enquiry.subject || 'No subject'}</td>
                       <td className="px-6 py-4 text-white">{enquiry.location || 'Not specified'}</td>
+                      <td className="px-6 py-4 text-gray-300 text-sm font-mono">
+                        {enquiry.trainer_id || enquiry.raw_trainer_id ? (
+                          <span title={enquiry.trainer_id || enquiry.raw_trainer_id}>
+                            {String(enquiry.trainer_id || enquiry.raw_trainer_id).substring(0, 12)}
+                          </span>
+                        ) : (
+                          <span className="text-gray-500 italic">Unassigned</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-white">
                         {enquiry.trainer_display_name ? (
                           <div>
@@ -577,15 +590,6 @@ const Enquiry = () => {
                           </div>
                         ) : (
                           <span className="text-gray-500 italic">Unassigned</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-white">
-                        {enquiry.trainer_employee_id ? (
-                          <code className="bg-slate-800 px-2 py-1 rounded text-yellow-400 text-xs">
-                            {enquiry.trainer_employee_id.substring(0, 8)}...
-                          </code>
-                        ) : (
-                          <span className="text-gray-500 italic">-</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
@@ -646,7 +650,7 @@ const Enquiry = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="9" className="px-6 py-12 text-center text-gray-400">
+                    <td colSpan="10" className="px-6 py-12 text-center text-gray-400">
                       <div className="flex flex-col items-center gap-3">
                         <Users size={48} className="opacity-30" />
                         <p className="text-lg font-medium">No enquiries found</p>
@@ -695,6 +699,24 @@ const Enquiry = () => {
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Admin ID {selectedEnquiry ? '(Read-Only)' : ''}</label>
+                    <input
+                      type="text"
+                      value={selectedEnquiry ? (selectedEnquiry.created_by || 'N/A') : user?.adminUuid || user?.admin_uuid || user?.id || 'N/A'}
+                      readOnly={!!selectedEnquiry}
+                      className={selectedEnquiry ? "w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 placeholder-gray-400 focus:outline-none transition-all" : "w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Trainer ID</label>
+                    <input
+                      type="text"
+                      value={selectedEnquiry ? (selectedEnquiry.trainer_id || selectedEnquiry.raw_trainer_id || 'Unassigned') : formData.trainerId || 'Unassigned'}
+                      readOnly={!!selectedEnquiry}
+                      className={selectedEnquiry ? "w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 font-mono focus:outline-none transition-all" : "w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white font-mono focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"}
+                    />
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">Name *</label>
                     <input

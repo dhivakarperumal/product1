@@ -122,6 +122,14 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/checkins", checkinRoutes);
 app.use('/api/enquiries', enquiryRoutes);
+
+// Quick request logger for enquiries to assist debugging
+app.use('/api/enquiries', (req, res, next) => {
+  try {
+    console.log('ENQUIRY REQUEST:', req.method, req.originalUrl, 'Headers:', { authorization: !!req.headers.authorization });
+  } catch (e) {}
+  next();
+});
 app.use("/api/reports", reportRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/send-message", messageRoutes);
@@ -138,3 +146,14 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 module.exports = app;
+
+// Global error logger to expose stack traces during development
+if (process.env.NODE_ENV !== 'production') {
+  app.use((err, req, res, next) => {
+    try {
+      console.error('UNHANDLED SERVER ERROR', err && (err.stack || err));
+    } catch (e) {}
+    // let default handlers send the response
+    next(err);
+  });
+}

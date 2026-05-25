@@ -295,6 +295,7 @@ const TrainerEnquiry = () => {
       status: enquiry.status || 'pending',
       planId: resolvePlanIdForEdit(enquiry.plan_id || enquiry.planId || ""),
       trainerId: resolveTrainerIdForEdit(enquiry.trainer_id || enquiry.trainerId || ""),
+      adminId: enquiry.created_by || "N/A",
     });
     setShowForm(true);
   };
@@ -368,7 +369,16 @@ const TrainerEnquiry = () => {
       enquiry.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       enquiry.location?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || enquiry.status === statusFilter;
-    if (!(matchesSearch && matchesStatus)) return false;
+    
+    // Filter by trainer if trainer is logged in
+    let matchesTrainer = true;
+    if (role?.toLowerCase() === 'trainer' && trainers.length > 0) {
+      const currentTrainer = trainers[0]; // The trainer array contains only the current logged-in trainer
+      const trainerId = currentTrainer.employee_id || currentTrainer.id;
+      matchesTrainer = String(enquiry.trainer_id || enquiry.trainerId || '') === String(trainerId);
+    }
+    
+    if (!(matchesSearch && matchesStatus && matchesTrainer)) return false;
 
     return filterByDateRange([enquiry], 'created_at', dateRange.type, dateRange.range).length > 0;
   });
@@ -418,17 +428,9 @@ const TrainerEnquiry = () => {
             </div>
             <div>
               <h1 className="text-2xl font-semibold text-white">Enquiry Management</h1>
-              <p className="text-white/60 text-sm">Manage customer enquiries and convert to members</p>
+              <p className="text-white/60 text-sm">View customer enquiries (Read-Only)</p>
             </div>
           </div>
-
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 rounded-xl font-medium transition-colors border border-orange-500/30 hover:shadow-lg hover:shadow-orange-500/20"
-          >
-            <Plus size={18} />
-            Add Enquiry
-          </button>
         </div>
 
         <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] backdrop-blur-xl">
@@ -477,7 +479,6 @@ const TrainerEnquiry = () => {
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Phone</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Message</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Trainer</th>
-                  <th className="px-6 py-4 text-left text-gray-300 font-medium">Trainer ID</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Status</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Date</th>
                   <th className="px-6 py-4 text-left text-gray-300 font-medium">Actions</th>
@@ -508,15 +509,7 @@ const TrainerEnquiry = () => {
                             <span className="text-gray-500 italic">Unassigned</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-white">
-                          {enquiry.trainer_employee_id ? (
-                            <code className="bg-slate-800 px-2 py-1 rounded text-yellow-400 text-xs">
-                              {enquiry.trainer_employee_id.substring(0, 8)}...
-                            </code>
-                          ) : (
-                            <span className="text-gray-500 italic">-</span>
-                          )}
-                        </td>
+                        {/* Trainer ID column removed */}
                         <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${
                           enquiry.status === 'completed'
@@ -541,34 +534,13 @@ const TrainerEnquiry = () => {
                           >
                             <Eye size={16} />
                           </button>
-                          <button
-                            onClick={() => updateStatus(enquiry.id, 'completed')}
-                            className="p-2 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded-xl transition-colors border border-green-500/30"
-                            title="Mark Completed"
-                          >
-                            <CheckCircle size={16} />
-                          </button>
-                          <button
-                            onClick={() => updateStatus(enquiry.id, 'cancelled')}
-                            className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-xl transition-colors border border-red-500/30"
-                            title="Mark Cancelled"
-                          >
-                            <XCircle size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(enquiry.id)}
-                            className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-xl transition-colors border border-red-500/30"
-                            title="Delete Enquiry"
-                          >
-                            <Trash2 size={16} />
-                          </button>
                         </div>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="9" className="px-6 py-12 text-center text-gray-400">
+                    <td colSpan="8" className="px-6 py-12 text-center text-gray-400">
                       <div className="flex flex-col items-center gap-3">
                         <Users size={48} className="opacity-30" />
                         <p className="text-lg font-medium">No enquiries found</p>
@@ -586,27 +558,11 @@ const TrainerEnquiry = () => {
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-x-hidden">
             <div className="bg-gradient-to-br from-slate-950 to-slate-900 border-2 border-orange-500/50 rounded-[2rem] p-8 w-full max-w-full md:max-w-4xl mx-4 shadow-[0_40px_120px_rgba(0,0,0,0.35)] max-h-[90vh] overflow-y-auto overflow-x-hidden">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-semibold text-white">
-                  {selectedEnquiry ? 'View Enquiry Details' : 'Add New Enquiry'}
-                </h2>
+                <h2 className="text-2xl font-semibold text-white">View Enquiry Details (Read-Only)</h2>
                 <button
                   onClick={() => {
                     setShowForm(false);
                     setSelectedEnquiry(null);
-                    setFormData({
-                      name: "",
-                      email: "",
-                      phone: "",
-                      subject: "",
-                      message: "",
-                      location: "",
-                      height: "",
-                      weight: "",
-                      bmi: "",
-                      status: "pending",
-                      planId: "",
-                      trainerId: "",
-                    });
                   }}
                   className="p-2 bg-slate-800/50 hover:bg-slate-800/70 rounded-xl transition-colors border border-white/10"
                 >
@@ -614,26 +570,42 @@ const TrainerEnquiry = () => {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Name *</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Admin ID</label>
                     <input
                       type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
-                      required
+                      value={formData.adminId || 'N/A'}
+                      readOnly
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Email *</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Trainer ID</label>
+                    <input
+                      type="text"
+                      value={formData.trainerId || 'Unassigned'}
+                      readOnly
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Name</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      readOnly
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
                     <input
                       type="email"
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
-                      required
+                      readOnly
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
                     />
                   </div>
                   <div>
@@ -641,8 +613,8 @@ const TrainerEnquiry = () => {
                     <input
                       type="tel"
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                      readOnly
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
                     />
                   </div>
                   <div>
@@ -650,18 +622,16 @@ const TrainerEnquiry = () => {
                     <input
                       type="text"
                       value={formData.subject}
-                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
+                      readOnly
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Message *</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Message</label>
                     <textarea
                       value={formData.message}
-                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                      className="w-full min-h-30 px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
-                      placeholder="Enter enquiry details or message here"
-                      required
+                      readOnly
+                      className="w-full min-h-30 px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
                     />
                   </div>
                   <div>
@@ -669,64 +639,35 @@ const TrainerEnquiry = () => {
                     <input
                       type="text"
                       value={formData.location}
-                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
-                      placeholder="e.g., Gym Branch Name"
+                      readOnly
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Select Plan</label>
-                    <select
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Plan</label>
+                    <input
+                      type="text"
                       value={formData.planId}
-                      onChange={(e) => setFormData({ ...formData, planId: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
-                    >
-                      <option value="">Select Plan</option>
-                      {plans.map((plan) => (
-                        <option key={plan.plan_id || plan.id} value={plan.plan_id || plan.id}>
-                          {plan.name || plan.title || plan.planName || 'Unnamed Plan'}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Select Trainer</label>
-                    <select
-                      value={formData.trainerId || ""}
-                      onChange={(e) => setFormData({ ...formData, trainerId: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
-                    >
-                      <option value="">Select Trainer</option>
-                      {trainers.map((trainer) => (
-                        <option key={trainer.employee_id || trainer.id} value={trainer.employee_id || trainer.id}>
-                          {trainer.username || trainer.name || trainer.email || 'Trainer'}
-                        </option>
-                      ))}
-                    </select>
+                      readOnly
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
-                    <select
+                    <input
+                      type="text"
                       value={formData.status}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="interested">Interested</option>
-                      <option value="call u later">Call U Later</option>
-                      <option value="extra">Extra</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
+                      readOnly
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">Height (cm)</label>
                     <input
                       type="number"
                       value={formData.height}
-                      onChange={(e) => setFormData({ ...formData, height: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
-                      placeholder="Height in cm"
+                      readOnly
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
                     />
                   </div>
                   <div>
@@ -734,53 +675,31 @@ const TrainerEnquiry = () => {
                     <input
                       type="number"
                       value={formData.weight}
-                      onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
-                      placeholder="Weight in kg"
+                      readOnly
+                      className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-gray-400 focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">BMI (Auto-calculated)</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">BMI</label>
                     <input
                       type="text"
                       value={formData.bmi}
                       readOnly
                       className="w-full px-4 py-3 bg-slate-800/50 border border-orange-500/30 rounded-xl text-orange-400 font-bold focus:outline-none"
-                      placeholder="Auto-calculated"
                     />
                   </div>
                 </div>
 
                 <div className="flex gap-4 pt-6 border-t border-white/10">
                   <button
-                    type="submit"
-                    className="flex-1 px-6 py-3 bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 rounded-xl font-medium transition-colors border border-orange-500/30 hover:shadow-lg hover:shadow-orange-500/20"
-                  >
-                    {selectedEnquiry ? 'Update Enquiry' : 'Create Enquiry'}
-                  </button>
-                  <button
                     type="button"
                     onClick={() => {
                       setShowForm(false);
                       setSelectedEnquiry(null);
-                      setFormData({
-                        name: "",
-                        email: "",
-                        phone: "",
-                        subject: "",
-                        message: "",
-                        location: "",
-                        height: "",
-                        weight: "",
-                        bmi: "",
-                        status: "pending",
-                        planId: "",
-                        trainerId: "",
-                      });
                     }}
                     className="flex-1 px-6 py-3 bg-slate-800/50 text-gray-300 hover:bg-slate-800/70 rounded-xl font-medium transition-colors border border-white/10"
                   >
-                    Cancel
+                    Close
                   </button>
                 </div>
               </form>

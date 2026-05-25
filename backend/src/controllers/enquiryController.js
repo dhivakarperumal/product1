@@ -4,17 +4,19 @@ const { getActorUuid } = require('../utils/auditTrail');
 // NOTE: use getActorUuid(req.user) from utils/auditTrail for actor UUID
 
 const getEnquirySelectQuery = () =>
-  `SELECT enquiries.*, 
-          COALESCE(staff.username, staff.name, staff.email) AS trainer_display_name,
-          staff.username AS trainer_username,
-          staff.name AS trainer_name,
-          staff.email AS trainer_email,
-          staff.employee_id AS trainer_employee_id
-   FROM enquiries
-   LEFT JOIN staff ON (CAST(enquiries.trainer_id AS CHAR) COLLATE utf8mb4_unicode_ci = CAST(staff.employee_id AS CHAR) COLLATE utf8mb4_unicode_ci OR 
-                       CAST(enquiries.trainer_id AS CHAR) COLLATE utf8mb4_unicode_ci = CAST(staff.id AS CHAR) COLLATE utf8mb4_unicode_ci OR
-                       CAST(enquiries.trainer_id AS CHAR) COLLATE utf8mb4_unicode_ci = CAST(staff.employee_id AS CHAR) COLLATE utf8mb4_unicode_ci OR
-                       CAST(enquiries.trainer_id AS CHAR) COLLATE utf8mb4_unicode_ci = CAST(staff.id AS CHAR) COLLATE utf8mb4_unicode_ci)`;
+    `SELECT enquiries.*,
+                    COALESCE(staff.username, staff.name, staff.email, enquiries.trainer_id) AS trainer_display_name,
+                    staff.username AS trainer_username,
+                    staff.name AS trainer_name,
+                    staff.email AS trainer_email,
+                    COALESCE(staff.employee_id, enquiries.trainer_id) AS trainer_employee_id,
+                    staff.id AS trainer_numeric_id,
+                    enquiries.trainer_id AS raw_trainer_id
+     FROM enquiries
+     LEFT JOIN staff ON (
+         CAST(enquiries.trainer_id AS CHAR) COLLATE utf8mb4_unicode_ci = CAST(staff.employee_id AS CHAR) COLLATE utf8mb4_unicode_ci
+         OR CAST(enquiries.trainer_id AS CHAR) COLLATE utf8mb4_unicode_ci = CAST(staff.id AS CHAR) COLLATE utf8mb4_unicode_ci
+     )`;
 
 const isNumeric = (value) =>
   typeof value === 'number' || (/^\d+$/.test(String(value || '').trim()));
@@ -91,12 +93,12 @@ const enquiryController = {
                 params.push(created_by);
             } else if (!isSuperAdmin && req.user) {
                 if (userRole === 'trainer') {
-                    // For trainers: Get their admin_uuid from staff table and show ALL enquiries from that admin
+                    // For trainers: show enquiries for their admin AND enquiries assigned to that trainer
                     const trainerUuid = req.user.userUuid || req.user.employee_id || req.user.employeeId || null;
                     const trainerId = req.user.id || req.user.userId || req.user.user_id || null;
-                    
-                    // Query to get trainer's admin_uuid
-                    let trainerStaffQuery = 'SELECT admin_uuid FROM staff WHERE ';
+
+                    // Query to get trainer's admin_uuid and employee_id
+                    let trainerStaffQuery = 'SELECT admin_uuid, employee_id, id FROM staff WHERE ';
                     let trainerParams = [];
                     if (trainerUuid && trainerId) {
                         trainerStaffQuery += '(employee_id = ? OR id = ?)';
@@ -108,26 +110,74 @@ const enquiryController = {
                         trainerStaffQuery += 'id = ?';
                         trainerParams = [trainerId];
                     }
-                    
+
                     if (trainerParams.length > 0) {
                         const [staffRows] = await pool.query(trainerStaffQuery, trainerParams);
                         if (staffRows.length > 0 && staffRows[0].admin_uuid) {
-                            // Trainer's admin UUID found - show all enquiries from this admin
-                            whereClauses.push('enquiries.created_by = ?');
-                            params.push(staffRows[0].admin_uuid);
+                            // Allow enquiries created by the admin OR assigned to this trainer
+                            const adminUuid = staffRows[0].admin_uuid;
+                            const empId = staffRows[0].employee_id || staffRows[0].id;
+                            whereClauses.push('(enquiries.created_by = ? OR CAST(enquiries.trainer_id AS CHAR) = ? OR CAST(enquiries.trainer_id AS CHAR) = ?)');
+                            params.push(adminUuid, empId, String(staffRows[0].id));
                         }
                     }
                 } else if (userRole === 'admin') {
-                    // Regular admins should only see enquiries created by them
+                    // Regular admins should see enquiries created by them OR created by any trainer belonging to their admin
                     const adminFilterParams = getAdminFilterParams(req.user);
-                    if (adminFilterParams.length > 0) {
-                        if (adminFilterParams.length === 2) {
-                            whereClauses.push('(enquiries.created_by = ? OR enquiries.created_by = ?)');
-                            params.push(...adminFilterParams);
-                        } else {
-                            whereClauses.push('enquiries.created_by = ?');
-                            params.push(...adminFilterParams);
+                    let adminUuid = adminFilterParams[0] || null;
+                    let adminId = adminFilterParams[1] || adminFilterParams[0] || null;
+
+                    // gather staff (trainers) under this admin to include their created_by values
+                    const staffWhere = [];
+                    const staffParams = [];
+                    if (adminUuid) {
+                        staffWhere.push('admin_uuid = ?');
+                        staffParams.push(adminUuid);
+                    }
+                    if (adminId) {
+                        staffWhere.push('admin_id = ?');
+                        staffParams.push(adminId);
+                    }
+
+                    const createdByCandidates = [];
+                    if (adminUuid) createdByCandidates.push(adminUuid);
+                    if (adminId) createdByCandidates.push(String(adminId));
+
+                    let staffRows = [];
+                    if (staffWhere.length > 0) {
+                        const [rows] = await pool.query(`SELECT employee_id, id, admin_uuid FROM staff WHERE ${staffWhere.join(' OR ')}`, staffParams);
+                        staffRows = rows;
+                        for (const s of staffRows) {
+                            if (s.employee_id) createdByCandidates.push(String(s.employee_id));
+                            if (s.id) createdByCandidates.push(String(s.id));
                         }
+                    }
+
+                    if (createdByCandidates.length > 0) {
+                        // build placeholders for created_by
+                        const createdPlaceholders = createdByCandidates.map(() => '?').join(',');
+
+                        // Also include enquiries assigned to trainers under this admin by checking trainer_id
+                        // collect trainer identifiers (employee_id, id) from staffRows
+                        const trainerCandidates = [];
+                        if (staffRows && staffRows.length > 0) {
+                            for (const s of staffRows) {
+                                if (s.employee_id) trainerCandidates.push(String(s.employee_id));
+                                if (s.id) trainerCandidates.push(String(s.id));
+                            }
+                        }
+
+                        // build placeholders for trainer_id values if any
+                        let trainerClause = '';
+                        const trainerPlaceholders = trainerCandidates.length > 0 ? trainerCandidates.map(() => '?').join(',') : '';
+                        if (trainerPlaceholders) {
+                            // Match trainer_id (as stored strings) against known trainer identifiers
+                            trainerClause = ` OR CAST(enquiries.trainer_id AS CHAR) IN (${trainerPlaceholders})`;
+                        }
+
+                        whereClauses.push(`(enquiries.created_by IN (${createdPlaceholders})${trainerClause})`);
+                        params.push(...createdByCandidates);
+                        if (trainerCandidates.length > 0) params.push(...trainerCandidates);
                     }
                 }
             }
@@ -138,11 +188,20 @@ const enquiryController = {
 
             query += ' ORDER BY created_at DESC';
 
+            // Debug: log query and params to help diagnose server errors
+            try {
+                console.debug('Enquiries SQL:', query);
+                console.debug('Enquiries params:', params);
+            } catch (logErr) {
+                // ignore logging errors
+            }
+
             const [rows] = await pool.query(query, params);
             res.json(rows);
         } catch (error) {
-            console.error('Error fetching enquiries:', error);
-            res.status(500).json({ error: 'Internal server error' });
+            console.error('Error fetching enquiries:', error.message);
+            console.error('Error stack:', error.stack);
+            res.status(500).json({ error: 'Internal server error', details: error.message });
         }
     },
 
@@ -160,11 +219,11 @@ const enquiryController = {
             // Add authorization check for regular admins and trainers
             if (!isSuperAdmin && req.user) {
                 if (userRole === 'trainer') {
-                    // For trainers: Get their admin_uuid and allow access to any enquiry from that admin
+                    // For trainers: allow access to enquiries created by their admin OR assigned to this trainer
                     const trainerUuid = req.user.userUuid || req.user.employee_id || req.user.employeeId || null;
                     const trainerId = req.user.id || req.user.userId || req.user.user_id || null;
-                    
-                    let trainerStaffQuery = 'SELECT admin_uuid FROM staff WHERE ';
+
+                    let trainerStaffQuery = 'SELECT admin_uuid, employee_id, id FROM staff WHERE ';
                     let trainerParams = [];
                     if (trainerUuid && trainerId) {
                         trainerStaffQuery += '(employee_id = ? OR id = ?)';
@@ -176,23 +235,65 @@ const enquiryController = {
                         trainerStaffQuery += 'id = ?';
                         trainerParams = [trainerId];
                     }
-                    
+
                     if (trainerParams.length > 0) {
                         const [staffRows] = await pool.query(trainerStaffQuery, trainerParams);
                         if (staffRows.length > 0 && staffRows[0].admin_uuid) {
-                            authClauses.push('enquiries.created_by = ?');
-                            params.push(staffRows[0].admin_uuid);
+                            const adminUuid = staffRows[0].admin_uuid;
+                            const empId = staffRows[0].employee_id || staffRows[0].id;
+                            authClauses.push('(enquiries.created_by = ? OR CAST(enquiries.trainer_id AS CHAR) = ? OR CAST(enquiries.trainer_id AS CHAR) = ?)');
+                            params.push(adminUuid, empId, String(staffRows[0].id));
                         }
                     }
                 } else if (userRole === 'admin') {
-                    // Regular admins can only view enquiries they created
+                    // Regular admins: allow viewing enquiries created by them OR by trainers under their admin
                     const adminFilterParams = getAdminFilterParams(req.user);
-                    if (adminFilterParams.length === 2) {
-                        authClauses.push('(enquiries.created_by = ? OR enquiries.created_by = ?)');
-                        params.push(...adminFilterParams);
-                    } else if (adminFilterParams.length === 1) {
-                        authClauses.push('enquiries.created_by = ?');
-                        params.push(...adminFilterParams);
+                    let adminUuid = adminFilterParams[0] || null;
+                    let adminId = adminFilterParams[1] || adminFilterParams[0] || null;
+
+                    const createdByCandidates = [];
+                    if (adminUuid) createdByCandidates.push(adminUuid);
+                    if (adminId) createdByCandidates.push(String(adminId));
+
+                    const staffWhere = [];
+                    const staffParams = [];
+                    if (adminUuid) {
+                        staffWhere.push('admin_uuid = ?');
+                        staffParams.push(adminUuid);
+                    }
+                    if (adminId) {
+                        staffWhere.push('admin_id = ?');
+                        staffParams.push(adminId);
+                    }
+
+                    let staffRows = [];
+                    if (staffWhere.length > 0) {
+                        const [rows] = await pool.query(`SELECT employee_id, id, admin_uuid FROM staff WHERE ${staffWhere.join(' OR ')}`, staffParams);
+                        staffRows = rows;
+                        for (const s of staffRows) {
+                            if (s.employee_id) createdByCandidates.push(String(s.employee_id));
+                            if (s.id) createdByCandidates.push(String(s.id));
+                        }
+                    }
+
+                    if (createdByCandidates.length > 0) {
+                        const createdPlaceholders = createdByCandidates.map(() => '?').join(',');
+
+                        // also include enquiries assigned to trainers under this admin
+                        const trainerCandidates = [];
+                        if (staffRows && staffRows.length > 0) {
+                            for (const s of staffRows) {
+                                if (s.employee_id) trainerCandidates.push(String(s.employee_id));
+                                if (s.id) trainerCandidates.push(String(s.id));
+                            }
+                        }
+
+                        const trainerPlaceholders = trainerCandidates.length > 0 ? trainerCandidates.map(() => '?').join(',') : '';
+                        const trainerClause = trainerPlaceholders ? ` OR CAST(enquiries.trainer_id AS CHAR) IN (${trainerPlaceholders})` : '';
+
+                        authClauses.push(`(enquiries.created_by IN (${createdPlaceholders})${trainerClause})`);
+                        params.push(...createdByCandidates);
+                        if (trainerCandidates.length > 0) params.push(...trainerCandidates);
                     }
                 }
             }
@@ -219,7 +320,7 @@ const enquiryController = {
         try {
             const { name, email, phone, subject, message, location, height, weight, bmi, status, planId, trainerId } = req.body;
             const plan_id = await normalizePlanId(planId || req.body.plan_id || null);
-            const trainer_id = await normalizeTrainerId(
+            let trainer_id = await normalizeTrainerId(
                 trainerId || req.body.trainer_id ||
                 ((req.user && String(req.user.role || '').toLowerCase() === 'trainer')
                     ? req.user.userUuid || req.user.employee_id || req.user.employeeId || req.user.id || req.user.userId || req.user.user_id
@@ -231,10 +332,44 @@ const enquiryController = {
                 return res.status(400).json({ error: 'Name, email, and message are required' });
             }
 
-            // Store correct UUID based on user role (admin or trainer)
-            const createdByUuid = getCreatedByUuid(req.user) || null;
-            const adminParams = getAdminFilterParams(req.user);
-            const hasAdminFilter = adminParams.length > 0;
+            // Determine admin scope and created_by value. If a trainer is creating the enquiry,
+            // store the trainer's admin_uuid in `created_by` so admins can see trainer-created enquiries.
+            let createdByUuid = getCreatedByUuid(req.user) || null;
+            let adminParams = getAdminFilterParams(req.user);
+            let hasAdminFilter = adminParams.length > 0;
+
+            if (req.user && String(req.user.role || '').toLowerCase() === 'trainer') {
+                const trainerUuid = req.user.userUuid || req.user.employee_id || req.user.employeeId || null;
+                const trainerIdNum = req.user.id || req.user.userId || req.user.user_id || null;
+                let trainerStaffQuery = 'SELECT admin_uuid, employee_id, id FROM staff WHERE ';
+                let trainerParams = [];
+                if (trainerUuid && trainerIdNum) {
+                    trainerStaffQuery += '(employee_id = ? OR id = ?)';
+                    trainerParams = [trainerUuid, trainerIdNum];
+                } else if (trainerUuid) {
+                    trainerStaffQuery += 'employee_id = ?';
+                    trainerParams = [trainerUuid];
+                } else if (trainerIdNum) {
+                    trainerStaffQuery += 'id = ?';
+                    trainerParams = [trainerIdNum];
+                }
+
+                if (trainerParams.length > 0) {
+                    const [staffRows] = await pool.query(trainerStaffQuery, trainerParams);
+                    if (staffRows.length > 0) {
+                        const staffRow = staffRows[0];
+                        if (staffRow.admin_uuid) {
+                            createdByUuid = staffRow.admin_uuid; // store admin_uuid so admin can see it
+                            adminParams = [staffRow.admin_uuid];
+                            hasAdminFilter = true;
+                        }
+                        // If trainer_id not explicitly provided, set it to the trainer's employee_id
+                        if (!trainer_id && (staffRow.employee_id || staffRow.id)) {
+                            trainer_id = await normalizeTrainerId(staffRow.employee_id || staffRow.id);
+                        }
+                    }
+                }
+            }
 
             // Check for duplicate phone/email within the same admin user
             if (phone && hasAdminFilter) {
@@ -291,10 +426,37 @@ const enquiryController = {
                 return res.status(400).json({ error: 'Name, email, and message are required' });
             }
 
-            // Store correct UUID based on user role (admin or trainer)
-            const updatedByUuid = getCreatedByUuid(req.user) || null;
-            const adminParams = getAdminFilterParams(req.user);
-            const hasAdminFilter = adminParams.length > 0;
+            // Determine admin scope and updated_by value. If a trainer is updating the enquiry,
+            // store the trainer's admin_uuid in `updated_by` so admins can see trainer updates.
+            let updatedByUuid = getCreatedByUuid(req.user) || null;
+            let adminParams = getAdminFilterParams(req.user);
+            let hasAdminFilter = adminParams.length > 0;
+
+            if (req.user && String(req.user.role || '').toLowerCase() === 'trainer') {
+                const trainerUuid = req.user.userUuid || req.user.employee_id || req.user.employeeId || null;
+                const trainerIdNum = req.user.id || req.user.userId || req.user.user_id || null;
+                let trainerStaffQuery = 'SELECT admin_uuid, employee_id, id FROM staff WHERE ';
+                let trainerParams = [];
+                if (trainerUuid && trainerIdNum) {
+                    trainerStaffQuery += '(employee_id = ? OR id = ?)';
+                    trainerParams = [trainerUuid, trainerIdNum];
+                } else if (trainerUuid) {
+                    trainerStaffQuery += 'employee_id = ?';
+                    trainerParams = [trainerUuid];
+                } else if (trainerIdNum) {
+                    trainerStaffQuery += 'id = ?';
+                    trainerParams = [trainerIdNum];
+                }
+
+                if (trainerParams.length > 0) {
+                    const [staffRows] = await pool.query(trainerStaffQuery, trainerParams);
+                    if (staffRows.length > 0 && staffRows[0].admin_uuid) {
+                        updatedByUuid = staffRows[0].admin_uuid;
+                        adminParams = [staffRows[0].admin_uuid];
+                        hasAdminFilter = true;
+                    }
+                }
+            }
             
             // Add authorization check
             const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
@@ -333,13 +495,53 @@ const enquiryController = {
                         params = [id];
                     }
                 } else if (userRole === 'admin') {
-                    // Regular admins can only update enquiries they created
-                    if (adminParams.length === 2) {
-                        whereClause += ' AND (enquiries.created_by = ? OR enquiries.created_by = ?)';
-                        params = [...adminParams, id];
-                    } else if (adminParams.length === 1) {
-                        whereClause += ' AND enquiries.created_by = ?';
-                        params = [...adminParams, id];
+                    // Regular admins: allow updates to enquiries created by them OR by trainers under their admin
+                    const adminFilterParams = getAdminFilterParams(req.user);
+                    let adminUuid = adminFilterParams[0] || null;
+                    let adminId = adminFilterParams[1] || adminFilterParams[0] || null;
+
+                    const createdByCandidates = [];
+                    if (adminUuid) createdByCandidates.push(adminUuid);
+                    if (adminId) createdByCandidates.push(String(adminId));
+
+                    const staffWhere = [];
+                    const staffParams = [];
+                    if (adminUuid) {
+                        staffWhere.push('admin_uuid = ?');
+                        staffParams.push(adminUuid);
+                    }
+                    if (adminId) {
+                        staffWhere.push('admin_id = ?');
+                        staffParams.push(adminId);
+                    }
+
+                    if (staffWhere.length > 0) {
+                        const [staffRows] = await pool.query(`SELECT employee_id, id, user_uuid FROM staff WHERE ${staffWhere.join(' OR ')}`, staffParams);
+                        for (const s of staffRows) {
+                            if (s.employee_id) createdByCandidates.push(String(s.employee_id));
+                            if (s.user_uuid) createdByCandidates.push(String(s.user_uuid));
+                            if (s.id) createdByCandidates.push(String(s.id));
+                        }
+                    }
+
+                    if (createdByCandidates.length > 0) {
+                        const createdPlaceholders = createdByCandidates.map(() => '?').join(',');
+
+                        // also include enquiries assigned to trainers under this admin
+                        const trainerCandidates = [];
+                        if (staffRows && staffRows.length > 0) {
+                            for (const s of staffRows) {
+                                if (s.employee_id) trainerCandidates.push(String(s.employee_id));
+                                if (s.user_uuid) trainerCandidates.push(String(s.user_uuid));
+                                if (s.id) trainerCandidates.push(String(s.id));
+                            }
+                        }
+
+                        const trainerPlaceholders = trainerCandidates.length > 0 ? trainerCandidates.map(() => '?').join(',') : '';
+                        const trainerClause = trainerPlaceholders ? ` OR CAST(enquiries.trainer_id AS CHAR) IN (${trainerPlaceholders})` : '';
+
+                        whereClause += ` AND (enquiries.created_by IN (${createdPlaceholders})${trainerClause})`;
+                        params = [...createdByCandidates, ...(trainerCandidates.length > 0 ? trainerCandidates : []), id];
                     } else {
                         params = [id];
                     }
@@ -403,7 +605,30 @@ const enquiryController = {
             }
 
             // Store correct UUID based on user role for audit trail
-            const updatedByUuid = getCreatedByUuid(req.user) || null;
+            let updatedByUuid = getCreatedByUuid(req.user) || null;
+            // If trainer, prefer to store their admin_uuid so admin sees updates
+            if (req.user && String(req.user.role || '').toLowerCase() === 'trainer') {
+                const trainerUuid = req.user.userUuid || req.user.employee_id || req.user.employeeId || null;
+                const trainerIdNum = req.user.id || req.user.userId || req.user.user_id || null;
+                let trainerStaffQuery = 'SELECT admin_uuid, employee_id, id FROM staff WHERE ';
+                let trainerParams = [];
+                if (trainerUuid && trainerIdNum) {
+                    trainerStaffQuery += '(employee_id = ? OR id = ?)';
+                    trainerParams = [trainerUuid, trainerIdNum];
+                } else if (trainerUuid) {
+                    trainerStaffQuery += 'employee_id = ?';
+                    trainerParams = [trainerUuid];
+                } else if (trainerIdNum) {
+                    trainerStaffQuery += 'id = ?';
+                    trainerParams = [trainerIdNum];
+                }
+                if (trainerParams.length > 0) {
+                    const [staffRows] = await pool.query(trainerStaffQuery, trainerParams);
+                    if (staffRows.length > 0 && staffRows[0].admin_uuid) {
+                        updatedByUuid = staffRows[0].admin_uuid;
+                    }
+                }
+            }
             
             // Add authorization check
             const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
@@ -413,11 +638,11 @@ const enquiryController = {
             
             if (!isSuperAdmin && req.user) {
                 if (userRole === 'trainer') {
-                    // For trainers: Get their admin_uuid and allow updating status of any enquiry from that admin
+                    // For trainers: allow updating status of enquiries created by their admin OR assigned to this trainer
                     const trainerUuid = req.user.userUuid || req.user.employee_id || req.user.employeeId || null;
                     const trainerId = req.user.id || req.user.userId || req.user.user_id || null;
                     
-                    let trainerStaffQuery = 'SELECT admin_uuid FROM staff WHERE ';
+                    let trainerStaffQuery = 'SELECT admin_uuid, employee_id, id FROM staff WHERE ';
                     let trainerParams = [];
                     if (trainerUuid && trainerId) {
                         trainerStaffQuery += '(employee_id = ? OR id = ?)';
@@ -429,12 +654,14 @@ const enquiryController = {
                         trainerStaffQuery += 'id = ?';
                         trainerParams = [trainerId];
                     }
-                    
+
                     if (trainerParams.length > 0) {
                         const [staffRows] = await pool.query(trainerStaffQuery, trainerParams);
                         if (staffRows.length > 0 && staffRows[0].admin_uuid) {
-                            whereClause += ' AND enquiries.created_by = ?';
-                            params = [staffRows[0].admin_uuid, id];
+                            const adminUuid = staffRows[0].admin_uuid;
+                            const empId = staffRows[0].employee_id || staffRows[0].id;
+                            whereClause += ' AND (enquiries.created_by = ? OR CAST(enquiries.trainer_id AS CHAR) = ? OR CAST(enquiries.trainer_id AS CHAR) = ?)';
+                            params = [adminUuid, empId, String(staffRows[0].id), id];
                         } else {
                             params = [id];
                         }
@@ -442,14 +669,53 @@ const enquiryController = {
                         params = [id];
                     }
                 } else if (userRole === 'admin') {
-                    // Regular admins can only update status of enquiries they created
-                    const adminParams = getAdminFilterParams(req.user);
-                    if (adminParams.length === 2) {
-                        whereClause += ' AND (enquiries.created_by = ? OR enquiries.created_by = ?)';
-                        params = [...adminParams, id];
-                    } else if (adminParams.length === 1) {
-                        whereClause += ' AND enquiries.created_by = ?';
-                        params = [...adminParams, id];
+                    // Regular admins: allow status update for enquiries created by them OR by trainers under their admin
+                    const adminFilterParams = getAdminFilterParams(req.user);
+                    let adminUuid = adminFilterParams[0] || null;
+                    let adminId = adminFilterParams[1] || adminFilterParams[0] || null;
+
+                    const createdByCandidates = [];
+                    if (adminUuid) createdByCandidates.push(adminUuid);
+                    if (adminId) createdByCandidates.push(String(adminId));
+
+                    const staffWhere = [];
+                    const staffParams = [];
+                    if (adminUuid) {
+                        staffWhere.push('admin_uuid = ?');
+                        staffParams.push(adminUuid);
+                    }
+                    if (adminId) {
+                        staffWhere.push('admin_id = ?');
+                        staffParams.push(adminId);
+                    }
+
+                    if (staffWhere.length > 0) {
+                        const [staffRows] = await pool.query(`SELECT employee_id, id, user_uuid FROM staff WHERE ${staffWhere.join(' OR ')}`, staffParams);
+                        for (const s of staffRows) {
+                            if (s.employee_id) createdByCandidates.push(String(s.employee_id));
+                            if (s.user_uuid) createdByCandidates.push(String(s.user_uuid));
+                            if (s.id) createdByCandidates.push(String(s.id));
+                        }
+                    }
+
+                    if (createdByCandidates.length > 0) {
+                        const createdPlaceholders = createdByCandidates.map(() => '?').join(',');
+
+                        // also include enquiries assigned to trainers under this admin
+                        const trainerCandidates = [];
+                        if (staffRows && staffRows.length > 0) {
+                            for (const s of staffRows) {
+                                if (s.employee_id) trainerCandidates.push(String(s.employee_id));
+                                if (s.user_uuid) trainerCandidates.push(String(s.user_uuid));
+                                if (s.id) trainerCandidates.push(String(s.id));
+                            }
+                        }
+
+                        const trainerPlaceholders = trainerCandidates.length > 0 ? trainerCandidates.map(() => '?').join(',') : '';
+                        const trainerClause = trainerPlaceholders ? ` OR CAST(enquiries.trainer_id AS CHAR) IN (${trainerPlaceholders})` : '';
+
+                        whereClause += ` AND (enquiries.created_by IN (${createdPlaceholders})${trainerClause})`;
+                        params = [...createdByCandidates, ...(trainerCandidates.length > 0 ? trainerCandidates : []), id];
                     } else {
                         params = [id];
                     }
@@ -490,10 +756,10 @@ const enquiryController = {
             
             if (!isSuperAdmin && req.user) {
                 if (userRole === 'trainer') {
-                    // For trainers: Get their admin_uuid and allow deleting any enquiry from that admin
+                    // For trainers: allow deleting any enquiry from their admin
                     const trainerUuid = req.user.userUuid || req.user.employee_id || req.user.employeeId || null;
                     const trainerId = req.user.id || req.user.userId || req.user.user_id || null;
-                    
+
                     let trainerStaffQuery = 'SELECT admin_uuid FROM staff WHERE ';
                     let trainerParams = [];
                     if (trainerUuid && trainerId) {
@@ -506,7 +772,7 @@ const enquiryController = {
                         trainerStaffQuery += 'id = ?';
                         trainerParams = [trainerId];
                     }
-                    
+
                     if (trainerParams.length > 0) {
                         const [staffRows] = await pool.query(trainerStaffQuery, trainerParams);
                         if (staffRows.length > 0 && staffRows[0].admin_uuid) {
@@ -519,14 +785,53 @@ const enquiryController = {
                         params = [id];
                     }
                 } else if (userRole === 'admin') {
-                    // Regular admins can only delete enquiries they created
-                    const adminParams = getAdminFilterParams(req.user);
-                    if (adminParams.length === 2) {
-                        whereClause += ' AND (enquiries.created_by = ? OR enquiries.created_by = ?)';
-                        params = [...adminParams, id];
-                    } else if (adminParams.length === 1) {
-                        whereClause += ' AND enquiries.created_by = ?';
-                        params = [...adminParams, id];
+                    // Regular admins: allow deletes for enquiries created by them OR by trainers under their admin
+                    const adminFilterParams = getAdminFilterParams(req.user);
+                    let adminUuid = adminFilterParams[0] || null;
+                    let adminId = adminFilterParams[1] || adminFilterParams[0] || null;
+
+                    const createdByCandidates = [];
+                    if (adminUuid) createdByCandidates.push(adminUuid);
+                    if (adminId) createdByCandidates.push(String(adminId));
+
+                    const staffWhere = [];
+                    const staffParams = [];
+                    if (adminUuid) {
+                        staffWhere.push('admin_uuid = ?');
+                        staffParams.push(adminUuid);
+                    }
+                    if (adminId) {
+                        staffWhere.push('admin_id = ?');
+                        staffParams.push(adminId);
+                    }
+
+                    if (staffWhere.length > 0) {
+                        const [staffRows] = await pool.query(`SELECT employee_id, id, user_uuid FROM staff WHERE ${staffWhere.join(' OR ')}`, staffParams);
+                        for (const s of staffRows) {
+                            if (s.employee_id) createdByCandidates.push(String(s.employee_id));
+                            if (s.user_uuid) createdByCandidates.push(String(s.user_uuid));
+                            if (s.id) createdByCandidates.push(String(s.id));
+                        }
+                    }
+
+                    if (createdByCandidates.length > 0) {
+                        const createdPlaceholders = createdByCandidates.map(() => '?').join(',');
+
+                        // also include enquiries assigned to trainers under this admin
+                        const trainerCandidates = [];
+                        if (staffRows && staffRows.length > 0) {
+                            for (const s of staffRows) {
+                                if (s.employee_id) trainerCandidates.push(String(s.employee_id));
+                                if (s.user_uuid) trainerCandidates.push(String(s.user_uuid));
+                                if (s.id) trainerCandidates.push(String(s.id));
+                            }
+                        }
+
+                        const trainerPlaceholders = trainerCandidates.length > 0 ? trainerCandidates.map(() => '?').join(',') : '';
+                        const trainerClause = trainerPlaceholders ? ` OR CAST(enquiries.trainer_id AS CHAR) IN (${trainerPlaceholders})` : '';
+
+                        whereClause += ` AND (enquiries.created_by IN (${createdPlaceholders})${trainerClause})`;
+                        params = [...createdByCandidates, ...(trainerCandidates.length > 0 ? trainerCandidates : []), id];
                     } else {
                         params = [id];
                     }
