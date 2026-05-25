@@ -125,7 +125,7 @@ const enquiryController = {
                     // Regular admins should see enquiries created by them OR created by any trainer belonging to their admin
                     const adminFilterParams = getAdminFilterParams(req.user);
                     let adminUuid = adminFilterParams[0] || null;
-                    let adminId = adminFilterParams[1] || adminFilterParams[0] || null;
+                    let adminId = adminFilterParams[1] || null;
 
                     // gather staff (trainers) under this admin to include their created_by values
                     const staffWhere = [];
