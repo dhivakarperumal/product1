@@ -469,7 +469,39 @@ const AllOrders = () => {
     }
   };
 
+  const updatePaymentStatus = async (orderId, paymentStatus) => {
+    try {
+      setSubmitting(true);
+      const normalizedId = normalizeOrderId(orderId);
+      await api.patch(`/orders/${orderId}/status`, {
+        paymentStatus,
+      });
 
+      setOrders((prev) => {
+        const updated = prev.map((o) => {
+          const orderNormalizedId = normalizeOrderId(o.order_id || o.orderId);
+          if (orderNormalizedId === normalizedId) {
+            return {
+              ...o,
+              paymentStatus,
+            };
+          }
+          return o;
+        });
+        if (!adminFilter) cache.adminOrders = updated;
+        return updated;
+      });
+
+      setTimeout(() => {
+        fetchOrders(adminFilter);
+      }, 500);
+    } catch (err) {
+      console.error("updatePaymentStatus error:", err);
+      alert(err.response?.data?.message || "Failed to update payment status");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const printOrder = async (order) => {
     try {
@@ -962,15 +994,20 @@ ${items
                       <td className="px-6 py-4 text-slate-300">
                         {o.trainerName || "-"}
                       </td>
-                      <td
-                        onClick={(e) => { e.stopPropagation(); navigate(`/admin/orders/${o.order_id}`) }}
-                        className="px-6 py-4 cursor-pointer"
-                      >
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          normalizeKey(o.paymentStatus) === "paid"
-                            ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                            : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                          }`}>
+                      <td className="px-6 py-4">
+                        <span
+                          onDoubleClick={() => {
+                            if (normalizeKey(o.paymentStatus) === "pending") {
+                              updatePaymentStatus(o.order_id, "paid");
+                            }
+                          }}
+                          className={`inline-block px-3 py-1 rounded-full text-xs font-semibold cursor-pointer select-none hover:opacity-80 transition-opacity ${
+                            normalizeKey(o.paymentStatus) === "paid"
+                              ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                              : "bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30"
+                            }`}
+                          title={normalizeKey(o.paymentStatus) === "pending" ? "Double-click to mark as paid" : ""}
+                        >
                           {o.paymentStatus}
                         </span>
                       </td>
@@ -1043,11 +1080,19 @@ ${items
                     </div>
                     <div className="flex flex-col gap-2 items-end">
                       {statusBadge(o.status)}
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        normalizeKey(o.paymentStatus) === "paid"
-                          ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                          : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                        }`}>
+                      <span
+                        onDoubleClick={() => {
+                          if (normalizeKey(o.paymentStatus) === "pending") {
+                            updatePaymentStatus(o.order_id, "paid");
+                          }
+                        }}
+                        className={`px-2 py-1 rounded-full text-xs font-semibold cursor-pointer select-none hover:opacity-80 transition-opacity ${
+                          normalizeKey(o.paymentStatus) === "paid"
+                            ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                            : "bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30"
+                          }`}
+                        title={normalizeKey(o.paymentStatus) === "pending" ? "Double-click to mark as paid" : ""}
+                      >
                         {o.paymentStatus}
                       </span>
                     </div>
