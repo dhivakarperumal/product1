@@ -23,10 +23,55 @@ const Members = () => {
   const [dateRange, setDateRange] = useState({ type: 'All Time', range: null });
   const [loading, setLoading] = useState(() => !cache.adminMembers);
   const [adminFilter, setAdminFilter] = useState(null);
+  const [trainerFilter, setTrainerFilter] = useState("");
+  const [trainers, setTrainers] = useState([]);
   const isMountedRef = useRef(true);
 
   // Check if user is super admin
   const isSuperAdmin = user?.role === 'super admin';
+
+  const getMemberPlanStartDate = (member) => {
+    return member.join_date || member.joinDate || member.startDate || member.start_date || member.planStartDate || member.plan_start_date || null;
+  };
+
+  const getMemberPlanEndDate = (member) => {
+    return member.expiry_date || member.expiryDate || member.endDate || member.end_date || member.planEndDate || member.plan_end_date || null;
+  };
+
+  const getMemberTrainerName = (member) => {
+    if (!member) return "-";
+    if (typeof member.trainer === 'string') return member.trainer;
+    return (
+      member.trainerName ||
+      member.trainer_name ||
+      member.trainer_display_name ||
+      member.trainer?.name ||
+      member.trainer?.username ||
+      member.trainer?.employee_id ||
+      member.trainerEmployeeId ||
+      member.trainer_employee_id ||
+      "-"
+    );
+  };
+
+  const getMemberTrainerId = (member) => {
+    if (!member) return "";
+    return (
+      String(member.trainerId || member.trainer_id || member.membershipTrainerId || member.trainer?.id || member.trainer?.trainerId || member.trainer?.employee_id || member.trainerEmployeeId || member.trainer_employee_id || "").trim()
+    );
+  };
+
+  const formatPlanDate = (date) => {
+    return date && dayjs(date).isValid() ? dayjs(date).format("DD/MM/YYYY") : "-";
+  };
+
+  const getRemainingPlanDays = (endDate) => {
+    if (!endDate || !dayjs(endDate).isValid()) return "-";
+    const diff = dayjs(endDate).startOf("day").diff(dayjs().startOf("day"), "day");
+    if (diff < 0) return "Expired";
+    if (diff === 0) return "Today";
+    return `${diff} days`;
+  };
 
   useEffect(() => {
     setSearch(querySearch);
@@ -35,7 +80,7 @@ const Members = () => {
   const navigate = useNavigate();
 
   // 🔄 FETCH MEMBERS
-  const fetchMembers = async (adminUuid = null) => {
+  const fetchMembers = async (adminUuid = null, trainerId = null) => {
     if (!cache.adminMembers && isMountedRef.current) {
       setLoading(true);
     }
@@ -44,6 +89,9 @@ const Members = () => {
       const params = {};
       if (adminUuid) {
         params.adminUuid = adminUuid;
+      }
+      if (trainerId) {
+        params.trainerId = trainerId;
       }
 
       const res = await api.get("/members", { params });
@@ -71,12 +119,30 @@ const Members = () => {
   const handleAdminFilterChange = (adminUuid) => {
     setAdminFilter(adminUuid);
     setCurrentPage(1);
-    fetchMembers(adminUuid);
+    fetchMembers(adminUuid, trainerFilter);
+  };
+
+  const handleTrainerFilterChange = (trainerId) => {
+    setTrainerFilter(trainerId);
+    setCurrentPage(1);
+    fetchMembers(adminFilter, trainerId);
+  };
+
+  const fetchTrainers = async () => {
+    try {
+      const res = await api.get('/staff', { params: { role: 'trainer' } });
+      const data = Array.isArray(res.data) ? res.data : [];
+      setTrainers(data);
+    } catch (err) {
+      console.error('Failed to fetch trainers:', err);
+      setTrainers([]);
+    }
   };
 
   useEffect(() => {
     isMountedRef.current = true;
     fetchMembers();
+    fetchTrainers();
     return () => {
       isMountedRef.current = false;
     };
@@ -97,6 +163,12 @@ const Members = () => {
     }
 
     if (!matchesText) return false;
+
+    if (trainerFilter) {
+      const selectedTrainer = String(trainerFilter).trim();
+      const memberTrainerId = getMemberTrainerId(m);
+      if (memberTrainerId !== selectedTrainer) return false;
+    }
 
     // 2. Date Range Filter
     return filterByDateRange([m], 'join_date', dateRange.type, dateRange.range).length > 0;
@@ -121,7 +193,7 @@ const Members = () => {
     try {
       await api.delete(`/members/${idToDelete}`);
       toast.success("Deleted successfully");
-      fetchMembers(adminFilter);
+      fetchMembers(adminFilter, trainerFilter);
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.error || "Delete failed");
@@ -327,6 +399,35 @@ const Members = () => {
             Add Member
           </button>
 
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="relative min-w-[220px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => handleSearch(e.target.value)}
+                placeholder="Search members"
+                className="w-full pl-10 pr-3 py-2 rounded-xl border border-white/10 bg-slate-900/80 text-white placeholder:text-slate-500 focus:border-orange-400 focus:outline-none"
+              />
+            </div>
+            <div className="min-w-[220px]">
+              <label htmlFor="trainerFilter" className="sr-only">Filter by trainer</label>
+              <select
+                id="trainerFilter"
+                value={trainerFilter}
+                onChange={(e) => handleTrainerFilterChange(e.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-slate-900/80 text-white py-2 px-3 focus:border-orange-400 focus:outline-none"
+              >
+                <option value="">All Trainers</option>
+                {trainers.map((trainer) => (
+                  <option key={trainer.id || trainer.employee_id} value={trainer.id || trainer.employee_id}>
+                    {trainer.name || trainer.username || trainer.employee_id || `Trainer ${trainer.id || trainer.employee_id}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <DateRangeFilter onRangeChange={(type, range) => setDateRange({ type, range })} />
 
           {/* Admin Filter - Only visible to super admins */}
@@ -370,65 +471,58 @@ const Members = () => {
                 <th className="p-4 text-left font-medium">Name</th>
                 <th className="p-4 text-left font-medium">Phone</th>
                 <th className="p-4 text-left font-medium">Email</th>
-                <th className="p-4 text-left font-medium">DOB</th>
-                <th className="p-4 text-left font-medium">Height</th>
-                <th className="p-4 text-left font-medium">Weight</th>
-                <th className="p-4 text-left font-medium">BMI</th>
+                <th className="p-4 text-left font-medium">Plan Start</th>
+                <th className="p-4 text-left font-medium">Plan End</th>
+                <th className="p-4 text-left font-medium">Remaining Days</th>
                 <th className="p-4 text-left font-medium">Plan</th>
-                <th className="p-4 text-left font-medium">Type</th>
+                <th className="p-4 text-left font-medium">Trainer</th>
                 <th className="p-4 text-left font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {paginatedData.length === 0 ? (
                 <tr>
-                  <td colSpan="11" className="p-8 text-center text-gray-400">
+                  <td colSpan="10" className="p-8 text-center text-gray-400">
                     {loading ? "Loading members..." : filtered.length === 0 ? "No records found" : "No data on this page"}
                   </td>
                 </tr>
               ) : (
-                paginatedData.map((m, index) => (
-                  <tr key={m.id || `member-${index}`} className="border-b border-white/5 hover:bg-white/5 transition">
-                    <td className="p-4 font-medium text-white">{startIndex + index + 1}</td>
-                    <td className="p-4 font-medium text-white">{m.name || "N/A"}</td>
-                    <td className="p-4">{m.phone || "N/A"}</td>
-                    <td className="p-4">{m.email || "-"}</td>
-                    <td className="p-4 text-gray-400">{(m.dateOfBirth || m.date_of_birth) ? dayjs(m.dateOfBirth || m.date_of_birth).format("DD/MM/YYYY") : "-"}</td>
-                    <td className="p-4 text-gray-400">{m.height ? `${m.height} cm` : "-"}</td>
-                    <td className="p-4 text-gray-400">{m.weight ? `${m.weight} kg` : "-"}</td>
-                    <td className="p-4">
-                      <span className="px-2 py-1 rounded bg-white/10 text-orange-400 font-bold text-xs">
-                        {m.bmi || "-"}
-                      </span>
-                    </td>
-                   
-                    <td className="p-4">
-                      <span className="px-3 py-1 rounded-lg text-xs font-semibold bg-orange-500/20 text-orange-400">
-                        {m.plan || "Member"}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <span className="px-3 py-1 rounded-lg text-xs font-semibold bg-purple-500/20 text-purple-400">
-                        Gym Member
-                      </span>
-                    </td>
-                    <td className="p-4 flex gap-2">
-                      <button
-                        onClick={() => navigate(`/admin/addmembers/${m.id}`)}
-                        className="p-2 rounded-lg bg-yellow-500/80 hover:bg-yellow-500 text-white transition"
-                        title="Edit Member"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(m)}
-                        className="p-2 rounded-lg bg-red-500/80 hover:bg-red-500 text-white transition"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                paginatedData.map((m, index) => {
+                  const planStartDate = getMemberPlanStartDate(m);
+                  const planEndDate = getMemberPlanEndDate(m);
+                  return (
+                    <tr key={m.id || `member-${index}`} className="border-b border-white/5 hover:bg-white/5 transition">
+                      <td className="p-4 font-medium text-white">{startIndex + index + 1}</td>
+                      <td className="p-4 font-medium text-white">{m.name || "N/A"}</td>
+                      <td className="p-4">{m.phone || "N/A"}</td>
+                      <td className="p-4">{m.email || "-"}</td>
+                      <td className="p-4 text-gray-400">{formatPlanDate(planStartDate)}</td>
+                      <td className="p-4 text-gray-400">{formatPlanDate(planEndDate)}</td>
+                      <td className="p-4 text-gray-400">{getRemainingPlanDays(planEndDate)}</td>
+                      <td className="p-4">
+                        <span className="px-3 py-1 rounded-lg text-xs font-semibold bg-orange-500/20 text-orange-400">
+                          {m.plan || "Member"}
+                        </span>
+                      </td>
+                      <td className="p-4 text-gray-400">{getMemberTrainerName(m)}</td>
+                      <td className="p-4 flex gap-2">
+                        <button
+                          onClick={() => navigate(`/admin/addmembers/${m.id}`)}
+                          className="p-2 rounded-lg bg-yellow-500/80 hover:bg-yellow-500 text-white transition"
+                          title="Edit Member"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(m)}
+                          className="p-2 rounded-lg bg-red-500/80 hover:bg-red-500 text-white transition"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -484,7 +578,19 @@ const Members = () => {
                     </div>
                     <div className="flex items-center gap-3 text-sm text-gray-300">
                       <Calendar size={14} className="text-orange-500" />
-                      <span>{(m.dateOfBirth || m.date_of_birth) ? dayjs(m.dateOfBirth || m.date_of_birth).format("YYYY-MM-DD") : "No DOB"}</span>
+                      <span>{formatPlanDate(getMemberPlanStartDate(m))}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-gray-300">
+                      <Calendar size={14} className="text-orange-500" />
+                      <span>{formatPlanDate(getMemberPlanEndDate(m))}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-gray-300">
+                      <span className="font-semibold text-white">Remaining:</span>
+                      <span>{getRemainingPlanDays(getMemberPlanEndDate(m))}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-gray-300">
+                      <span className="font-semibold text-white">Trainer:</span>
+                      <span>{getMemberTrainerName(m)}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="px-2.5 py-1 rounded-lg text-[10px] uppercase font-bold bg-orange-500/20 text-orange-400 ring-1 ring-orange-500/30">
@@ -498,17 +604,17 @@ const Members = () => {
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 pt-4 border-t border-white/10 mt-4">
-                  <div className="bg-white/5 rounded-xl p-2 border border-white/10 text-center">
-                    <p className="text-[10px] text-gray-400 uppercase mb-1">Height</p>
-                    <p className="text-sm font-bold text-white">{m.height || "-"} <span className="text-[8px] font-normal opacity-50">cm</span></p>
+                  <div className="bg-white/5 rounded-xl p-3 border border-white/10 text-center col-span-full sm:col-span-1">
+                    <p className="text-[10px] text-gray-400 uppercase mb-1">Plan Start</p>
+                    <p className="text-sm font-bold text-white">{formatPlanDate(getMemberPlanStartDate(m))}</p>
                   </div>
-                  <div className="bg-white/5 rounded-xl p-2 border border-white/10 text-center">
-                    <p className="text-[10px] text-gray-400 uppercase mb-1">Weight</p>
-                    <p className="text-sm font-bold text-white">{m.weight || "-"} <span className="text-[8px] font-normal opacity-50">kg</span></p>
+                  <div className="bg-white/5 rounded-xl p-3 border border-white/10 text-center col-span-full sm:col-span-1">
+                    <p className="text-[10px] text-gray-400 uppercase mb-1">Plan End</p>
+                    <p className="text-sm font-bold text-white">{formatPlanDate(getMemberPlanEndDate(m))}</p>
                   </div>
-                  <div className="bg-white/5 rounded-xl p-2 border border-white/10 text-center">
-                    <p className="text-[10px] text-gray-400 uppercase mb-1">BMI</p>
-                    <p className="text-sm font-bold text-orange-400">{m.bmi || "-"}</p>
+                  <div className="bg-white/5 rounded-xl p-3 border border-white/10 text-center col-span-full sm:col-span-1">
+                    <p className="text-[10px] text-gray-400 uppercase mb-1">Remaining</p>
+                    <p className="text-sm font-bold text-orange-400">{getRemainingPlanDays(getMemberPlanEndDate(m))}</p>
                   </div>
                 </div>
               </div>

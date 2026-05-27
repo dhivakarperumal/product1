@@ -49,6 +49,7 @@ async function getAllMembers(req, res) {
     
     // Get optional admin filter from query params (for super admin)
     const filterAdminUuid = req.query.adminUuid || req.query.admin_uuid || null;
+    const filterTrainerId = req.query.trainerId || req.query.trainer_id || null;
     
     const hasCreatedBy = await hasColumn(membersTable, 'created_by');
     const hasUserId = await hasColumn(membersTable, 'user_id');
@@ -80,6 +81,11 @@ async function getAllMembers(req, res) {
       }
     }
 
+    if (filterTrainerId) {
+      whereClauses.push('m.trainerId = ?');
+      params.push(filterTrainerId);
+    }
+
     const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
     const sql = `
@@ -91,6 +97,8 @@ async function getAllMembers(req, res) {
         gm.email, 
         gm.gender,
         gm.date_of_birth AS dateOfBirth,
+        gm.join_date,
+        gm.expiry_date,
         gm.height,
         gm.weight,
         gm.bmi,
@@ -101,6 +109,12 @@ async function getAllMembers(req, res) {
         COALESCE(gm.user_id, u.id) AS u_id,
         (SELECT COUNT(*) FROM workout_programs wp WHERE wp.member_id = gm.member_id OR wp.member_id = gm.id) AS workout_count,
         (SELECT COUNT(*) FROM diet_plans dp WHERE dp.member_id = gm.id) AS diet_count,
+        m.trainerId AS membershipTrainerId,
+        s.id AS trainerId,
+        s.name AS trainerName,
+        s.employee_id AS trainerEmployeeId,
+        m.startDate AS membershipStartDate,
+        m.endDate AS membershipEndDate,
         gm.created_at,
         'members' AS source
       FROM ${membersTable} gm
@@ -111,6 +125,13 @@ async function getAllMembers(req, res) {
         )) OR
         (gm.user_id = u.id)
       )
+      LEFT JOIN memberships m ON m.id = (
+        SELECT m2.id FROM memberships m2
+        WHERE m2.memberId = gm.id AND m2.status = 'active'
+        ORDER BY m2.endDate DESC
+        LIMIT 1
+      )
+      LEFT JOIN staff s ON s.id = m.trainerId
       ${whereClause}
       ORDER BY gm.created_at DESC
     `;

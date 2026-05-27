@@ -318,9 +318,9 @@ const AddDietPlans = () => {
             id: String(membershipId),
             memberId: validMemberId,
             userId: validUserId,
-            name: m.memberName || m.username || m.user_name || "Member",
-            email: m.memberEmail || m.email || m.user_email || "",
-            mobile: m.memberMobile || m.mobile || m.user_mobile || "",
+            name: m.memberName || m.member_name || m.username || m.user_name || m.name || "Member",
+            email: m.memberEmail || m.email || m.user_email || m.gym_member_email || "",
+            mobile: m.memberMobile || m.mobile || m.user_mobile || m.member_mobile || m.memberPhone || "",
             weight: m.memberWeight || m.weight || m.userWeight || m.member_weight || m.user_weight || "",
             planName: m.planName || m.plan_name || "Plan",
           };

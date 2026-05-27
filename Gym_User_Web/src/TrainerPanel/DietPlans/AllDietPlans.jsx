@@ -28,19 +28,24 @@ const timeSlots = [
 
 const AllDietPlans = () => {
   const { user } = useAuth();
-  const trainerId = user?.id;
+  const rawTrainerId = String(
+    user?.id || user?.userId || user?.user_id || user?.employee_id || user?.employeeId || ""
+  ).trim();
+  const trainerId = rawTrainerId && rawTrainerId !== "0" ? rawTrainerId : "";
 
   const [dietPlans, setDietPlans] = useState([]);
-  const [loading, setLoading] = useState(true);
+  
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [activeWeek, setActiveWeek] = useState(1);
-  const navigate=useNavigate();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [calorieFilter, setCalorieFilter] = useState("");
 
   const filteredDietPlans = useMemo(() => {
     return dietPlans.filter((d) => {
-      const matchesSearch = `${d.memberName || ''} ${d.title || ''}`.toLowerCase().includes(search.toLowerCase());
+      const matchesSearch = `${d.memberName || ''} ${d.title || ''} ${d.memberEmail || ''} ${d.memberMobile || ''}`
+        .toLowerCase()
+        .includes(search.toLowerCase());
 
       let matchesCalorie = true;
       const c = Number(d.calories || 0);
@@ -54,36 +59,36 @@ const AllDietPlans = () => {
 
   const totalPlans = dietPlans.length;
   const uniqueMembers = [...new Set(dietPlans.map((d) => d.memberName).filter(Boolean))].length;
-  const caloriesLow = dietPlans.filter((d) => Number(d.calories || 0) > 0 && Number(d.calories || 0) < 1500).length;
   const caloriesMedium = dietPlans.filter((d) => Number(d.calories || 0) >= 1500 && Number(d.calories || 0) <= 2500).length;
 
   /* ---------------- FETCH ---------------- */
   useEffect(() => {
-    if (!trainerId) return;
-
     const fetchPlans = async () => {
       try {
-        const res = await api.get(`/diet-plans?trainerId=${trainerId}`);
+        // Admins should see all diet plans; trainers see their own
+        const role = String(user?.role || '').toLowerCase();
+        const url = role === 'admin' || role === 'super admin' ? `/diet-plans` : `/diet-plans?trainerId=${trainerId}`;
+        const res = await api.get(url);
         const data = res.data;
         // normalize snake_case to camelCase for frontend convenience
         const normalized = data.map((p) => ({
           ...p,
           memberName: p.member_name || p.memberName || "",
+          memberEmail: p.member_email || p.memberEmail || "",
+          memberMobile: p.member_mobile || p.memberMobile || "",
+          memberWeight: p.member_weight || p.memberWeight || "",
           calories: p.total_calories || p.totalCalories || 0,
           duration: p.duration,
           title: p.title || "",
         }));
         setDietPlans(normalized);
-      } catch (err) {
+       } catch (err) {
         console.error(err);
         toast.error("Failed to load diet plans");
-      } finally {
-        setLoading(false);
       }
     };
-
     fetchPlans();
-  }, [trainerId]);
+  }, [trainerId, user]);
 
   /* ---------------- DELETE ---------------- */
   const handleDelete = async (id) => {
@@ -178,7 +183,12 @@ const AllDietPlans = () => {
               {filteredDietPlans.map((d,i) => (
                 <tr key={d.id} className="border-b border-white/10">
                   <td className="px-4 py-3">{i+1}</td>
-                  <td className="px-4 py-3">{d.memberName}</td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{d.memberName || 'Member'}</div>
+                    <div className="text-xs text-slate-400">
+                      {d.memberEmail || 'No email'}{d.memberMobile ? ` • ${d.memberMobile}` : ''}
+                    </div>
+                  </td>
                   <td className="px-4 py-3">{d.title}</td>
                   <td className="px-4 py-3">{d.calories}</td>
                   <td className="px-4 py-3">{d.duration} days</td>
@@ -223,8 +233,11 @@ const AllDietPlans = () => {
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="text-sm font-semibold">{d.memberName || 'Member'}</p>
-                      <p className="text-xs text-gray-400">{d.title} • {d.calories} kcal</p>
-                      <p className="text-xs text-gray-400 mt-2">Duration: {d.duration} days</p>
+                      <p className="text-xs text-gray-400">
+                        {d.memberEmail || 'No email'}{d.memberMobile ? ` • ${d.memberMobile}` : ''}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-2">{d.title} • {d.calories} kcal</p>
+                      <p className="text-xs text-gray-400 mt-1">Duration: {d.duration} days</p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       <div className="flex gap-2">

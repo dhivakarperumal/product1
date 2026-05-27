@@ -37,10 +37,7 @@ const AllWorkouts = () => {
     return workouts.filter((w) => {
       if (!w) return false;
       
-      const matchesSearch = `${w.memberName || ''} ${w.trainerName || ''} ${w.goal || ''}`
-        .toLowerCase()
-        .includes(search.toLowerCase());
-
+      const matchesSearch = `${w.memberName || ''} ${w.trainerName || ''} ${w.goal || ''} ${w.status || ''}`
       const matchesCategory = categoryFilter ? w.category === categoryFilter : true;
       const matchesLevel = levelFilter ? w.level === levelFilter : true;
       const matchesTrainer = trainerFilter ? w.trainerName === trainerFilter : true;
@@ -59,19 +56,19 @@ const AllWorkouts = () => {
         // Convert snake_case database fields to camelCase
         const normalized = data.map((w) => ({
           id: w.id,
-          trainerId: w.trainer_id,
-          trainerName: w.trainer_name,
-          trainerSource: w.trainer_source,
-          memberId: w.member_id,
-          memberName: w.member_name,
+          trainerId: w.trainer_id || w.trainerId,
+          trainerName: w.trainer_name || w.trainerName || "Trainer",
+          trainerSource: w.trainer_source || w.trainerSource,
+          memberId: w.member_id || w.memberId,
+          memberName: w.member_name || w.memberName || "Member",
           category: w.category,
           level: w.level,
           goal: w.goal,
-          durationWeeks: w.duration_weeks,
+          durationWeeks: w.duration_weeks || w.durationWeeks,
           days: w.days,
           status: w.status,
-          createdAt: w.created_at,
-          updatedAt: w.updated_at,
+          createdAt: w.created_at || w.createdAt,
+          updatedAt: w.updated_at || w.updatedAt,
         }));
         
         console.log("📋 Admin loaded all workouts:", normalized.length);
@@ -195,14 +192,16 @@ const AllWorkouts = () => {
 
         {/* ---------------- TABLE (desktop) ---------------- */}
         <div className="hidden sm:block overflow-x-auto rounded-xl border border-white/10">
-          <table className="min-w-[800px] w-full text-sm text-left">
+          <table className="min-w-[900px] w-full text-sm text-left">
             <thead className="bg-white/10 text-gray-300">
               <tr>
                 <th className="px-4 py-4">S No</th>
                 <th className="px-4 py-4">Member</th>
                 <th className="px-4 py-4">Trainer</th>
+                <th className="px-4 py-4">Goal</th>
                 <th className="px-4 py-4">Level</th>
                 <th className="px-4 py-4">Duration</th>
+                <th className="px-4 py-4">Status</th>
                 <th className="px-4 py-4 text-center">Action</th>
               </tr>
             </thead>
@@ -210,7 +209,7 @@ const AllWorkouts = () => {
             <tbody>
               {workouts.filter(Boolean).length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="text-center py-6 text-gray-400">
+                  <td colSpan="8" className="text-center py-6 text-gray-400">
                     No workout programs added yet
                   </td>
                 </tr>
@@ -223,12 +222,10 @@ const AllWorkouts = () => {
                     <td className="px-4 py-4">{index + 1}</td>
                     <td className="px-4 py-4 font-medium">{w.memberName}</td>
                     <td className="px-4 py-4 text-white/70">{w.trainerName}</td>
+                    <td className="px-4 py-4 text-gray-200 max-w-xs truncate">{w.goal || '-'}</td>
                     <td className="px-4 py-4">{w.level}</td>
-               
-                    <td className="px-4 py-4">
-                      {w.durationWeeks} weeks
-                    </td>
-
+                    <td className="px-4 py-4">{w.durationWeeks} weeks</td>
+                    <td className="px-4 py-4 text-sm text-gray-300 capitalize">{w.status || 'active'}</td>
                     <td className="px-4 py-4 text-center space-x-3">
 
                       <button
@@ -273,7 +270,8 @@ const AllWorkouts = () => {
                     <div>
                       <p className="text-sm text-gray-200 font-semibold">{w.memberName || 'Member'}</p>
                       <p className="text-xs text-gray-400">{w.trainerName || 'No Trainer'}</p>
-                      <p className="text-xs text-gray-400">{w.level} • {w.durationWeeks} weeks</p>
+                      <p className="text-xs text-gray-400">{w.goal || 'No goal set'}</p>
+                      <p className="text-xs text-gray-400">{w.level} • {w.durationWeeks} weeks • {w.status || 'active'}</p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       <div className="flex gap-2">

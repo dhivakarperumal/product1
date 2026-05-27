@@ -273,7 +273,7 @@ const getSuggestedDietPlan = (weight, duration, title) => {
 };
 
 /* ---------- GENERATE SINGLE DAY ---------- */
-const generateMealItem = (label) => ({
+const generateMealItem = () => ({
   food: "",
   quantity: "",
   calories: "",
@@ -294,14 +294,12 @@ const AddDietPlans = () => {
   const rawTrainerId = String(user?.id || user?.userId || user?.user_id || user?.employee_id || user?.employeeId || "").trim();
   const trainerId = rawTrainerId && rawTrainerId !== "0" ? rawTrainerId : "";
   const trainerName = user?.username || "";
-  const trainerEmail = user?.email || "";
-
   const { id } = useParams();
   const navigate = useNavigate();
 
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [allAssignments, setAllAssignments] = useState([]);
+  
   const [blockedMembers, setBlockedMembers] = useState({});
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(new Set());
@@ -342,24 +340,25 @@ const AddDietPlans = () => {
 
         const formatted = assignments.map((d, index) => {
           const membershipId = d.membershipId || d.membership_id || d.id || index;
-          const rawMemberId = d.memberId || d.member_id || null;
+          const rawMemberId = d.memberId || d.member_id || d.member_uuid || d.memberUuid || null;
           const validMemberId = rawMemberId && String(rawMemberId).trim() !== "0" ? String(rawMemberId).trim() : null;
-          const rawUserId = d.userId || d.user_id || null;
+          const rawUserId = d.userId || d.user_id || d.user_uuid || d.userId || null;
           const validUserId = rawUserId && String(rawUserId).trim() !== "0" ? String(rawUserId).trim() : null;
           return {
             id: String(membershipId),
+            // `id` is the membership record id; `memberId` may be a member uuid or numeric id
             memberId: validMemberId,
             userId: validUserId,
-            name: d.username || d.user_name || "Member",
-            email: d.userEmail || d.user_email || "",
-            mobile: d.userMobile || d.user_mobile || "",
+            // try multiple possible name fields returned by the API
+            name: d.memberName || d.username || d.user_name || d.member_name || d.name || d.full_name || "Member",
+            email: d.userEmail || d.user_email || d.member_email || d.email || "",
+            mobile: d.userMobile || d.user_mobile || d.member_mobile || d.mobile || "",
             weight: d.weight || d.userWeight || d.memberWeight || d.member_weight || d.user_weight || "",
             planName: d.planName || d.plan_name || "Plan",
           };
         });
 
         setMembers(formatted);
-        setAllAssignments(assignments);
 
         const dietRes = await api.get(`/diet-plans?trainerId=${encodeURIComponent(trainerId)}`);
         const dietData = Array.isArray(dietRes.data)
@@ -375,7 +374,7 @@ const AddDietPlans = () => {
     };
 
     fetchMembers();
-  }, [user]);
+  }, [user, trainerId]);
 
   const getMemberBlockExpiry = (member) => {
     return (
@@ -708,11 +707,12 @@ const AddDietPlans = () => {
           try {
             const memberWeight = m.weight || form.memberWeight || 70;
             const payloadTitle = form.title || getSuggestedDietTitle(memberWeight);
+            const resolvedMemberId = m.id || m.memberId || m.member_id || undefined;
             const payload = {
               trainerId: trainerId || undefined,
               trainerName,
               trainerSource: user?.role || "trainer",
-              memberId: m.memberId || undefined,
+              memberId: resolvedMemberId,
               userId: m.userId || undefined,
               memberName: m.name,
               memberEmail: m.email,
@@ -798,7 +798,8 @@ const AddDietPlans = () => {
       );
       setForm((prev) => ({
         ...prev,
-        memberId: member.memberId,
+        // use membership record id when available (membership id), fallback to memberId
+        memberId: member.id || member.memberId,
         memberName: member.name,
         memberEmail: member.email,
         memberMobile: member.mobile,

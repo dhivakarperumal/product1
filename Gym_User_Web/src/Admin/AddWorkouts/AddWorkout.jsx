@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import imageCompression from "browser-image-compression";
@@ -67,15 +67,15 @@ const AddWorkout = () => {
         const memberList = Array.isArray(data) ? data : data.data || data.memberships || [];
 
         const formattedMembers = memberList.map((m, index) => {
-          const fallbackId = m.id || m.memberId || m.membershipId || m.userId || index;
+          const fallbackId = m.memberId || m.member_id || m.id || m.membershipId || m.userId || index;
           return {
             id: String(fallbackId),
-            memberId: normalizeMemberId(m.id || m.memberId || m.membershipId || m.userId || fallbackId),
-            userId: normalizeMemberId(m.userId || m.user_id || null),
-            name: m.memberName || m.username || m.user_name || "Member",
-            planName: m.planName || m.plan_name || "Plan",
-            email: m.memberEmail || m.email || m.user_email || "",
-            mobile: m.memberMobile || m.mobile || m.user_mobile || "",
+            memberId: normalizeMemberId(m.memberId || m.member_id || m.id || m.membershipId || m.userId || fallbackId),
+            userId: normalizeMemberId(m.userId || m.user_id || m.user_id_resolved || null),
+            name: m.memberName || m.member_name || m.name || m.username || m.user_name || "Member",
+            planName: m.planName || m.plan_name || m.plan || "Plan",
+            email: m.memberEmail || m.member_email || m.email || m.user_email || "",
+            mobile: m.memberMobile || m.member_mobile || m.phone || m.member_phone || m.mobile || m.user_mobile || "",
             source: "membership",
           };
         });
@@ -197,14 +197,19 @@ const AddWorkout = () => {
         // Bulk Create
         let successCount = 0;
         let failCount = 0;
+        const failedDetails = [];
 
         for (const m of selectedMembers) {
           try {
+            // Prefer sending the membership primary id (membership.id) as memberId when available,
+            // otherwise send memberUuid (memberId) or userId. Include userId explicitly when present.
+            const resolvedMemberId = m.id || m.memberId || m.member_id || undefined;
             const payload = {
               trainerId: user.id,
               trainerName: adminName,
-              memberId: m.memberId || m.id,
-              userId: m.userId || undefined,
+              // backend accepts numeric membership id OR UUID-like member identifier; include both where possible
+              memberId: resolvedMemberId,
+              userId: m.userId || m.user_id || undefined,
               memberName: m.name,
               memberEmail: m.email,
               memberMobile: m.mobile,
@@ -216,16 +221,20 @@ const AddWorkout = () => {
             await api.post(`/workouts`, payload);
             successCount++;
           } catch (err) {
-            console.error(`Failed for member ${m.name}:`, err);
+            const errMsg = err?.response?.data?.error || JSON.stringify(err?.response?.data) || err.message || 'Unknown error';
+            console.error(`Failed to create workout for member ${m.name} (id=${m.id} memberId=${m.memberId}):`, errMsg);
             failCount++;
+            failedDetails.push({ name: m.name, id: m.id, memberId: m.memberId, message: String(errMsg) });
           }
         }
-
         if (successCount > 0) {
           toast.success(`Created workout for ${successCount} member(s) 💪`);
         }
         if (failCount > 0) {
-          toast.error(`Failed to create for ${failCount} member(s)`);
+          // Build a concise message listing failed member names (max 3) and present count
+          const sample = failedDetails.slice(0, 3).map(f => `${f.name}: ${f.message}`).join('\n');
+          toast.error(`Failed for ${failCount} member(s). ${sample ? '\n' + sample : ''}`);
+          console.warn('Failed details:', failedDetails);
         }
 
         if (successCount > 0) {

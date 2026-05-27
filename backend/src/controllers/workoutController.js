@@ -7,6 +7,14 @@ function isNumeric(value) {
   return typeof value === 'number' || (/^\d+$/.test(String(value || '').trim()));
 }
 
+async function resolveMemberTable() {
+  const [memberRows] = await db.query("SHOW TABLES LIKE 'members'");
+  if (memberRows.length > 0) return 'members';
+  const [gymRows] = await db.query("SHOW TABLES LIKE 'gym_members'");
+  if (gymRows.length > 0) return 'gym_members';
+  return 'members';
+}
+
 async function normalizeTrainerId(trainerId) {
   if (!trainerId) return null;
   const requested = String(trainerId).trim();
@@ -34,9 +42,9 @@ async function resolveTrainerDetails(trainerId, trainerName) {
   );
 
   if (staffRows.length === 0) {
-    if (isNumeric(requested)) {
-      throw new Error('Invalid trainerId for workout');
-    }
+    // Do not throw for numeric or string trainer identifiers here.
+    // If staff not found, treat the requested value as the trainer identifier (UUID/string)
+    // This keeps backward compatibility with systems that pass UUIDs or non-staff identifiers.
     return { trainerUuid: requested, trainerName };
   }
 
@@ -153,9 +161,10 @@ async function getAllWorkouts(req, res) {
     const params = [];
 
     const userRole = String(req.user?.role || '').toLowerCase();
+    console.log('[getAllWorkouts] user:', { role: userRole, userId: req.user?.id, admin_id: req.user?.admin_id, user_uuid: req.user?.user_uuid, adminUuid: getActorUuid(req.user) });
 
     // Check if user is super admin
-    const isSuperAdmin = userRole === 'super admin';
+    const isSuperAdmin = ['super admin', 'superadmin'].includes(userRole);
 
     // If requester is super admin, shows all
     if (isSuperAdmin) {
@@ -164,12 +173,33 @@ async function getAllWorkouts(req, res) {
     // If requester is admin, filter by admin_uuid or admin_id
     else if (userRole === 'admin') {
       const adminUuid = getActorUuid(req.user);
-      if (adminUuid) {
-        sql += ' AND (created_by = ? OR admin_id = ?)';
-        params.push(adminUuid, req.user.userId);
-      } else {
-        sql += ' AND admin_id = ?';
-        params.push(req.user.userId);
+      const adminId = req.user.admin_id || req.user.userId || req.user.id || req.user.user_id || null;
+      const memberTable = await resolveMemberTable();
+
+      if (adminUuid && adminId) {
+        const memberSubquery = `member_id COLLATE utf8mb4_general_ci IN (
+          SELECT COALESCE(member_id COLLATE utf8mb4_general_ci, CAST(id AS CHAR COLLATE utf8mb4_general_ci))
+          FROM ${memberTable}
+          WHERE created_by COLLATE utf8mb4_general_ci = ? OR user_id = CAST(? AS UNSIGNED)
+        )`;
+        sql += ` AND (${memberSubquery} OR created_by COLLATE utf8mb4_general_ci = ? OR admin_id = CAST(? AS UNSIGNED))`;
+        params.push(adminUuid, adminId, adminUuid, adminId);
+      } else if (adminId) {
+        const memberSubquery = `member_id COLLATE utf8mb4_general_ci IN (
+          SELECT COALESCE(member_id COLLATE utf8mb4_general_ci, CAST(id AS CHAR COLLATE utf8mb4_general_ci))
+          FROM ${memberTable}
+          WHERE user_id = CAST(? AS UNSIGNED)
+        )`;
+        sql += ` AND (${memberSubquery} OR admin_id = CAST(? AS UNSIGNED))`;
+        params.push(adminId, adminId);
+      } else if (adminUuid) {
+        const memberSubquery = `member_id COLLATE utf8mb4_general_ci IN (
+          SELECT COALESCE(member_id COLLATE utf8mb4_general_ci, CAST(id AS CHAR COLLATE utf8mb4_general_ci))
+          FROM ${memberTable}
+          WHERE created_by COLLATE utf8mb4_general_ci = ?
+        )`;
+        sql += ` AND (${memberSubquery} OR created_by COLLATE utf8mb4_general_ci = ?)`;
+        params.push(adminUuid, adminUuid);
       }
     }
     // If requester is a member, show only workouts assigned to them
@@ -179,7 +209,7 @@ async function getAllWorkouts(req, res) {
       const userPhone = req.user?.phone || req.user?.mobile || '';
 
       const [memberRows] = await db.query(
-        'SELECT id, member_id FROM members WHERE email = ? OR phone = ? LIMIT 1',
+        'SELECT id, member_id FROM members WHERE email COLLATE utf8mb4_general_ci = ? OR phone COLLATE utf8mb4_general_ci = ? LIMIT 1',
         [userEmail, userPhone]
       );
 
@@ -188,7 +218,7 @@ async function getAllWorkouts(req, res) {
         const memberIdValue = member.id;
         const memberUuidValue = member.member_id || member.id;
 
-        sql += ' AND (member_id = ? OR member_id = ?';
+        sql += ' AND (member_id COLLATE utf8mb4_general_ci = ? OR member_id COLLATE utf8mb4_general_ci = ?';
         params.push(memberIdValue, memberUuidValue);
 
         if (requestUserId) {
@@ -198,7 +228,7 @@ async function getAllWorkouts(req, res) {
 
         sql += ')';
       } else if (requestUserId) {
-        sql += ' AND (user_id = ? OR member_id = ?)';
+        sql += ' AND (user_id = ? OR member_id COLLATE utf8mb4_general_ci = ?)';
         params.push(requestUserId, requestUserId);
       } else {
         sql += ' AND 0';
@@ -213,7 +243,10 @@ async function getAllWorkouts(req, res) {
 
     sql += ' ORDER BY created_at DESC';
 
+    console.log('[getAllWorkouts] SQL:', sql);
+    console.log('[getAllWorkouts] params:', params);
     const [rows] = await db.query(sql, params);
+    console.log('[getAllWorkouts] returning:', rows.length, 'rows');
     res.json(rows.map(parseWorkout));
   } catch (err) {
     console.error('getAllWorkouts error', err);

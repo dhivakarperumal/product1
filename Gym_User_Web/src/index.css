@@ -77,3 +77,20 @@ input[type="time"]::-moz-focus-inner,
 input[type="date"]::-moz-focus-inner {
   border: 0;
 }
+
+select,
+select:focus {
+  background: rgba(15, 23, 42, 0.95) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+select option {
+  background: rgba(15, 23, 42, 0.98);
+  color: #ffffff;
+}
+
+select::-ms-expand {
+  filter: invert(1) brightness(2);
+}
+

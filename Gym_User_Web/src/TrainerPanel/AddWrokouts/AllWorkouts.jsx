@@ -62,19 +62,19 @@ const AllWorkouts = () => {
         // convert snake_case database fields to camelCase; keep legacy shape
         const normalized = data.map((w) => ({
           id: w.id,
-          trainerId: w.trainer_id,
-          trainerName: w.trainer_name,
-          trainerSource: w.trainer_source,
-          memberId: w.member_id,
-          memberName: w.member_name,
+          trainerId: w.trainer_id || w.trainerId,
+          trainerName: w.trainer_name || w.trainerName || "Trainer",
+          trainerSource: w.trainer_source || w.trainerSource,
+          memberId: w.member_id || w.memberId,
+          memberName: w.member_name || w.memberName || "Member",
           category: w.category,
           level: w.level,
           goal: w.goal,
-          durationWeeks: w.duration_weeks,
+          durationWeeks: w.duration_weeks || w.durationWeeks,
           days: w.days,
           status: w.status,
-          createdAt: w.created_at,
-          updatedAt: w.updated_at,
+          createdAt: w.created_at || w.createdAt,
+          updatedAt: w.updated_at || w.updatedAt,
         }));
         setWorkouts(normalized);
       })

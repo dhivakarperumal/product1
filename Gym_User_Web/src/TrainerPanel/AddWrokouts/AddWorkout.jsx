@@ -123,15 +123,15 @@ const AddWorkout = () => {
           : aData.data || aData.assignments || [];
 
         const assignedMembers = assignments.map((a, index) => {
-          const fallbackId = a.memberId || a.member_id || a.membershipId || a.membership_id || a.userId || a.user_id || a.id || index;
+          const fallbackId = a.memberId || a.member_id || a.membershipId || a.membership_id || a.id || a.userId || a.user_id || index;
           return {
             id: String(fallbackId),
             memberId: normalizeMemberId(a.memberId || a.member_id || a.membershipId || a.membership_id || a.userId || a.user_id || a.id || fallbackId),
-            userId: normalizeMemberId(a.userId || a.user_id || null),
-            name: a.username || a.user_name || "Member",
-            planName: a.planName || a.plan_name || "Plan",
-            email: a.userEmail || a.user_email || "",
-            mobile: a.userMobile || a.user_mobile || "",
+            userId: normalizeMemberId(a.userId || a.user_id || a.user_id_resolved || null),
+            name: a.memberName || a.member_name || a.name || a.username || a.user_name || "Member",
+            planName: a.planName || a.plan_name || a.plan || "Plan",
+            email: a.memberEmail || a.member_email || a.email || a.user_email || "",
+            mobile: a.memberMobile || a.member_mobile || a.phone || a.mobile || a.user_mobile || "",
             source: "assign",
           };
         });
@@ -266,14 +266,16 @@ const AddWorkout = () => {
         }
         let successCount = 0;
         let failCount = 0;
+        const failedDetails = [];
 
         for (const m of selectedMembers) {
           try {
+            const resolvedMemberId = m.id || m.memberId || m.member_id || undefined;
             const payload = {
               trainerId,
               trainerName,
-              memberId: m.memberId || m.id,
-              userId: m.userId || undefined,
+              memberId: resolvedMemberId,
+              userId: m.userId || m.user_id || undefined,
               memberName: m.name,
               memberEmail: m.email,
               memberMobile: m.mobile,
@@ -285,8 +287,10 @@ const AddWorkout = () => {
             await api.post(`/workouts`, payload);
             successCount++;
           } catch (err) {
-            console.error(`Failed for member ${m.name}:`, err);
+            const errMsg = err?.response?.data?.error || JSON.stringify(err?.response?.data) || err.message || 'Unknown error';
+            console.error(`Failed to create workout for member ${m.name} (id=${m.id} memberId=${m.memberId}):`, errMsg);
             failCount++;
+            failedDetails.push({ name: m.name, id: m.id, memberId: m.memberId, message: String(errMsg) });
           }
         }
 
@@ -294,7 +298,9 @@ const AddWorkout = () => {
           toast.success(`Created workout for ${successCount} member(s) 💪`);
         }
         if (failCount > 0) {
-          toast.error(`Failed to create for ${failCount} member(s)`);
+          const sample = failedDetails.slice(0, 3).map(f => `${f.name}: ${f.message}`).join('\n');
+          toast.error(`Failed for ${failCount} member(s). ${sample ? '\n' + sample : ''}`);
+          console.warn('Failed details:', failedDetails);
         }
 
         if (successCount > 0) {

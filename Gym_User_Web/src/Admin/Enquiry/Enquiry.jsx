@@ -614,7 +614,7 @@ const Enquiry = () => {
                             </button>
                           ) : (
                             <span className="px-3 py-2 rounded-full bg-slate-700/60 text-xs text-slate-200 border border-slate-600">
-                              {enquiry.status === 'completed' ? 'Converted' : 'Locked'}
+                              {enquiry.status === 'completed' ? 'Converted' : 'Cancelled'}
                             </span>
                           )}
 
@@ -625,16 +625,6 @@ const Enquiry = () => {
                               title="Mark Completed"
                             >
                               <CheckCircle size={16} />
-                            </button>
-                          )}
-
-                          {enquiry.status !== 'cancelled' && (
-                            <button
-                              onClick={() => updateStatus(enquiry.id, 'cancelled')}
-                              className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-xl transition-colors border border-red-500/30"
-                              title="Mark Cancelled"
-                            >
-                              <XCircle size={16} />
                             </button>
                           )}
 
