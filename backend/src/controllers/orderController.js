@@ -220,46 +220,58 @@ async function getOrder(req, res) {
 // update order status and optionally cancelled reason or shipping info
 async function updateOrderStatus(req, res) {
   const { id } = req.params;
-  const { status, cancelledReason, courierName, docketNumber } = req.body;
-  if (!status) {
-    console.warn(`[OrderStatus] No status provided in request body for order_id:`, id, 'Body:', req.body);
-    return res.status(400).json({ message: 'status required' });
+  const { status, paymentStatus, payment_status, cancelledReason, courierName, docketNumber } = req.body;
+  const finalPaymentStatus = paymentStatus || payment_status;
+  if (!status && !finalPaymentStatus) {
+    console.warn(`[OrderStatus] No status or paymentStatus provided in request body for order_id:`, id, 'Body:', req.body);
+    return res.status(400).json({ message: 'status or paymentStatus required' });
   }
   try {
-    console.log(`[OrderStatus] Attempting to update order_id:`, id, 'to status:', status, 'Body:', req.body, 'User:', req.user);
+    console.log(`[OrderStatus] Attempting to update order_id:`, id, 'to status:', status, 'paymentStatus:', finalPaymentStatus, 'Body:', req.body, 'User:', req.user);
     // Normalize order_id format if needed
     let normalizedId = id;
     if (typeof id === 'string' && !id.startsWith('ORD')) {
       const num = parseInt(id.replace(/[^0-9]/g, ''), 10) || 0;
       normalizedId = `ORD${String(num).padStart(3, '0')}`;
     }
-    // Get the current order_track
-    const [existingOrder] = await pool.query(
-      'SELECT order_track FROM orders WHERE order_id = ?',
-      [normalizedId]
-    );
-
-    if (existingOrder.length === 0) {
-      console.warn(`[OrderStatus] Order not found for id:`, normalizedId, 'Requested by user:', req.user);
-      return res.status(404).json({ message: 'Order not found' });
-    }
-
+    // Get the current order_track if we need to update order status
     let trackArray = [];
-    if (existingOrder[0].order_track) {
-      try {
-        trackArray = JSON.parse(existingOrder[0].order_track);
-      } catch (e) {
-        trackArray = [];
+    if (status) {
+      const [existingOrder] = await pool.query(
+        'SELECT order_track FROM orders WHERE order_id = ?',
+        [normalizedId]
+      );
+
+      if (existingOrder.length === 0) {
+        console.warn(`[OrderStatus] Order not found for id:`, normalizedId, 'Requested by user:', req.user);
+        return res.status(404).json({ message: 'Order not found' });
       }
+
+      if (existingOrder[0].order_track) {
+        try {
+          trackArray = JSON.parse(existingOrder[0].order_track);
+        } catch (e) {
+          trackArray = [];
+        }
+      }
+      // Add new status to track
+      trackArray.push({ status, time: new Date() });
     }
-    // Add new status to track
-    trackArray.push({ status, time: new Date() });
 
     const updatedBy = getActorUuid(req.user) || null;
 
-    // Build update query dynamically to avoid overwriting existing tracking info if not provided
-    let query = 'UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP, order_track = ?, updated_by = ?';
-    let params = [status, JSON.stringify(trackArray), updatedBy];
+    // Build update query dynamically to avoid overwriting existing fields if not provided
+    let query = 'UPDATE orders SET updated_at = CURRENT_TIMESTAMP, updated_by = ?';
+    let params = [updatedBy];
+
+    if (status) {
+      query += ', status = ?, order_track = ?';
+      params.push(status, JSON.stringify(trackArray));
+    }
+    if (finalPaymentStatus) {
+      query += ', payment_status = ?';
+      params.push(finalPaymentStatus);
+    }
 
     if (courierName) {
       query += ', courier_name = ?';

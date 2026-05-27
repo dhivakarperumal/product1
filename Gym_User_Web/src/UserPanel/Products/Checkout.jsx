@@ -82,13 +82,13 @@ export default function Checkout() {
     fetchMember();
     // eslint-disable-next-line
   }, [userId]);
-  const { cartItems, loading: cartLoading } = useCart();
+  const { cartItems } = useCart();
 
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [placing, setPlacing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("CASH");
-  const [orderType, setOrderType] = useState("DELIVERY");
+  const orderType = "PICKUP";
   const [shipping, setShipping] = useState({
     name: "",
     email: "",
@@ -165,7 +165,7 @@ export default function Checkout() {
     }
   }, [userId, items, isBuyNow]);
 
-  const saveOrder = useCallback(async (paymentId = null) => {
+  const saveOrder = async (paymentId = null) => {
     if (placing) return;
     if (!userId) {
       toast.error("User not logged in");
@@ -298,7 +298,7 @@ export default function Checkout() {
                        "Order failed";
       toast.error(errorMsg);
     }
-  }, [userId, items, orderType, shipping, paymentMethod, subtotal, total, clearCart]);
+  }
 
   const placeOrder = async () => {
     if (!userId) {
@@ -307,21 +307,10 @@ export default function Checkout() {
       return;
     }
 
-    if (orderType === "DELIVERY") {
-      if (!shipping.name || shipping.name.trim() === "")
-        return toast.error("❌ Enter your name");
-      if (!shipping.phone || shipping.phone.trim() === "")
-        return toast.error("❌ Enter your phone number");
-      if (!shipping.address || shipping.address.trim() === "")
-        return toast.error("❌ Enter your address");
-      if (!shipping.state || shipping.state.trim() === "")
-        return toast.error("❌ Select your state");
-    } else {
-      if (!shipping.name || shipping.name.trim() === "")
-        return toast.error("❌ Enter your name");
-      if (!shipping.phone || shipping.phone.trim() === "")
-        return toast.error("❌ Enter your phone number");
-    }
+    if (!shipping.name || shipping.name.trim() === "")
+      return toast.error("❌ Enter your name");
+    if (!shipping.phone || shipping.phone.trim() === "")
+      return toast.error("❌ Enter your phone number");
 
     if (!items.length) return toast.error("❌ Cart is empty");
 
@@ -400,28 +389,10 @@ export default function Checkout() {
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6">
             <h3 className="text-xl font-bold text-white mb-4">Shipping Details</h3>
 
-            {/* ORDER TYPE TOGGLE */}
-            <div className="flex gap-4 mb-6">
-              <button
-                onClick={() => setOrderType("DELIVERY")}
-                className={`flex-1 py-3 rounded-xl border cursor-pointer transition ${
-                  orderType === "DELIVERY"
-                    ? "bg-orange-500/20 border-orange-500"
-                    : "border-white/10 hover:border-white/20"
-                }`}
-              >
-                Delivery
-              </button>
-              <button
-                onClick={() => setOrderType("PICKUP")}
-                className={`flex-1 py-3 rounded-xl border cursor-pointer transition ${
-                  orderType === "PICKUP"
-                    ? "bg-orange-500/20 border-orange-500"
-                    : "border-white/10 hover:border-white/20"
-                }`}
-              >
-                Shop Pickup
-              </button>
+            <div className="mb-6">
+              <div className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white font-semibold">
+                <span>Shop Pickup</span>
+              </div>
             </div>
 
             {/* SAVED ADDRESSES */}
@@ -556,19 +527,7 @@ export default function Checkout() {
                 </div>
               </label>
 
-              <label className="flex gap-3 cursor-pointer p-3 rounded-lg hover:bg-white/5 transition">
-                <input
-                  type="radio"
-                  checked={paymentMethod === "ONLINE"}
-                  onChange={() => setPaymentMethod("ONLINE")}
-                  className="w-4 h-4 mt-1"
-                />
-                <div>
-                  <p className="text-white font-semibold text-sm">Online Payment</p>
-                  <p className="text-white/50 text-xs">Secure payment via Razorpay</p>
-                </div>
-              </label>
-            </div>
+              </div>
           </div>
         </div>
 
