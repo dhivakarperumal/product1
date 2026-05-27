@@ -32,71 +32,15 @@ import { LogOut } from "lucide-react";
 /* ================= NAV ITEMS ================= */
 const navItems = [
   { path: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-
   { path: "/admin/enquiry", label: "Enquiry", icon: MessageSquare },
-  { path: "/admin/payments", label: "Payments", icon: CreditCard },
-
-  { path: "/admin/emi-tracking", label: "EMI Tracking", icon: TrendingUp },
-
+  { path: "/admin/buyplanadmin", label: "Buy Plans", icon: CreditCard },
   { path: "/admin/members", label: "Members", icon: Users },
   { path: "/admin/memberships", label: "Memberships", icon: ClipboardList },
-
-  { path: "/admin/buyplanadmin", label: "Buy Plans", icon: CreditCard },
-
+  { path: "/admin/payments", label: "Payments", icon: CreditCard },
+  { path: "/admin/emi-tracking", label: "EMI Tracking", icon: TrendingUp },
   { path: "/admin/billing", label: "Billing", icon: Receipt },
-
   { path: "/admin/orders", label: "Orders", icon: ShoppingCart },
-
   { path: "/admin/send-message", label: "Send Message", icon: Send },
-
- 
-
-  {
-    label: "Plans & Products",
-    icon: Package,
-    children: [
-      { path: "/admin/products", label: "Products", icon: Dumbbell },
-      { path: "/admin/plansall", label: "Plans", icon: ClipboardList },
-      { path: "/admin/fecilities", label: "Facilities", icon: Activity },
-      { path: "/admin/stockdetails", label: "Supplements Stock", icon: Boxes },
-    ],
-  },
-
-  
-
-
-
-
-
-  {
-    label: "Trainers & Staff",
-    icon: UserRound,
-    children: [
-      { path: "/admin/staff", label: "Trainers", icon: HeartPulse },
-      { path: "/admin/assignedtrainers", label: "Assigned Trainers", icon: UserCheck },
-      { path: "/admin/trainer-target", label: "Trainer Target", icon: TrendingUp },
-    ],
-  },
-
-  {
-    label: "Attendance",
-    icon: CalendarCheck,
-    children: [
-      { path: "/admin/overall-attendance", label: "Staff Attendance", icon: UserCheck },
-      { path: "/admin/member-attendance", label: "Members Attendance", icon: Users },
-    ],
-  },
-  {
-    label: "Workout & Diet",
-    icon: HeartPulse,
-    children: [
-    
-      { path: "/admin/addworkouts", label: "Add Workouts", icon: Dumbbell },
-      { path: "/admin/alladdworkouts", label: "All Workouts", icon: ClipboardList },
-      { path: "/admin/adddietplans", label: "Add Diet Plans", icon: HeartPulse },
-      { path: "/admin/alladddietplans", label: "All Diet Plans", icon: ClipboardList },
-    ],
-  },
   { path: "/admin/reports", label: "Reports & Analytics", icon: BarChart3 },
 
 ];
