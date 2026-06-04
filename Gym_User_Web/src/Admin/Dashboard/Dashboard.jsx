@@ -34,6 +34,7 @@ import {
 } from "react-icons/fa";
 import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../PrivateRouter/AuthContext";
 import toast from "react-hot-toast";
 import cache from "../../cache";
 import api from "../../api";
@@ -209,10 +210,33 @@ const ProgressCard = ({ title, value, maxValue, color, icon, percentage }) => (
 
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+const SUBSCRIPTION_PLAN_DAYS = {
+  demo: 5,
+  '1month': 30,
+  '6month': 180,
+  '12month': 365,
+};
+
+const getSubscriptionEndDate = (startDate, plan) => {
+  if (!startDate) return null;
+  const normalizedPlan = String(plan || 'demo').toLowerCase();
+  const duration = SUBSCRIPTION_PLAN_DAYS[normalizedPlan] ?? 30;
+  const date = dayjs(startDate);
+  if (!date.isValid()) return null;
+  return date.add(duration, 'day').endOf('day');
+};
+
 /* -------------------- DASHBOARD -------------------- */
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const subscriptionEndDate = getSubscriptionEndDate(user?.subscription_start_date, user?.subscription_plan);
+  const subscriptionDaysRemaining = subscriptionEndDate ? subscriptionEndDate.diff(dayjs(), 'day') : null;
+  const subscriptionEndLabel = subscriptionEndDate ? subscriptionEndDate.format('DD/MM/YYYY') : 'Not set';
+  const isSubscriptionExpiringSoon = user?.subscription_status === 'active' && subscriptionDaysRemaining !== null && subscriptionDaysRemaining <= 5 && subscriptionDaysRemaining >= 0;
+  const isSubscriptionExpired = user?.subscription_status !== 'active' || (subscriptionDaysRemaining !== null && subscriptionDaysRemaining < 0);
 
   /* ---------- TOP STATS (GYM) ---------- */
   const [stats, setStats] = useState(() => cache.dashboardStats || {
@@ -552,6 +576,33 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {user?.role === 'admin' && (isSubscriptionExpiringSoon || isSubscriptionExpired) && (
+        <div className={`rounded-3xl border p-5 ${isSubscriptionExpiringSoon ? 'border-amber-400/30 bg-amber-500/5' : 'border-red-500/30 bg-red-500/5'} shadow-lg mb-6`}>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3 text-white">
+              <div className={`p-3 rounded-2xl ${isSubscriptionExpiringSoon ? 'bg-amber-400/20 text-amber-300' : 'bg-red-500/20 text-red-300'}`}>
+                <FaExclamationTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-lg font-semibold">
+                  {isSubscriptionExpired ? 'Admin subscription has expired' : 'Admin subscription ending soon'}
+                </p>
+                <p className="text-sm text-slate-200 mt-1">
+                  {isSubscriptionExpired
+                    ? `Your subscription expired on ${subscriptionEndLabel}. Contact your super admin to renew.`
+                    : `Your subscription expires in ${subscriptionDaysRemaining} day${subscriptionDaysRemaining === 1 ? '' : 's'} (ends ${subscriptionEndLabel}). Renew before expiry.`}
+                </p>
+              </div>
+            </div>
+            {isSubscriptionExpiringSoon && (
+              <div className="rounded-2xl bg-amber-400/10 px-4 py-2 text-amber-100 font-semibold">
+                Renew within {subscriptionDaysRemaining} day{subscriptionDaysRemaining === 1 ? '' : 's'}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ADVANCED STAT CARDS GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
@@ -584,6 +635,17 @@ export default function Dashboard() {
           trend="up"
           trendValue="5"
           subtitle="Available plans"
+          onClick={() => navigate('/admin/plansall')}
+          isLoading={loading}
+        />
+        <StatCard
+          title="Subscription Left"
+          value={loading ? "..." : subscriptionDaysRemaining === null ? 'N/A' : subscriptionDaysRemaining < 0 ? 'Expired' : `${subscriptionDaysRemaining} days`}
+          icon={<FaCalendarAlt />}
+          color={subscriptionDaysRemaining !== null && subscriptionDaysRemaining <= 5 ? 'from-amber-500 to-orange-500' : 'from-cyan-500 to-sky-500'}
+          trend={subscriptionDaysRemaining !== null && subscriptionDaysRemaining <= 5 ? 'down' : 'neutral'}
+          trendValue={subscriptionDaysRemaining !== null && subscriptionDaysRemaining >= 0 ? `${subscriptionDaysRemaining}` : '0'}
+          subtitle={subscriptionDaysRemaining !== null ? `Ends ${subscriptionEndLabel}` : 'No subscription data'}
           onClick={() => navigate('/admin/plansall')}
           isLoading={loading}
         />

@@ -16,7 +16,7 @@ const AssingnedTrainers = () => {
   const [assignments, setAssignments] = useState({});
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("all"); // all, assigned, unassigned
-  const [viewMode, setViewMode] = useState("card"); // card, table
+  const [viewMode, setViewMode] = useState("table"); // card, table
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [dateRange, setDateRange] = useState({ type: 'All Time', range: null });
@@ -365,6 +365,16 @@ const AssingnedTrainers = () => {
 
     if (!matchesType) return false;
 
+    // Trainer filter: if a trainer is selected, ensure member has at least one assignment matching selected trainer
+    if (selectedTrainer && String(selectedTrainer).trim() !== "") {
+      const memberAssignments = getMemberAssignments(m);
+      const hasMatching = memberAssignments.some((a) => {
+        const aid = String(a.trainerId || a.trainerEmployeeId || "").trim();
+        return aid === String(selectedTrainer);
+      }) || String(m.trainerId || "").trim() === String(selectedTrainer) || String(m.trainerEmployeeId || "").trim() === String(selectedTrainer);
+      if (!hasMatching) return false;
+    }
+
     // Date Range Filter (using startDate of first plan)
     const firstPlanDate = (m.plans || []).length > 0 ? m.plans[0].startDate : null;
     return filterByDateRange([{ date: firstPlanDate }], 'date', dateRange.type, dateRange.range).length > 0;
@@ -491,26 +501,42 @@ const AssingnedTrainers = () => {
 
       {/* SEARCH AND FILTER */}
      <div className="mb-8">
-  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
     
     {/* 🔍 Search Bar — Left */}
-    <div className="relative w-full md:w-1/3">
+    <div className="relative w-full md:w-1/2">
       <Search className="absolute left-4 top-3 text-gray-400" size={20} />
       <input
         type="text"
         placeholder="Search by name or email..."
         value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="w-full pl-12 pr-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
+        onChange={(e) => handleSearch(e.target.value)}
+        className="w-full pl-12 pr-4 h-12 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
       />
     </div>
 
     {/* 🎛 Filter Buttons — Right */}
-    <div className="flex flex-wrap gap-3 justify-start md:justify-end items-center">
-      <DateRangeFilter onRangeChange={(type, range) => setDateRange({ type, range })} />
+    <div className="flex flex-wrap md:flex-nowrap gap-3 justify-start md:justify-end items-center">
+      <div className="h-12 flex items-center">
+        <DateRangeFilter onRangeChange={(type, range) => setDateRange({ type, range })} />
+      </div>
+
+      {/* Trainer filter dropdown */}
+      <div className="w-44">
+        <select
+          value={selectedTrainer}
+          onChange={(e) => { setSelectedTrainer(e.target.value); setCurrentPage(1); }}
+          className="w-full px-3 h-12 rounded-lg bg-white/10 border border-white/20 text-white text-sm"
+        >
+          <option value="">All Trainers</option>
+          {trainers.map((t) => (
+            <option key={t.id} value={t.id}>{t.name || t.email || t.employeeId}</option>
+          ))}
+        </select>
+      </div>
       <button
         onClick={() => handleFilterChange("all")}
-        className={`px-4 py-2 rounded-lg font-medium transition ${
+        className={`px-4 min-w-[140px] h-12 flex items-center justify-center rounded-lg font-medium transition ${
           filterType === "all"
             ? "bg-orange-500 text-white"
             : "bg-white/10 text-gray-300 border border-white/20 hover:bg-white/20"
@@ -521,7 +547,7 @@ const AssingnedTrainers = () => {
 
       <button
         onClick={() => handleFilterChange("assigned")}
-        className={`px-4 py-2 rounded-lg font-medium transition ${
+        className={`px-4 min-w-[140px] h-12 flex items-center justify-center rounded-lg font-medium transition ${
           filterType === "assigned"
             ? "bg-green-500 text-white"
             : "bg-white/10 text-gray-300 border border-white/20 hover:bg-white/20"
@@ -532,7 +558,7 @@ const AssingnedTrainers = () => {
 
       <button
         onClick={() => handleFilterChange("unassigned")}
-        className={`px-4 py-2 rounded-lg font-medium transition ${
+        className={`px-4 min-w-[140px] h-12 flex items-center justify-center rounded-lg font-medium transition ${
           filterType === "unassigned"
             ? "bg-red-500 text-white"
             : "bg-white/10 text-gray-300 border border-white/20 hover:bg-white/20"

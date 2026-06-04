@@ -73,7 +73,7 @@ const requireAdmin = (req, res, next) => {
     return res.status(401).json({ error: 'Authentication required' });
   }
 
-  const normalizedRole = String(req.user.role || '').toLowerCase();
+  const normalizedRole = String(req.user.role || '').trim().toLowerCase();
   if (!['admin', 'super admin', 'superadmin'].includes(normalizedRole)) {
     return res.status(403).json({ error: 'Admin access required' });
   }
@@ -86,7 +86,7 @@ const requireTrainerOrAdmin = (req, res, next) => {
     return res.status(401).json({ error: 'Authentication required' });
   }
 
-  const normalizedRole = String(req.user.role || '').toLowerCase();
+  const normalizedRole = String(req.user.role || '').trim().toLowerCase();
   if (!['admin', 'super admin', 'superadmin', 'trainer'].includes(normalizedRole)) {
     return res.status(403).json({ error: 'Trainer or admin access required' });
   }

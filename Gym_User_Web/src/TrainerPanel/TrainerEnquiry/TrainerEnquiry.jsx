@@ -584,9 +584,13 @@ const TrainerEnquiry = () => {
                               <Users size={16} />
                             </button>
                           ) : (
-                            <span className="px-3 py-2 rounded-full bg-slate-700/60 text-xs text-slate-200 border border-slate-600">
-                              {enquiry.status === 'completed' ? 'Converted' : 'Closed'}
-                            </span>
+                            <button
+                              disabled
+                              className="p-2 bg-slate-700/20 text-slate-400 rounded-xl transition-colors border border-slate-600 opacity-50 cursor-not-allowed"
+                              title={enquiry.status === 'completed' ? 'Already converted' : 'Enquiry closed'}
+                            >
+                              {enquiry.status === 'completed' ? <Users size={16} /> : <XCircle size={16} />}
+                            </button>
                           )}
                         </div>
                       </td>
@@ -746,6 +750,7 @@ const TrainerEnquiry = () => {
                     <label className="block text-sm font-medium text-gray-300 mb-2">Height (cm)</label>
                     <input
                       type="number"
+                      min="1"
                       value={formData.height}
                       onChange={(e) => setFormData({ ...formData, height: e.target.value })}
                       readOnly={!!selectedEnquiry}
@@ -757,6 +762,7 @@ const TrainerEnquiry = () => {
                     <label className="block text-sm font-medium text-gray-300 mb-2">Weight (kg)</label>
                     <input
                       type="number"
+                      min="1"
                       value={formData.weight}
                       onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
                       readOnly={!!selectedEnquiry}

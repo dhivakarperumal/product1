@@ -1,41 +1,68 @@
 const db = require('../config/db');
 
+const isNumeric = (value) => {
+  const normalized = String(value || '').trim();
+  return /^[1-9]\d*$/.test(normalized);
+};
+
 async function resolveTrainerStaffId(trainerId) {
   if (!trainerId) return null;
-  const numericId = Number(trainerId);
-  if (!Number.isNaN(numericId) && numericId > 0) {
-    const [staffById] = await db.query('SELECT id FROM staff WHERE id = ?', [numericId]);
-    if (staffById.length > 0) return numericId;
+  const requested = String(trainerId).trim();
+  if (!requested || requested === '0') return null;
+
+  if (isNumeric(requested)) {
+    const [staffRows] = await db.query(
+      'SELECT id, employee_id FROM staff WHERE id = ? OR employee_id = ? LIMIT 1',
+      [requested, requested]
+    );
+    if (staffRows.length > 0) {
+      return staffRows[0].employee_id || String(staffRows[0].id);
+    }
+  }
+
+  const [staffRows] = await db.query(
+    'SELECT id, employee_id FROM staff WHERE employee_id = ? LIMIT 1',
+    [requested]
+  );
+  if (staffRows.length > 0) {
+    return staffRows[0].employee_id;
   }
 
   const [userRows] = await db.query(
-    'SELECT id, email, username, employee_id FROM users WHERE id = ?',
-    [trainerId]
+    'SELECT id, email, username, employee_id, user_uuid FROM users WHERE id = ? OR user_uuid = ? LIMIT 1',
+    [requested, requested]
   );
   if (userRows.length === 0) return null;
 
-  const u = userRows[0];
+  const user = userRows[0];
+  if (user.employee_id) return user.employee_id;
+
   const conditions = [];
   const params = [];
-  if (u.email) {
+  if (user.email) {
     conditions.push('email = ?');
-    params.push(u.email);
+    params.push(user.email);
   }
-  if (u.username) {
+  if (user.username) {
     conditions.push('username = ?');
-    params.push(u.username);
+    params.push(user.username);
   }
-  if (u.employee_id) {
+  if (user.employee_id) {
     conditions.push('employee_id = ?');
-    params.push(u.employee_id);
+    params.push(user.employee_id);
   }
+
   if (conditions.length === 0) return null;
 
-  const [staffRows] = await db.query(
-    `SELECT id FROM staff WHERE ${conditions.join(' OR ')} LIMIT 1`,
+  const [staffByUser] = await db.query(
+    `SELECT id, employee_id FROM staff WHERE ${conditions.join(' OR ')} LIMIT 1`,
     params
   );
-  return staffRows.length > 0 ? staffRows[0].id : null;
+  if (staffByUser.length > 0) {
+    return staffByUser[0].employee_id || String(staffByUser[0].id);
+  }
+
+  return null;
 }
 
 /**

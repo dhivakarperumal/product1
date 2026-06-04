@@ -132,6 +132,7 @@ const AddStock = () => {
 
                     <input
                       type="number"
+                      min="1"
                       placeholder="Add Qty"
                       className={inputClass}
                       onChange={(e) =>

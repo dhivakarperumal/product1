@@ -58,6 +58,8 @@ const OverallAttendance = () => {
   const [savingMulti, setSavingMulti] = useState(false);
   const [attendanceStates, setAttendanceStates] = useState({}); // { memberId: boolean }
   const [locationStatus, setLocationStatus] = useState("idle");
+  const [locationDistance, setLocationDistance] = useState(null);
+  const [isAtGymLocation, setIsAtGymLocation] = useState(false);
   const [trainerCoords, setTrainerCoords] = useState(null);
   const [locationName, setLocationName] = useState("");
 
@@ -77,14 +79,24 @@ const OverallAttendance = () => {
 
       const activeMembers = membersRaw
         .filter((m) => !m.status || m.status.toLowerCase() === "active")
-        .filter((m) => String(m.userId || m.user_id) !== String(trainerUserId))
-        .map((m) => ({
-          id: m.userId || m.user_id,
-          name: m.username || m.user_name || "Unknown Member",
-          email: m.userEmail || m.user_email,
-        }));
+        .map((m) => {
+          const resolvedId =
+            m.userId || m.user_id || m.memberId || m.member_id || m.membershipId || m.gymMemberId || null;
 
-      const unique = Array.from(new Map(activeMembers.map((m) => [m.id, m])).values());
+          return {
+            id: resolvedId || `${m.email || m.username || m.user_name || m.member_name || 'member'}-${m.planId || m.plan_id || ''}`,
+            rawId: resolvedId,
+            name: m.username || m.user_name || m.member_name || "Unknown Member",
+            email: m.userEmail || m.user_email || m.member_email || m.email || "",
+          };
+        })
+        .filter((m) => String(m.rawId || m.id) !== String(trainerUserId));
+
+      const unique = Array.from(
+        new Map(activeMembers.map((m) => [String(m.id), m]))
+          .values()
+      );
+
       setAssignedMembers(unique);
     } catch (err) {
       console.error("Load members error:", err);
@@ -144,6 +156,8 @@ const OverallAttendance = () => {
   const openMarkModal = (editExisting = false) => {
     setIsEditMode(editExisting);
     setLocationStatus("idle");
+    setLocationDistance(null);
+    setIsAtGymLocation(false);
     setLocationName("");
     setTrainerCoords(null);
 
@@ -181,12 +195,12 @@ const OverallAttendance = () => {
         const { latitude, longitude } = pos.coords;
         setTrainerCoords({ lat: latitude, lng: longitude });
 
-        // Auto-mark based on distance
         const dist = getDistance(latitude, longitude, GYM_LOCATION.lat, GYM_LOCATION.lng);
         const isAtGym = dist <= GYM_LOCATION.radius;
+        setLocationDistance(dist);
+        setIsAtGymLocation(isAtGym);
 
         if (!isEditMode) {
-          // Only auto-toggle when doing a fresh mark
           const newStates = {};
           assignedMembers.forEach(m => {
             newStates[m.id] = isAtGym;
@@ -199,16 +213,17 @@ const OverallAttendance = () => {
           const data = response.data;
           const address = data.display_name || (isAtGym ? GYM_LOCATION.name : "External Location");
           setLocationName(address);
-          setLocationStatus("verified");
+          setLocationStatus(isAtGym ? "verified" : "outside");
+
           if (isAtGym) {
             toast.success("Verified at Gym Location!");
           } else {
-            toast.warning(`Outside Gym Area (${Math.round(dist)}m away).`);
+            toast.error(`Location detected, but you are ${Math.round(dist)}m away from the gym.`);
           }
         } catch (err) {
           console.error("Reverse geocoding error:", err);
           setLocationName(isAtGym ? GYM_LOCATION.name : "External Location");
-          setLocationStatus("verified");
+          setLocationStatus(isAtGym ? "verified" : "outside");
         }
       },
       () => {
@@ -216,7 +231,7 @@ const OverallAttendance = () => {
         setLocationStatus("failed");
         setLocationName("");
       },
-      { enableHighAccuracy: true }
+      { enableHighAccuracy: true, timeout: 15000 }
     );
   };
 
@@ -237,10 +252,11 @@ const OverallAttendance = () => {
   };
 
   const isAllSelected = assignedMembers.length > 0 && assignedMembers.every(m => attendanceStates[m.id]);
+  const locationReady = locationStatus === "verified" && isAtGymLocation;
 
   const handleSaveAll = async () => {
-    if (locationStatus !== "verified") {
-      return toast.error("Please verify current location first!");
+    if (!locationReady) {
+      return toast.error("Please verify current gym location first!");
     }
 
     setSavingMulti(true);
@@ -248,9 +264,14 @@ const OverallAttendance = () => {
       const promises = assignedMembers.map(member => {
         const isPresent = attendanceStates[member.id] || false;
         const statusText = isPresent ? "Present" : "Absent";
+        const resolvedMemberId = member.rawId || member.id;
+
+        if (!resolvedMemberId) {
+          throw new Error(`Member identifier is missing for ${member.name}`);
+        }
 
         const payload = {
-          memberId: member.id,
+          memberId: resolvedMemberId,
           trainerId: trainerUserId,
           status: statusText,
           date: date,
@@ -267,7 +288,11 @@ const OverallAttendance = () => {
       loadAttendanceData(date);
     } catch (err) {
       console.error(err);
-      toast.error("Error saving attendance");
+      if (err.response?.status === 409) {
+        toast.error(err.response?.data?.error || "Attendance already exists for today.");
+      } else {
+        toast.error("Error saving attendance");
+      }
     } finally {
       setSavingMulti(false);
     }
@@ -526,14 +551,23 @@ const OverallAttendance = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" onClick={() => setShowMarkModal(false)} />
           <div className="relative w-full max-w-2xl bg-[#0b0c10] border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-            <div className={`bg-gradient-to-r ${isEditMode ? "from-blue-600 to-indigo-500" : "from-red-600 to-orange-500"} p-8 flex justify-between items-center`}>
+            <div className={`bg-gradient-to-r ${isEditMode ? "from-blue-600 to-indigo-500" : "from-red-600 to-orange-500"} p-8 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4`}>
               <div>
                 <h3 className="text-2xl font-black text-white">
                   {isEditMode ? "Edit Attendance" : "Attendance Checklist"}
                 </h3>
                 <p className="text-white/80 mt-1 uppercase text-xs tracking-widest">{dayjs(date).format("DD/MM/YYYY")}</p>
               </div>
-              <button onClick={() => setShowMarkModal(false)} className="text-white/50 hover:text-white">
+              <div className="flex flex-col sm:items-end gap-2">
+                <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-[0.2em] ${locationReady ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/25' : locationStatus === 'outside' ? 'bg-red-500/15 text-red-300 border border-red-500/25' : 'bg-yellow-500/15 text-yellow-300 border border-yellow-500/25'}`}>
+                  <span className="w-2 h-2 rounded-full bg-current"></span>
+                  {locationReady ? 'Gym Location Verified' : locationStatus === 'outside' ? 'Outside Gym Area' : 'Verify Location First'}
+                </span>
+                {!locationReady && (
+                  <p className="text-[11px] text-white/70 max-w-sm text-right">You must verify your current gym location before saving attendance. Move closer to the gym or retry verification.</p>
+                )}
+              </div>
+              <button onClick={() => setShowMarkModal(false)} className="text-white/50 hover:text-white absolute right-6 top-6 sm:static">
                 <XCircle className="w-6 h-6" />
               </button>
             </div>
@@ -571,8 +605,13 @@ const OverallAttendance = () => {
                       <div>
                         <p className="text-[9px] font-black text-gray-500 uppercase">Trainer Current Location</p>
                         <p className="text-xs font-bold text-white truncate max-w-[200px]">
-                          {locationStatus === "verified" ? locationName : (locationStatus === "checking" ? "Fetching..." : "Not Verified")}
+                          {locationStatus === "verified" ? locationName : locationStatus === "checking" ? "Fetching..." : locationStatus === "outside" ? locationName || "Outside gym area" : "Not Verified"}
                         </p>
+                        {locationDistance !== null && (
+                          <p className={`text-[10px] mt-1 ${isAtGymLocation ? 'text-green-400' : 'text-red-400'}`}>
+                            {isAtGymLocation ? `Within gym radius (${Math.round(locationDistance)}m)` : `Outside gym radius (${Math.round(locationDistance)}m)`}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -585,6 +624,7 @@ const OverallAttendance = () => {
                       <div>
                         <p className="text-[9px] font-black text-gray-500 uppercase">Gym Office Location</p>
                         <p className="text-xs font-bold text-white uppercase italic">{GYM_LOCATION.name}</p>
+                        <p className="text-[10px] text-gray-500 mt-1">Radius {Math.round(GYM_LOCATION.radius)}m</p>
                       </div>
                     </div>
                   </div>
@@ -645,10 +685,10 @@ const OverallAttendance = () => {
               </button>
               <button
                 type="button"
-                disabled={savingMulti || assignedMembers.length === 0 || locationStatus !== "verified"}
+                disabled={savingMulti || assignedMembers.length === 0 || !locationReady}
                 onClick={handleSaveAll}
                 className={`flex-1 py-4 rounded-2xl text-white font-black shadow-xl active:scale-95 transition-all text-sm uppercase flex items-center justify-center gap-2 ${
-                  locationStatus === "verified"
+                  locationReady
                     ? isEditMode
                       ? "bg-gradient-to-r from-blue-600 to-indigo-500 shadow-blue-600/20"
                       : "bg-gradient-to-r from-red-600 to-orange-500 shadow-red-600/20"

@@ -598,6 +598,7 @@ const AddEditStaff = () => {
                     </label>
                     <input
                       type="number"
+                      min="1"
                       name="salary"
                       placeholder="Enter salary"
                       value={form.salary}
@@ -748,6 +749,7 @@ const AddEditStaff = () => {
                     </label>
                     <input
                       type="number"
+                      min="1"
                       name="experience"
                       placeholder="Enter experience in years"
                       value={form.experience}

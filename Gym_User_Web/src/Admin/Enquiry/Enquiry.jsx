@@ -326,7 +326,8 @@ const Enquiry = () => {
         toast.success("Enquiry deleted successfully");
       } catch (error) {
         console.error('Error deleting enquiry:', error);
-        toast.error("Failed to delete enquiry");
+        const message = error.response?.data?.details || error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to delete enquiry';
+        toast.error(message);
       }
     }
   };
@@ -613,9 +614,13 @@ const Enquiry = () => {
                               <Users size={16} />
                             </button>
                           ) : (
-                            <span className="px-3 py-2 rounded-full bg-slate-700/60 text-xs text-slate-200 border border-slate-600">
-                              {enquiry.status === 'completed' ? 'Converted' : 'Cancelled'}
-                            </span>
+                            <button
+                              disabled
+                              className="p-2 bg-slate-700/20 text-slate-400 rounded-xl transition-colors border border-slate-600 opacity-50 cursor-not-allowed"
+                              title={enquiry.status === 'completed' ? 'Already converted' : 'Enquiry closed'}
+                            >
+                              {enquiry.status === 'completed' ? <Users size={16} /> : <XCircle size={16} />}
+                            </button>
                           )}
 
                           {enquiry.status !== 'completed' && enquiry.status !== 'cancelled' && (
@@ -628,13 +633,15 @@ const Enquiry = () => {
                             </button>
                           )}
 
-                          <button
-                            onClick={() => handleDelete(enquiry.id)}
-                            className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-xl transition-colors border border-red-500/30"
-                            title="Delete Enquiry"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          {role && ['admin', 'super admin', 'superadmin'].includes(String(role).toLowerCase()) && (
+                            <button
+                              onClick={() => handleDelete(enquiry.id)}
+                              className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-xl transition-colors border border-red-500/30"
+                              title="Delete Enquiry"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -798,6 +805,7 @@ const Enquiry = () => {
                     <label className="block text-sm font-medium text-gray-300 mb-2">Height (cm)</label>
                     <input
                       type="number"
+                      min="1"
                       value={formData.height}
                       onChange={(e) => setFormData({ ...formData, height: e.target.value })}
                       className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"
@@ -808,6 +816,7 @@ const Enquiry = () => {
                     <label className="block text-sm font-medium text-gray-300 mb-2">Weight (kg)</label>
                     <input
                       type="number"
+                      min="1"
                       value={formData.weight}
                       onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
                       className="w-full px-4 py-3 bg-slate-800/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition-all"

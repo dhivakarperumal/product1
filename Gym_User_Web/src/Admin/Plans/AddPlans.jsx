@@ -331,6 +331,7 @@ const AddEditGymPlan = () => {
                   <label className="block text-sm font-semibold text-slate-300 mb-3">Price (₹) *</label>
                   <input
                     type="number"
+                    min="1"
                     name="price"
                     placeholder="0"
                     value={form.price}
@@ -344,6 +345,7 @@ const AddEditGymPlan = () => {
                   <label className="block text-sm font-semibold text-slate-300 mb-3">Discount %</label>
                   <input
                     type="number"
+                    min="0"
                     name="discount"
                     placeholder="0"
                     value={form.discount}

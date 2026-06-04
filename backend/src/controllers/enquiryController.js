@@ -754,107 +754,19 @@ const enquiryController = {
     deleteEnquiry: async (req, res) => {
         try {
             const { id } = req.params;
-            
-            // Add authorization check
-            const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
-            const userRole = req.user && String(req.user.role || '').toLowerCase();
-            let whereClause = 'WHERE id = ?';
-            let params = [];
-            
-            if (!isSuperAdmin && req.user) {
-                if (userRole === 'trainer') {
-                    // For trainers: allow deleting any enquiry from their admin
-                    const trainerUuid = req.user.userUuid || req.user.employee_id || req.user.employeeId || null;
-                    const trainerId = req.user.id || req.user.userId || req.user.user_id || null;
 
-                    let trainerStaffQuery = 'SELECT admin_uuid FROM staff WHERE ';
-                    let trainerParams = [];
-                    if (trainerUuid && trainerId) {
-                        trainerStaffQuery += '(employee_id = ? OR id = ?)';
-                        trainerParams = [trainerUuid, trainerId];
-                    } else if (trainerUuid) {
-                        trainerStaffQuery += 'employee_id = ?';
-                        trainerParams = [trainerUuid];
-                    } else if (trainerId) {
-                        trainerStaffQuery += 'id = ?';
-                        trainerParams = [trainerId];
-                    }
-
-                    if (trainerParams.length > 0) {
-                        const [staffRows] = await pool.query(trainerStaffQuery, trainerParams);
-                        if (staffRows.length > 0 && staffRows[0].admin_uuid) {
-                            whereClause += ' AND enquiries.created_by = ?';
-                            params = [staffRows[0].admin_uuid, id];
-                        } else {
-                            params = [id];
-                        }
-                    } else {
-                        params = [id];
-                    }
-                } else if (userRole === 'admin') {
-                    // Regular admins: allow deletes for enquiries created by them OR by trainers under their admin
-                    const adminFilterParams = getAdminFilterParams(req.user);
-                    let adminUuid = adminFilterParams[0] || null;
-                    let adminId = adminFilterParams[1] || adminFilterParams[0] || null;
-
-                    const createdByCandidates = [];
-                    if (adminUuid) createdByCandidates.push(adminUuid);
-                    if (adminId) createdByCandidates.push(String(adminId));
-
-                    const staffWhere = [];
-                    const staffParams = [];
-                    if (adminUuid) {
-                        staffWhere.push('admin_uuid = ?');
-                        staffParams.push(adminUuid);
-                    }
-
-                    if (staffWhere.length > 0) {
-                        const [staffRows] = await pool.query(`SELECT employee_id, id, admin_uuid FROM staff WHERE ${staffWhere.join(' OR ')}`, staffParams);
-                        for (const s of staffRows) {
-                            if (s.employee_id) createdByCandidates.push(String(s.employee_id));
-                            if (s.admin_uuid) createdByCandidates.push(String(s.admin_uuid));
-                            if (s.id) createdByCandidates.push(String(s.id));
-                        }
-                    }
-
-                    if (createdByCandidates.length > 0) {
-                        const createdPlaceholders = createdByCandidates.map(() => '?').join(',');
-
-                        // also include enquiries assigned to trainers under this admin
-                        const trainerCandidates = [];
-                        if (staffRows && staffRows.length > 0) {
-                            for (const s of staffRows) {
-                                if (s.employee_id) trainerCandidates.push(String(s.employee_id));
-                                if (s.admin_uuid) trainerCandidates.push(String(s.admin_uuid));
-                                if (s.id) trainerCandidates.push(String(s.id));
-                            }
-                        }
-
-                        const trainerPlaceholders = trainerCandidates.length > 0 ? trainerCandidates.map(() => '?').join(',') : '';
-                        const trainerClause = trainerPlaceholders ? ` OR CAST(enquiries.trainer_id AS CHAR) IN (${trainerPlaceholders})` : '';
-
-                        whereClause += ` AND (enquiries.created_by IN (${createdPlaceholders})${trainerClause})`;
-                        params = [...createdByCandidates, ...(trainerCandidates.length > 0 ? trainerCandidates : []), id];
-                    } else {
-                        params = [id];
-                    }
-                } else {
-                    params = [id];
-                }
-            } else {
-                params = [id];
-            }
-            
-            const [result] = await pool.query(`DELETE FROM enquiries ${whereClause}`, params);
-
+            const [result] = await pool.query('DELETE FROM enquiries WHERE id = ?', [id]);
             if (result.affectedRows === 0) {
                 return res.status(404).json({ error: 'Enquiry not found' });
             }
 
-            res.json({ message: 'Enquiry deleted successfully' });
+            return res.json({ message: 'Enquiry deleted successfully' });
         } catch (error) {
             console.error('Error deleting enquiry:', error);
-            res.status(500).json({ error: 'Internal server error' });
+            return res.status(500).json({
+                error: 'Internal server error',
+                details: process.env.NODE_ENV !== 'production' ? error.message : undefined,
+            });
         }
     }
 };

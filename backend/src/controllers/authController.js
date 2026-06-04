@@ -3,22 +3,25 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const logger = require('../config/logger');
 
+const SUPERADMIN_CONTACT_NUMBER = process.env.SUPERADMIN_CONTACT_NUMBER || '+91 12345 67890';
+
 let membersIdentifierColumnsCache = null;
 
 function buildAuthPayload(user) {
   // For admins, adminUuid should be their own userUuid/user_uuid
   // For super admins, it might be stored as admin_uuid
-  // For members, it's stored in created_by field
+  // For members, it is stored in created_by field
   // For trainers in staff table, admin_uuid is their admin's UUID
   const adminUuid = user.admin_uuid || user.user_uuid || user.userUuid || user.created_by || null;
   const contact = user.mobile || user.phone || null;
   
+  const normalizedRole = String(user.role || '').toLowerCase();
   return {
     userId: user.id || null,
     user_id: user.user_id || null,
     userUuid: user.user_uuid || user.userUuid || user.employee_id || null,
     memberUuid: user.member_id || user.memberId || user.member_uuid || user.memberUuid || user.employee_id || null,
-    role: user.role,
+    role: normalizedRole,
     email: user.email,
     username: user.username || null,
     mobile: user.mobile || contact,
@@ -27,6 +30,46 @@ function buildAuthPayload(user) {
     adminUuid: adminUuid,  // For filtering - admin's own UUID, or trainer's admin UUID, or member's admin UUID
     subscriptionStatus: user.subscription_status || null,
   };
+}
+
+const SUBSCRIPTION_PLAN_DAYS = {
+  demo: 5,
+  '1month': 30,
+  '6month': 180,
+  '12month': 365,
+};
+
+function normalizeSubscriptionPlan(plan) {
+  return String(plan || 'demo').toLowerCase();
+}
+
+function getSubscriptionEndDate(subscriptionStartDate, subscriptionPlan) {
+  if (!subscriptionStartDate) return null;
+  const start = new Date(subscriptionStartDate);
+  if (Number.isNaN(start.getTime())) return null;
+  const normalizedPlan = normalizeSubscriptionPlan(subscriptionPlan);
+  const durationDays = SUBSCRIPTION_PLAN_DAYS[normalizedPlan] ?? SUBSCRIPTION_PLAN_DAYS['1month'];
+  const endDate = new Date(start);
+  endDate.setDate(endDate.getDate() + durationDays);
+  endDate.setHours(23, 59, 59, 999);
+  return endDate;
+}
+
+function isAdminSubscriptionLoginAllowed(subscriptionStatus, subscriptionStartDate, subscriptionPlan) {
+  const normalizedStatus = String(subscriptionStatus || '').toLowerCase();
+  if (['cancelled', 'expired', 'completed', 'pending', 'inactive', 'inactive_admin'].includes(normalizedStatus)) {
+    return false;
+  }
+
+  if (normalizedStatus === 'active') {
+    const endDate = getSubscriptionEndDate(subscriptionStartDate, subscriptionPlan);
+    if (endDate) {
+      return endDate >= new Date();
+    }
+    return true;
+  }
+
+  return false;
 }
 
 async function findSuperAdminByIdentifier(identifier) {
@@ -360,9 +403,10 @@ async function login(req, res) {
     }
 
     // Check subscription status for admins
-    if (user.role === 'admin' && user.subscription_status !== 'active') {
-      logger.warn('admin login blocked due to subscription status: %s', user.subscription_status);
-      return res.status(403).json({ message: 'Admin account is not active. Complete the subscription before logging in.' });
+    if (user.role === 'admin' && !isAdminSubscriptionLoginAllowed(user.subscription_status, user.subscription_start_date, user.subscription_plan)) {
+      const endDate = getSubscriptionEndDate(user.subscription_start_date, user.subscription_plan);
+      logger.warn('admin login blocked due to subscription status or expiry: %s, endDate: %s', user.subscription_status, endDate);
+      return res.status(403).json({ message: `Admin subscription has ended. Contact your super admin at ${SUPERADMIN_CONTACT_NUMBER} to renew or buy a new subscription.` });
     }
 
     const payload = buildAuthPayload(user);
@@ -420,8 +464,10 @@ async function googleLogin(req, res) {
       }
     }
 
-    if (user.role === 'admin' && user.subscription_status !== 'active') {
-      return res.status(403).json({ message: 'Admin account is not active. Complete the subscription before logging in.' });
+    if (user.role === 'admin' && !isAdminSubscriptionLoginAllowed(user.subscription_status, user.subscription_start_date, user.subscription_plan)) {
+      const endDate = getSubscriptionEndDate(user.subscription_start_date, user.subscription_plan);
+      logger.warn('google login blocked due to subscription status or expiry: %s, endDate: %s', user.subscription_status, endDate);
+      return res.status(403).json({ message: `Admin subscription has ended. Contact your super admin at ${SUPERADMIN_CONTACT_NUMBER} to renew or buy a new subscription.` });
     }
 
     const payload = buildAuthPayload(user);

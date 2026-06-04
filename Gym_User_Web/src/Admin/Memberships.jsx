@@ -16,6 +16,7 @@ const Memberships = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [paymentTypeFilter, setPaymentTypeFilter] = useState("all");
+  const [trainerFilter, setTrainerFilter] = useState("all");
   const [adminFilter, setAdminFilter] = useState(null);
   
   const [currentPage, setCurrentPage] = useState(1);
@@ -126,6 +127,11 @@ const Memberships = () => {
       if (statusFilter !== "all" && m.status !== statusFilter) return false;
       if (paymentTypeFilter !== "all" && m.paymentType.toLowerCase() !== paymentTypeFilter) return false;
 
+      if (trainerFilter !== "all") {
+        const trainerName = (m.trainerName || "Unassigned");
+        if (trainerName !== trainerFilter) return false;
+      }
+
       if (dateFilter !== "all") {
         const sourceDate = dayjs(m.createdAt || m.startDate);
         if (!sourceDate.isValid()) return false;
@@ -142,14 +148,20 @@ const Memberships = () => {
 
       return true;
     });
-  }, [memberships, search, statusFilter, paymentTypeFilter, dateFilter, customStart, customEnd]);
+  }, [memberships, search, statusFilter, paymentTypeFilter, dateFilter, customStart, customEnd, trainerFilter]);
+
+  const trainers = useMemo(() => {
+    const set = new Set();
+    memberships.forEach((m) => set.add(m.trainerName || "Unassigned"));
+    return ["all", ...Array.from(set).sort()];
+  }, [memberships]);
 
   const totalPages = Math.max(1, Math.ceil(filteredMemberships.length / itemsPerPage));
   const paginatedMemberships = filteredMemberships.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, statusFilter, paymentTypeFilter, dateFilter, customStart, customEnd]);
+  }, [search, statusFilter, paymentTypeFilter, dateFilter, customStart, customEnd, trainerFilter]);
 
   const exportToExcel = () => {
     const rows = filteredMemberships.map((m, index) => ({
@@ -282,7 +294,7 @@ const Memberships = () => {
                   />
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-4">
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
@@ -302,6 +314,16 @@ const Memberships = () => {
                     <option value="paid">Paid</option>
                     <option value="emi">EMI</option>
                     <option value="pending">Pending</option>
+                  </select>
+
+                  <select
+                    value={trainerFilter}
+                    onChange={(e) => { setTrainerFilter(e.target.value); setCurrentPage(1); }}
+                    className="rounded-2xl border border-white/10 bg-slate-950/80 py-3 px-4 text-sm text-white outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                  >
+                    {trainers.map((t) => (
+                      <option key={t} value={t}>{t === 'all' ? 'All Trainers' : t}</option>
+                    ))}
                   </select>
                 </div>
               </div>

@@ -1,44 +1,126 @@
 const db = require('../config/db');
 const { getActorUuid } = require('../utils/auditTrail');
 
-// NOTE: use getActorUuid(req.user) from utils/auditTrail for actor UUID
+const isNumeric = (value) => {
+  const normalized = String(value || '').trim();
+  return /^[1-9]\d*$/.test(normalized);
+};
+
+const normalizeUuid = (value) => {
+  if (!value || typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed && /[^0-9]/.test(trimmed) ? trimmed : null;
+};
 
 async function resolveTrainerStaffId(trainerId) {
   if (!trainerId) return null;
-  const numericId = Number(trainerId);
-  if (!Number.isNaN(numericId) && numericId > 0) {
-    const [staffById] = await db.query('SELECT id FROM staff WHERE id = ?', [numericId]);
-    if (staffById.length > 0) return numericId;
+  const requested = String(trainerId).trim();
+  if (!requested || requested === '0') return null;
+
+  if (isNumeric(requested)) {
+    const [staffRows] = await db.query(
+      'SELECT id, employee_id FROM staff WHERE id = ? OR employee_id = ? LIMIT 1',
+      [requested, requested]
+    );
+    if (staffRows.length > 0) {
+      return staffRows[0].employee_id || String(staffRows[0].id);
+    }
+  }
+
+  const [staffRows] = await db.query(
+    'SELECT id, employee_id FROM staff WHERE employee_id = ? LIMIT 1',
+    [requested]
+  );
+  if (staffRows.length > 0) {
+    return staffRows[0].employee_id;
   }
 
   const [userRows] = await db.query(
-    'SELECT id, email, username, employee_id FROM users WHERE id = ?',
-    [trainerId]
+    'SELECT id, email, username, employee_id, user_uuid FROM users WHERE id = ? OR user_uuid = ? LIMIT 1',
+    [requested, requested]
   );
   if (userRows.length === 0) return null;
 
-  const u = userRows[0];
+  const user = userRows[0];
+  if (user.employee_id) return user.employee_id;
+
   const conditions = [];
   const params = [];
-  if (u.email) {
+  if (user.email) {
     conditions.push('email = ?');
-    params.push(u.email);
+    params.push(user.email);
   }
-  if (u.username) {
+  if (user.username) {
     conditions.push('username = ?');
-    params.push(u.username);
+    params.push(user.username);
   }
-  if (u.employee_id) {
+  if (user.employee_id) {
     conditions.push('employee_id = ?');
-    params.push(u.employee_id);
+    params.push(user.employee_id);
   }
+
   if (conditions.length === 0) return null;
 
-  const [staffRows] = await db.query(
-    `SELECT id FROM staff WHERE ${conditions.join(' OR ')} LIMIT 1`,
+  const [staffByUser] = await db.query(
+    `SELECT id, employee_id FROM staff WHERE ${conditions.join(' OR ')} LIMIT 1`,
     params
   );
-  return staffRows.length > 0 ? staffRows[0].id : null;
+  if (staffByUser.length > 0) {
+    return staffByUser[0].employee_id || String(staffByUser[0].id);
+  }
+
+  return null;
+}
+
+async function resolveAttendanceMemberId(memberId) {
+  if (!memberId) return null;
+  const requested = String(memberId).trim();
+  if (!requested || requested === '0') return null;
+
+  const [memberRows] = await db.query(
+    'SELECT id, member_id, user_id FROM members WHERE id = ? OR member_id = ? LIMIT 1',
+    [requested, requested]
+  );
+  if (memberRows.length > 0) {
+    return memberRows[0].member_id || String(memberRows[0].id);
+  }
+
+  const [userRows] = await db.query(
+    'SELECT id, user_uuid FROM users WHERE id = ? OR user_uuid = ? LIMIT 1',
+    [requested, requested]
+  );
+  if (userRows.length > 0) {
+    return userRows[0].user_uuid || String(userRows[0].id);
+  }
+
+  const [membershipRows] = await db.query(
+    'SELECT memberId, userId FROM memberships WHERE id = ? OR member_id = ? LIMIT 1',
+    [requested, requested]
+  );
+  if (membershipRows.length > 0) {
+    const membership = membershipRows[0];
+    if (membership.memberId) {
+      const [memberById] = await db.query(
+        'SELECT member_id FROM members WHERE id = ? LIMIT 1',
+        [membership.memberId]
+      );
+      if (memberById.length > 0) {
+        return memberById[0].member_id || String(membership.memberId);
+      }
+    }
+    if (membership.userId) {
+      const [userById] = await db.query(
+        'SELECT user_uuid FROM users WHERE id = ? LIMIT 1',
+        [membership.userId]
+      );
+      if (userById.length > 0) {
+        return userById[0].user_uuid || String(membership.userId);
+      }
+      return String(membership.userId);
+    }
+  }
+
+  return requested;
 }
 
 /**
@@ -47,7 +129,7 @@ async function resolveTrainerStaffId(trainerId) {
  */
 async function getAttendance(req, res) {
   try {
-    const { date, trainerId, memberOnly } = req.query;
+    const { date, trainerId, memberOnly, memberId, activeOnly } = req.query;
 
     // Check if user is super admin
     const isSuperAdmin = req.user && String(req.user.role || '').toLowerCase() === 'super admin';
@@ -64,16 +146,27 @@ async function getAttendance(req, res) {
       }
     }
 
-    // Improved query to get names from either users or staff
+    // Improved query to get names from users, staff, memberships, or members
     let sql = `
       SELECT DISTINCT
-        a.*, 
-        COALESCE(s.name, u.username, u.email, 'Unknown') as name, 
-        COALESCE(u.email, s.email) as email,
-        COALESCE(s.role, u.role, 'Staff') as role
+        a.*,
+        COALESCE(
+          gm.name,
+          mu.username,
+          mu.email,
+          u.username,
+          u.email,
+          s.name,
+          'Unknown'
+        ) AS name,
+        COALESCE(mu.email, u.email, s.email) AS email,
+        COALESCE(mu.role, u.role, s.role, 'Member') AS role
       FROM attendance a
-      LEFT JOIN users u ON u.id = a.member_id
-      LEFT JOIN staff s ON s.id = a.member_id
+      LEFT JOIN members gm ON gm.member_id = a.member_id OR gm.id = a.member_id
+      LEFT JOIN users u ON u.id = a.member_id OR u.user_uuid = a.member_id
+      LEFT JOIN memberships m2 ON m2.memberId = gm.id OR m2.userId = a.member_id
+      LEFT JOIN users mu ON mu.id = m2.userId
+      LEFT JOIN staff s ON s.id = a.member_id OR s.employee_id = a.member_id
       WHERE 1=1
     `;
     let params = [];
@@ -88,13 +181,30 @@ async function getAttendance(req, res) {
       if (!resolvedStaffId) {
         return res.json([]);
       }
-      sql += " AND a.trainer_id = ?";
-      params.push(resolvedStaffId);
+      sql += " AND (a.trainer_id = ? OR a.trainer_id = (SELECT employee_id FROM staff WHERE id = ? LIMIT 1))";
+      params.push(resolvedStaffId, trainerId);
+    }
+
+    if (memberId) {
+      const resolvedMemberId = await resolveAttendanceMemberId(memberId);
+      if (!resolvedMemberId) {
+        return res.json([]);
+      }
+      const memberFilter = [resolvedMemberId];
+      if (isNumeric(memberId) && resolvedMemberId !== memberId) {
+        memberFilter.push(memberId);
+      }
+      sql += ` AND (${memberFilter.map(() => 'a.member_id = ?').join(' OR ')})`;
+      params.push(...memberFilter);
+    }
+
+    if (activeOnly === 'true') {
+      sql += ' AND a.check_out IS NULL';
     }
 
     // 🔒 memberOnly=true → exclude trainer/staff/admin records (Member Attendance page)
     if (memberOnly === 'true') {
-      sql += " AND (u.role IS NULL OR (LOWER(u.role) NOT IN ('trainer', 'staff', 'admin')))";
+      sql += " AND ((u.role IS NULL OR (LOWER(u.role) NOT IN ('trainer', 'staff', 'admin'))) AND (s.role IS NULL OR (LOWER(s.role) NOT IN ('trainer', 'staff', 'admin'))))";
     }
 
     // Apply admin_uuid filter
@@ -158,27 +268,39 @@ async function markAttendance(req, res) {
       }
     }
 
-    // Check if record already exists for this member and date that hasn't been checked out yet
+    const resolvedMemberId = await resolveAttendanceMemberId(memberId);
+    if (!resolvedMemberId) {
+      return res.status(400).json({ error: 'Invalid member id' });
+    }
+
+    const memberFilter = [resolvedMemberId];
+    if (isNumeric(memberId) && resolvedMemberId !== memberId) {
+      memberFilter.push(memberId);
+    }
+
     const [existing] = await db.query(
-      "SELECT id FROM attendance WHERE member_id = ? AND (`date` = ? OR DATE(check_in) = ?) AND check_out IS NULL",
-      [memberId, date, date]
+      `SELECT id, check_out FROM attendance WHERE (${memberFilter.map(() => 'member_id = ?').join(' OR ')}) AND (\`date\` = ? OR DATE(check_in) = ?) ORDER BY check_in DESC LIMIT 1`,
+      [...memberFilter, date, date]
     );
 
     if (existing.length > 0) {
-      // Update existing record only if it's currently "checked in"
-      const updatedBy = getActorUuid(req.user) || null;
-      await db.query(
-        "UPDATE attendance SET status = ?, trainer_id = ?, lat = ?, lng = ?, location_name = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        [status, resolvedStaffId || null, lat || null, lng || null, locationName || null, updatedBy, existing[0].id]
-      );
-      return res.json({ success: true, message: 'Attendance updated' });
+      const record = existing[0];
+      if (record.check_out === null) {
+        const updatedBy = getActorUuid(req.user) || null;
+        await db.query(
+          "UPDATE attendance SET status = ?, trainer_id = ?, lat = ?, lng = ?, location_name = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+          [status, resolvedStaffId || null, lat || null, lng || null, locationName || null, updatedBy, record.id]
+        );
+        return res.json({ success: true, message: 'Attendance updated' });
+      }
+
+      return res.status(409).json({ error: 'Attendance has already been recorded for this member today.' });
     }
 
-    // Insert new record
     const createdBy = getActorUuid(req.user) || null;
     await db.query(
       "INSERT INTO attendance (member_id, trainer_id, status, `date`, lat, lng, location_name, check_in, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)",
-      [memberId, resolvedStaffId || null, status, date, lat || null, lng || null, locationName || null, createdBy, createdBy]
+      [resolvedMemberId, resolvedStaffId || null, status, date, lat || null, lng || null, locationName || null, createdBy, createdBy]
     );
 
     res.json({ success: true, message: 'Attendance marked' });
@@ -200,11 +322,21 @@ async function checkOut(req, res) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    const resolvedMemberId = await resolveAttendanceMemberId(memberId);
+    if (!resolvedMemberId) {
+      return res.status(400).json({ error: 'Invalid member id' });
+    }
+
+    const memberFilter = [resolvedMemberId];
+    if (isNumeric(memberId) && resolvedMemberId !== memberId) {
+      memberFilter.push(memberId);
+    }
+
     // Find the current active check-in (where check_out is null)
     // We prioritize the most recent check-in for this member that hasn't been checked out
     const [existing] = await db.query(
-      "SELECT id, member_id, check_in, check_out FROM attendance WHERE member_id = ? AND check_out IS NULL ORDER BY check_in DESC LIMIT 1",
-      [memberId]
+      `SELECT id, member_id, check_in, check_out FROM attendance WHERE (${memberFilter.map(() => 'member_id = ?').join(' OR ')}) AND check_out IS NULL ORDER BY check_in DESC LIMIT 1`,
+      memberFilter
     );
 
     if (existing.length === 0) {

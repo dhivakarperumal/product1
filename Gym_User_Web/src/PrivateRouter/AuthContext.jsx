@@ -15,8 +15,9 @@ export const AuthProvider = ({ children }) => {
       const stored = localStorage.getItem("user");
       if (stored) {
         const u = JSON.parse(stored);
-        setUser(u);
-        setRole(u.role || null);
+        const normalizedRole = String(u.role || "").toLowerCase();
+        setUser({ ...u, role: normalizedRole });
+        setRole(normalizedRole || null);
       }
     } catch (err) {
       console.error("failed to parse stored user", err);
@@ -26,10 +27,15 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = (userData, token) => {
-    localStorage.setItem("user", JSON.stringify(userData));
+    const normalizedUserData = {
+      ...userData,
+      role: String(userData.role || "").toLowerCase(),
+    };
+
+    localStorage.setItem("user", JSON.stringify(normalizedUserData));
     if (token) localStorage.setItem("token", token);
-    setUser(userData);
-    setRole(userData.role || null);
+    setUser(normalizedUserData);
+    setRole(normalizedUserData.role || null);
   };
 
   const logout = () => {

@@ -1,6 +1,7 @@
 import axios from "axios";
 
 const rawApiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+// const rawApiUrl = import.meta.env.VITE_APP_TITLE || "https://product1.qtechx.com/api";
 export const API_URL = rawApiUrl.endsWith("/") ? rawApiUrl.slice(0, -1) : rawApiUrl;
 
 const api = axios.create({

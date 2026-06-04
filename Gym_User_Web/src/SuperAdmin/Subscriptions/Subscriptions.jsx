@@ -292,6 +292,7 @@ const normalizedStatus = String(admin.subscription_status || '').toLowerCase();
                         <label className="text-xs text-slate-300 mb-2 block">Amount ($)</label>
                         <input
                           type="number"
+                          min="0"
                           step="0.01"
                           value={editData.subscription_amount}
                           onChange={(e) => setEditData({...editData, subscription_amount: e.target.value})}

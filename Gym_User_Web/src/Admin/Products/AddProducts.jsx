@@ -345,6 +345,7 @@ const AddProducts = () => {
                                 <label className="block text-sm font-medium text-slate-300 mb-2">Quantity</label>
                                 <input
                                   type="number"
+                                  min="1"
                                   className={inputClass}
                                   value={form.stock[w]?.qty || ""}
                                   onChange={(e) => updateFoodStock(w, "qty", e.target.value)}
@@ -355,6 +356,7 @@ const AddProducts = () => {
                                 <label className="block text-sm font-medium text-slate-300 mb-2">MRP</label>
                                 <input
                                   type="number"
+                                  min="1"
                                   className={inputClass}
                                   value={form.stock[w]?.mrp || ""}
                                   onChange={(e) => updateFoodStock(w, "mrp", e.target.value)}
@@ -365,6 +367,7 @@ const AddProducts = () => {
                                 <label className="block text-sm font-medium text-slate-300 mb-2">Offer %</label>
                                 <input
                                   type="number"
+                                  min="0"
                                   className={inputClass}
                                   value={form.stock[w]?.offer || ""}
                                   onChange={(e) => updateFoodStock(w, "offer", e.target.value)}
@@ -396,6 +399,7 @@ const AddProducts = () => {
                           <label className="block text-sm font-medium text-slate-300 mb-2">MRP</label>
                           <input
                             type="number"
+                            min="1"
                             className={inputClass}
                             value={form.mrp}
                             onChange={(e) => updateCommonPrice("mrp", e.target.value)}
@@ -406,6 +410,7 @@ const AddProducts = () => {
                           <label className="block text-sm font-medium text-slate-300 mb-2">Offer %</label>
                           <input
                             type="number"
+                            min="0"
                             className={inputClass}
                             value={form.offer}
                             onChange={(e) => updateCommonPrice("offer", e.target.value)}

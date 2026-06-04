@@ -1001,6 +1001,7 @@ const AddDietPlans = () => {
               <label className="text-xs font-medium text-white/50 ml-1">Total Calories (Auto)</label>
               <input
                 type="number"
+                min="0"
                 className={inputClass}
                 placeholder="Total Calories"
                 value={form.totalCalories}
@@ -1016,6 +1017,7 @@ const AddDietPlans = () => {
               <label className="text-xs font-medium text-white/50 ml-1">Member Weight (kg)</label>
               <input
                 type="number"
+                min="1"
                 step="0.1"
                 className={inputClass}
                 placeholder="Weight"
@@ -1155,6 +1157,7 @@ const AddDietPlans = () => {
                           {/* Calories */}
                           <input
                             type="number"
+                            min="0"
                             className={inputClass}
                             placeholder="Kcal"
                             value={mealData?.calories || ""}

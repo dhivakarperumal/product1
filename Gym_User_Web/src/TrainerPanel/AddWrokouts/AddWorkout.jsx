@@ -536,6 +536,7 @@ const AddWorkout = () => {
               <label className="text-xs font-medium text-white/50 ml-1">Duration (Weeks)</label>
               <input
                 type="number"
+                min="1"
                 className={inputClass}
                 placeholder="e.g. 12"
                 value={form.durationWeeks}
@@ -620,6 +621,7 @@ const AddWorkout = () => {
                       <label className="text-[10px] uppercase tracking-wider font-bold text-white/40 ml-1">Sets</label>
                       <input
                         type="number"
+                        min="1"
                         className={inputClass}
                         placeholder="No. of Sets"
                         value={item.sets}

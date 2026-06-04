@@ -91,6 +91,7 @@ const HealthSettings = () => {
               <label className="text-sm font-semibold text-white/80 mb-2 block">Weight (kg)</label>
               <input
                 type="number"
+                min="1"
                 name="weight"
                 value={formData.weight}
                 onChange={handleChange}
@@ -106,6 +107,7 @@ const HealthSettings = () => {
               <label className="text-sm font-semibold text-white/80 mb-2 block">Height (cm)</label>
               <input
                 type="number"
+                min="1"
                 name="height"
                 value={formData.height}
                 onChange={handleChange}
@@ -121,6 +123,7 @@ const HealthSettings = () => {
               <label className="text-sm font-semibold text-white/80 mb-2 block">Age (years)</label>
               <input
                 type="number"
+                min="1"
                 name="age"
                 value={formData.age}
                 onChange={handleChange}

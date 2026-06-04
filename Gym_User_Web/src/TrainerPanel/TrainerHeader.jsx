@@ -28,8 +28,17 @@ const pageTitles = {
   "/trainer/alladdworkouts": "All Workouts",
   "/trainer/adddietplans": "Add Diet Plans",
   "/trainer/alladddietplans": "All Diet Plans",
+  "/trainer/update-weight": "Update Weight",
   "/trainer/overall-attendance": "Attendance",
+  "/trainer/send-message": "Send Message",
+  "/trainer/billing": "Billing",
+  "/trainer/billing-history": "Billing History",
+  "/trainer/collect-fees": "Collect Fees",
+  "/trainer/enquiry": "Enquiries",
+  "/trainer/gym-plan": "Gym Plans",
+  "/trainer/target": "Target",
   "/trainer/reports": "Reports",
+  "/trainer/settings": "Settings",
   "/trainer/settings/profile": "Profile",
 };
 
@@ -87,15 +96,32 @@ const TrainerHeader = ({ onMenuClick, isLargeScreen }) => {
     if (!stored) return;
 
     const elapsedMs = Date.now() - stored.checkinTime;
-    if (elapsedMs < 24 * 60 * 60 * 1000) {
-      // Within same day/24h period, we show check-out option if they haven't checked out yet
-      // For now, if stored in localStorage, it means they are currently "in"
-      setCheckedIn(true);
-      setCheckinLocation(stored.locationName || GYM_LOCATION.name);
-    } else {
-      // Cooldown expired — clear and allow next check-in
+    if (elapsedMs >= 24 * 60 * 60 * 1000) {
       clearCheckin();
+      return;
     }
+
+    const validateStoredCheckin = async () => {
+      try {
+        const res = await api.get(`/attendance?memberId=${encodeURIComponent(user.id)}&activeOnly=true`);
+        if (!Array.isArray(res.data) || res.data.length === 0) {
+          clearCheckin();
+          setCheckedIn(false);
+          setCheckinLocation("");
+          return;
+        }
+
+        setCheckedIn(true);
+        setCheckinLocation(stored.locationName || GYM_LOCATION.name);
+      } catch (err) {
+        console.error("Failed to validate stored check-in:", err);
+        clearCheckin();
+        setCheckedIn(false);
+        setCheckinLocation("");
+      }
+    };
+
+    validateStoredCheckin();
   }, [user?.id]);
 
 
@@ -239,7 +265,7 @@ const TrainerHeader = ({ onMenuClick, isLargeScreen }) => {
       
       if (err.response?.status === 404) {
         // If backend says no active check-in found, our local state is out of sync
-        toast.error(`Sync Error: ${errorMsg}`);
+        toast(`No active check-in found. Your local check-in status has been reset.`);
         clearCheckin();
         setCheckedIn(false);
         setCheckinLocation("");

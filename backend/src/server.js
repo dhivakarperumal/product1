@@ -148,7 +148,7 @@ app.use("/api/memberships", membershipRoutes);
 app.use("/api/emi-notifications", emiNotificationRoutes);
 
 const PORT = process.env.PORT || 5000;
-if (process.env.NODE_ENV !== 'production') {
+if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`Backend running on http://localhost:${PORT}`);
   });
