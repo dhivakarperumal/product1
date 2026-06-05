@@ -110,6 +110,40 @@ const TrackItem = ({ title, time, active, isLast }) => (
 );
 
 /* ================= PAGE ================= */
+const resolveAdminOrderImage = (img) => {
+  if (!img && img !== 0) return null;
+  if (typeof img === "string") return img;
+  if (Array.isArray(img)) {
+    return img.map(resolveAdminOrderImage).find(Boolean) || null;
+  }
+  if (typeof img === "object") {
+    return (
+      img.url ||
+      img.src ||
+      img.image ||
+      img.imageUrl ||
+      img.image_url ||
+      img.photo ||
+      img.thumbnail ||
+      img.path ||
+      img.productImage ||
+      img.product_image ||
+      img.product?.image ||
+      (Array.isArray(img.product?.images) && img.product.images[0]) ||
+      null
+    );
+  }
+  return null;
+};
+
+const makeAdminImageUrl = (img) => {
+  const value = resolveAdminOrderImage(img);
+  if (!value) return "";
+  if (typeof value !== "string") return "";
+  if (value.startsWith("http") || value.startsWith("data:")) return value;
+  return `${API_BASE.replace(/\/$/, "")}/${value.replace(/^\/+/, "")}`;
+};
+
 const OrderDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -388,39 +422,41 @@ const OrderDetails = () => {
               {order.items?.map((i, idx) => (
                 <tr key={idx} className="border-t border-white/10">
                   <td className="px-4 py-3">
-                    {i.image ? (
-                      (() => {
-                        const raw = i.image;
-                        // compute src similar to user orders helper
-                        let src = "";
-                        if (raw) {
-                          if (raw.startsWith('http') || raw.startsWith('data:')) {
-                            src = raw;
-                          } else {
-                            src = `${API_BASE}/${raw.replace(/^\//,"")}`;
-                          }
-                        }
-                        // drop tiny data URIs that are probably truncated
-                        if (src.startsWith('data:') && src.length < 150) {
-                          src = "invalid"; // force onError to trigger
-                        }
+                    {(() => {
+                      const src = makeAdminImageUrl(
+                        i.image ||
+                          i.images ||
+                          i.productImage ||
+                          i.product_image ||
+                          i.photo ||
+                          i.thumbnail ||
+                          i.product?.image ||
+                          i.product?.images?.[0]
+                      );
+                      if (!src) {
                         return (
-                          <img
-                            src={src || "https://via.placeholder.com/60"}
-                            alt={i.name}
-                            className="w-12 h-12 object-cover rounded-lg"
-                            onError={(e) => {
-                              console.error("admin order item image failed", e.target.src, "len", e.target.src.length);
-                              e.target.src = "https://via.placeholder.com/60";
-                            }}
-                          />
+                          <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center text-gray-400">
+                            No Image
+                          </div>
                         );
-                      })()
-                    ) : (
-                      <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center text-gray-400">
-                        No Image
-                      </div>
-                    )}
+                      }
+                      return (
+                        <img
+                          src={src}
+                          alt={i.name}
+                          className="w-12 h-12 object-cover rounded-lg"
+                          onError={(e) => {
+                            console.error(
+                              "admin order item image failed",
+                              e.target.src,
+                              "len",
+                              e.target.src.length
+                            );
+                            e.target.src = "https://via.placeholder.com/60";
+                          }}
+                        />
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-3">{i.name || "-"}</td>
                   <td className="px-4 py-3 text-center">{i.variant || "-"}</td>

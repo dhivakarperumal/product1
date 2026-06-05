@@ -84,7 +84,7 @@ async function resolveMemberDetails(memberId, memberName, memberEmail, memberMob
       };
     }
 
-    if (isNumeric(requested)) {
+      if (isNumeric(requested)) {
       const [membershipRows] = await db.query(
         'SELECT memberId, userId FROM memberships WHERE id = ? LIMIT 1',
         [requested]
@@ -117,7 +117,13 @@ async function resolveMemberDetails(memberId, memberName, memberEmail, memberMob
           };
         }
       }
-      throw new Error('Invalid memberId for diet plan');
+
+      // If numeric id didn't match any membership/member rows, fall back to using
+      // the numeric value as a member UUID (compatibility with older data shapes).
+      // Previously this threw an error which resulted in 500 responses during bulk
+      // creation flows when front-end provided membership IDs. Prefer graceful
+      // handling and allow the insert to proceed or be rejected by validation.
+      return { memberUuid: requested, memberName, memberEmail, memberMobile, userId: userId || null };
     }
 
     return { memberUuid: requested, memberName, memberEmail, memberMobile, userId: userId || null };

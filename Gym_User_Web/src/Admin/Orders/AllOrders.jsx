@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
-import api from "../../api";
+import api, { API_URL } from "../../api";
 import cache from "../../cache";
 import {
   FaPrint,
@@ -79,12 +79,41 @@ const STATUS_SEQUENCE = [
 ];
 
 
+const resolveImageValue = (img) => {
+  if (!img && img !== 0) return null;
+  if (typeof img === "string") return img;
+  if (Array.isArray(img)) {
+    return img.map(resolveImageValue).find(Boolean) || null;
+  }
+  if (typeof img === "object") {
+    return (
+      img.url ||
+      img.src ||
+      img.image ||
+      resolveImageValue(img.images) ||
+      img.imageUrl ||
+      img.image_url ||
+      img.photo ||
+      img.thumbnail ||
+      img.path ||
+      img.productImage ||
+      img.product_image ||
+      img.product?.image ||
+      resolveImageValue(img.product?.images) ||
+      null
+    );
+  }
+  return null;
+};
+
 const makeImageUrl = (img) => {
-  if (!img) return "";
-  if (img.startsWith("http") || img.startsWith("data:")) return img;
-  const baseUrl = import.meta.env.VITE_API_URL || "";
-  const base = baseUrl.replace(/\/api$/, "");
-  return `${base.replace(/\/$/, "")}/${img.replace(/^\/+/, "")}`;
+  const value = resolveImageValue(img);
+  if (!value) return "";
+  if (typeof value !== "string") return "";
+  if (value.startsWith("http") || value.startsWith("data:")) return value;
+  const apiUrl = API_URL || import.meta.env.VITE_API_URL || window.location.origin;
+  const base = apiUrl.replace(/\/api$/, "");
+  return `${base.replace(/\/$/, "")}/${value.replace(/^\/+/, "")}`;
 };
 
 
@@ -703,7 +732,7 @@ ${items
 
 <td>
 <div class="product">
-<img src="${makeImageUrl(i.image) || "https://via.placeholder.com/50"}"/>
+<img src="${makeImageUrl(i) || "https://via.placeholder.com/50"}"/>
 <span>${i.product_name}</span>
 </div>
 </td>
@@ -1099,21 +1128,24 @@ ${items
                   </div>
 
                   <div className="space-y-3 mb-4">
-                    {(o.items || []).slice(0, 2).map((item, idx) => (
-                      <div key={idx} className="flex items-center gap-3 bg-slate-950/40 p-3 rounded-xl border border-white/5">
-                        {item.image && (
-                          <img
-                            src={makeImageUrl(item.image)}
-                            className="w-12 h-12 object-cover rounded-lg border border-white/10"
-                            alt=""
-                          />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-white truncate">{item.product_name}</p>
-                          <p className="text-xs text-slate-400">Qty: {item.qty} | ₹{item.price}</p>
+                    {(o.items || []).slice(0, 2).map((item, idx) => {
+                      const itemImageUrl = makeImageUrl(item);
+                      return (
+                        <div key={idx} className="flex items-center gap-3 bg-slate-950/40 p-3 rounded-xl border border-white/5">
+                          {itemImageUrl ? (
+                            <img
+                              src={itemImageUrl}
+                              className="w-12 h-12 object-cover rounded-lg border border-white/10"
+                              alt=""
+                            />
+                          ) : null}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-white truncate">{item.product_name}</p>
+                            <p className="text-xs text-slate-400">Qty: {item.qty} | ₹{item.price}</p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {(o.items || []).length > 2 && (
                       <p className="text-xs text-slate-400 text-center">
                         +{(o.items || []).length - 2} more items

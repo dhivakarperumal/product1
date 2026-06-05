@@ -26,8 +26,29 @@ const normalizeStatus = (status) => {
 };
 
 const isTodayOrder = (order) => {
-  const orderDate = dayjs(order.created_at || order.createdAt || order.date || order.orderDate);
-  return orderDate.isValid() && orderDate.isSame(dayjs(), "day");
+  if (!order) return false;
+  
+  // Try multiple date field names
+  const possibleDateFields = [
+    order.created_at,
+    order.createdAt,
+    order.date,
+    order.orderDate,
+    order.order_date
+  ];
+  
+  for (const dateField of possibleDateFields) {
+    if (dateField) {
+      const orderDate = dayjs(dateField);
+      if (orderDate.isValid()) {
+        const isToday = orderDate.isSame(dayjs(), "day");
+        return isToday;
+      }
+    }
+  }
+  
+  console.warn('[isTodayOrder] Order has no valid date field:', order);
+  return false;
 };
 
 const matchesCurrentUser = (item, user, resolvedUserId, resolvedUserEmail) => {
@@ -89,13 +110,50 @@ const Dashboard = () => {
 
     const fetchDashboardData = async (signal, cacheKey) => {
       try {
-        const [planRes, workoutRes, dietRes, orderRes] =
-          await Promise.all([
-            api.get(`/memberships/user/${resolvedUserId}`, { signal }),
-            api.get("/workouts", { signal }),
-            api.get("/diet-plans", { signal }),
-            api.get(`/orders/user/${resolvedUserId}`, { signal }),
-          ]);
+          // Prepare all possible user IDs for broader order lookup
+          const userIds = [
+            resolvedUserId,
+            user?.id,
+            user?.userId,
+            user?.user_id,
+            user?.memberId,
+            user?.member_id,
+            user?.memberUuid,
+            user?.member_uuid,
+            user?.userUuid,
+            user?.user_uuid,
+            user?.uuid
+          ].filter(Boolean);
+
+          const primaryUserId = userIds[0];
+          
+          // Try to fetch orders, fallback if needed
+          let orderRes;
+          try {
+            orderRes = await api.get(`/orders/user/${primaryUserId}`, { signal });
+          } catch (err) {
+            console.warn('Failed to fetch orders for userId:', primaryUserId, err.message);
+            // Fallback: try alternate IDs
+            orderRes = { data: [] };
+            for (const altId of userIds.slice(1)) {
+              try {
+                orderRes = await api.get(`/orders/user/${altId}`, { signal });
+                if (orderRes.data?.length > 0) {
+                  console.log('Orders found with alternate ID:', altId);
+                  break;
+                }
+              } catch {
+                continue;
+              }
+            }
+          }
+
+          const [planRes, workoutRes, dietRes] =
+            await Promise.all([
+              api.get(`/memberships/user/${resolvedUserId}`, { signal }),
+              api.get("/workouts", { signal }),
+              api.get("/diet-plans", { signal }),
+            ]);
 
         const today = dayjs();
         let plan = null;
@@ -226,7 +284,7 @@ const Dashboard = () => {
       isMountedRef.current = false;
       abortController.abort();
     };
-  }, [resolvedUserId, user?.email]);
+  }, [resolvedUserId, user]);
 
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 p-4 sm:p-6 lg:p-8 text-white space-y-8">
@@ -352,7 +410,7 @@ const Dashboard = () => {
 
             {Object.keys(dashboardData.todayDiet).length ? (
               <div className="space-y-3">
-                {Object.entries(dashboardData.todayDiet).map(([meal, val], idx) => {
+                {Object.entries(dashboardData.todayDiet).map(([meal, val]) => {
                   const item = typeof val === "object" ? val : { food: val };
                   const mealIcons = {
                     'Morning': '🌅',
@@ -467,7 +525,7 @@ const Dashboard = () => {
 
           {dashboardData.orders.length ? (
             <div className="grid gap-3 sm:gap-4">
-              {dashboardData.orders.map((order, idx) => (
+              {dashboardData.orders.map((order) => (
                 <div
                   key={order.id || order.order_id}
                   className="group relative overflow-hidden rounded-2xl border border-orange-500/10 bg-linear-to-br from-orange-500/5 to-orange-500/0 p-5 transition duration-300 hover:border-orange-500/40 hover:bg-orange-500/10"

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../PrivateRouter/AuthContext";
-import api from "../../api";
+import api, { API_URL } from "../../api";
 import { ShoppingCart, X, Package, CheckCircle, Truck, Clock } from "lucide-react";
 
 // ✅ Cache for orders
@@ -10,41 +10,74 @@ const ordersCache = {};
 // ✅ Image helper - improved with size limits
 const makeImageUrl = (img) => {
   if (!img) return null;
-  
-  // Already a URL
-  if (typeof img === 'string') {
-    if (img.startsWith("http")) return img;
-    if (img.startsWith("data:")) {
-      // Check if base64 data is too large (over 100KB)
-      const dataPart = img.split(',')[1];
+
+  const normalizeImageValue = (value) => {
+    if (!value && value !== 0) return null;
+    if (typeof value === 'string') return value;
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const normalized = normalizeImageValue(item);
+        if (normalized) return normalized;
+      }
+      return null;
+    }
+    if (typeof value === 'object') {
+      return (
+        value.url ||
+        value.src ||
+        value.image ||
+        normalizeImageValue(value.images) ||
+        value.imageUrl ||
+        value.image_url ||
+        value.productImage ||
+        value.product_image ||
+        value.photo ||
+        value.thumbnail ||
+        value.path ||
+        value.product?.image ||
+        normalizeImageValue(value.product?.images) ||
+        null
+      );
+    }
+    return null;
+  };
+
+  const resolved = normalizeImageValue(img);
+  if (!resolved) return null;
+
+  if (typeof resolved === 'string') {
+    const normalizedString = resolved.trim();
+    if (normalizedString.startsWith('{') || normalizedString.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(normalizedString);
+        return makeImageUrl(parsed);
+      } catch {
+        // Not JSON, continue with raw string
+      }
+    }
+
+    if (normalizedString.startsWith('http')) return normalizedString;
+    if (normalizedString.startsWith('data:')) {
+      const dataPart = normalizedString.split(',')[1];
       if (dataPart && dataPart.length > 100000) {
         console.warn('Image data too large, skipping display:', dataPart.length, 'characters');
-        return null; // Don't display very large images
+        return null;
       }
-      return img;
+      return normalizedString;
     }
-    
-    // Check if it looks like base64
-    const trimmed = img.trim();
-    if (trimmed.match(/^[A-Za-z0-9+/=]+$/)) {
-      if (trimmed.length > 50 && trimmed.length < 100000) {
-        return `data:image/webp;base64,${trimmed}`;
-      }
+
+    if (normalizedString.match(/^[A-Za-z0-9+/=]+$/) && normalizedString.length > 50 && normalizedString.length < 100000) {
+      return `data:image/webp;base64,${normalizedString}`;
     }
-    
-    // Treat as relative path
-    const apiUrl = import.meta.env.VITE_API_URL || "";
-    const baseUrl = apiUrl.replace(/\/api\/?$/, "");
-    if (baseUrl) {
-      const finalUrl = `${baseUrl.replace(/\/$/, "")}/${trimmed.replace(/^\/+/, "")}`;
-      return finalUrl;
-    }
+
+    const apiUrl = API_URL || import.meta.env.VITE_API_URL || window.location.origin;
+    const baseUrl = apiUrl.replace(/\/api\/?$/, '');
+    return `${baseUrl.replace(/\/$/, '')}/${normalizedString.replace(/^\/+/, '')}`;
   }
-  
+
   return null;
 };
 
-// ✅ Debug helper - logs when images fail
 const handleImageError = (e, itemName = '') => {
   console.warn(`[Orders] Image failed to load for ${itemName}:`, e.target.src);
   e.target.style.display = 'none';
@@ -300,7 +333,7 @@ const Orders = () => {
                           {order.items.slice(0, 3).map((item, i) => (
                             <div key={i} className="flex gap-3 bg-black/30 p-3 rounded-lg border border-white/5 hover:border-white/10 transition">
                               {(() => {
-                                const imgUrl = makeImageUrl(item.image);
+                                const imgUrl = makeImageUrl(item);
                                 if (!imgUrl) {
                                   return (
                                     <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded-md border border-orange-200 flex items-center justify-center flex-shrink-0">
@@ -438,7 +471,7 @@ const Orders = () => {
                         <div key={i} className="grid grid-cols-12 gap-4 mb-6 pb-6 border-b border-white/10 last:border-b-0">
                           <div className="col-span-7 flex gap-3">
                             {(() => {
-                              const imgUrl = makeImageUrl(item.image);
+                              const imgUrl = makeImageUrl(item);
                               if (!imgUrl) {
                                 return (
                                   <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded border border-orange-200 flex items-center justify-center flex-shrink-0">

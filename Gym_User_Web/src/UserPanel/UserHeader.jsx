@@ -16,6 +16,7 @@ import { useCart } from "../CartContext";
 import { signOut } from "firebase/auth";
 import { auth } from "../../firebase";
 import api from "../api";
+import { resolveUserId } from "../utils/userUtils";
 import toast from "react-hot-toast";
 
 const pageTitles = {
@@ -94,16 +95,23 @@ const UserHeader = ({ onMenuClick, isLargeScreen }) => {
   /* ---- Fetch Pending Orders Count (not delivered) -------- */
   useEffect(() => {
     const abortController = new AbortController();
-    
+
     const fetchOrderCount = async () => {
-      if (!user?.id) return;
+      const resolvedId = resolveUserId(user) || user?.id;
+      if (!resolvedId) return;
       try {
         setFetchingOrders(true);
-        const res = await api.get(`/orders/user/${user.id}`, {
+        const res = await api.get(`/orders/user/${resolvedId}`, {
           signal: abortController.signal
         });
-        const orders = Array.isArray(res.data) ? res.data : [];
-        // Count only orders that are NOT delivered
+
+        // Support both array responses and wrappers like { orders: [...] }
+        let orders = [];
+        if (Array.isArray(res.data)) orders = res.data;
+        else if (res.data && Array.isArray(res.data.orders)) orders = res.data.orders;
+        else orders = [];
+
+        // Count only orders that are NOT delivered or cancelled
         const pendingOrders = orders.filter(o => {
           const status = String(o.status || '').toLowerCase().replace(/[\s_-]+/g, '');
           return status !== 'delivered' && status !== 'cancelled';
@@ -120,7 +128,7 @@ const UserHeader = ({ onMenuClick, isLargeScreen }) => {
 
     fetchOrderCount();
     return () => abortController.abort();
-  }, [user?.id]);
+  }, [user]);
 
 
   /* ---- Page title --------------------------------------------------- */
